@@ -1,0 +1,281 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model attendance {
+  id             Int       @id @default(autoincrement())
+  studentId      Int
+  attendanceDate DateTime  @db.Date
+  checkInTime    DateTime? @db.Time(0)
+  checkOutTime   DateTime? @db.Time(0)
+  markedById     Int
+  user           user      @relation(fields: [markedById], references: [id], map: "Attendance_markedById_fkey")
+  student        student   @relation(fields: [studentId], references: [id], map: "Attendance_studentId_fkey")
+
+  @@index([markedById], map: "Attendance_markedById_fkey")
+  @@index([studentId], map: "Attendance_studentId_fkey")
+}
+
+model auditlog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  action     String   @db.Text
+  actionTime DateTime @default(now())
+  user       user?    @relation(fields: [userId], references: [id], map: "AuditLog_userId_fkey")
+
+  @@index([userId], map: "AuditLog_userId_fkey")
+}
+
+model billing {
+  id             Int              @id @default(autoincrement())
+  studentId      Int
+  billingMonth   String
+  amount         Decimal          @db.Decimal(10, 2)
+  status         String           @default("UNPAID")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  student        student          @relation(fields: [studentId], references: [id], map: "Billing_studentId_fkey")
+  billingpayment billingpayment[]
+
+  @@index([studentId], map: "Billing_studentId_fkey")
+}
+
+model billingpayment {
+  id        Int     @id @default(autoincrement())
+  billingId Int
+  paymentId Int
+  billing   billing @relation(fields: [billingId], references: [id], map: "BillingPayment_billingId_fkey")
+  payment   payment @relation(fields: [paymentId], references: [id], map: "BillingPayment_paymentId_fkey")
+
+  @@unique([billingId, paymentId], map: "BillingPayment_billingId_paymentId_key")
+  @@index([paymentId], map: "BillingPayment_paymentId_fkey")
+}
+
+model classroom {
+  id             Int              @id @default(autoincrement())
+  name           String
+  ageGroup       String?
+  capacity       Int?
+  mealPlan       String?          @db.Text
+  status         classroom_status @default(ACTIVE)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  homework       homework[]
+  notification   notification[]
+  student        student[]
+  teacherprofile teacherprofile[]
+}
+
+model expense {
+  id          Int      @id @default(autoincrement())
+  category    String
+  amount      Decimal  @db.Decimal(10, 2)
+  expenseDate DateTime
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+}
+
+model homework {
+  id          Int       @id @default(autoincrement())
+  classroomId Int
+  title       String
+  description String?   @db.Text
+  dueDate     DateTime?
+  createdById Int
+  createdAt   DateTime  @default(now())
+  classroom   classroom @relation(fields: [classroomId], references: [id], map: "Homework_classroomId_fkey")
+  user        user      @relation(fields: [createdById], references: [id], map: "Homework_createdById_fkey")
+
+  @@index([classroomId], map: "Homework_classroomId_fkey")
+  @@index([createdById], map: "Homework_createdById_fkey")
+}
+
+model notification {
+  id                                     Int        @id @default(autoincrement())
+  title                                  String
+  message                                String     @db.Text
+  targetRole                             String?
+  targetClassroomId                      Int?
+  createdById                            Int
+  createdAt                              DateTime   @default(now())
+  billingMonth                           String?
+  targetParentId                         Int?
+  user_notification_createdByIdTouser    user       @relation("notification_createdByIdTouser", fields: [createdById], references: [id], map: "Notification_createdById_fkey")
+  classroom                              classroom? @relation(fields: [targetClassroomId], references: [id], map: "Notification_targetClassroomId_fkey")
+  user_notification_targetParentIdTouser user?      @relation("notification_targetParentIdTouser", fields: [targetParentId], references: [id], map: "Notification_targetParentId_fkey")
+
+  @@index([createdById], map: "Notification_createdById_fkey")
+  @@index([targetClassroomId], map: "Notification_targetClassroomId_fkey")
+  @@index([targetParentId], map: "Notification_targetParentId_fkey")
+}
+
+model parent {
+  id                                     Int                 @id @default(autoincrement())
+  parentUniqueId                         String              @unique(map: "Parent_parentUniqueId_key")
+  fullName                               String
+  relationship                           parent_relationship
+  nationalId                             String?
+  occupation                             String?
+  address                                String?             @db.Text
+  phone                                  String?             @unique(map: "Parent_phone_key")
+  email                                  String?             @unique(map: "Parent_email_key")
+  photoUrl                               String?
+  verificationCode                       String?             @unique
+  status                                 parent_status       @default(ACTIVE)
+  createdAt                              DateTime            @default(now())
+  updatedAt                              DateTime            @updatedAt
+  student_student_parentIdToparent       student[]           @relation("student_parentIdToparent")
+  student_student_secondParentIdToparent student[]           @relation("student_secondParentIdToparent")
+}
+
+model payment {
+  id             Int              @id @default(autoincrement())
+  paymentMethod  String
+  receiptUrl     String?
+  verifiedById   Int?
+  verifiedAt     DateTime?
+  createdAt      DateTime         @default(now())
+  amountPaid     Decimal          @db.Decimal(10, 2)
+  status         payment_status   @default(PENDING)
+  transactionRef String?
+  billingpayment billingpayment[]
+  user           user?            @relation(fields: [verifiedById], references: [id], map: "Payment_verifiedById_fkey")
+
+  @@index([verifiedById], map: "Payment_verifiedById_fkey")
+}
+
+model student {
+  id                                    Int               @id @default(autoincrement())
+  studentUniqueId                       String            @unique(map: "Student_studentUniqueId_key")
+  fullName                              String
+  enrollmentDate                        DateTime?
+  dateOfBirth                           DateTime?
+  gender                                student_gender?
+  medicalInfo                           String?           @db.Text
+  emergencyContact                      String?
+  photoUrl                              String?
+  birthCertPdf                          String?
+  parentId                              Int
+  secondParentId                        Int?
+  classroomId                           Int
+  qrCode                                String?           @db.LongText
+  status                                student_status    @default(ACTIVE)
+  createdAt                             DateTime          @default(now())
+  updatedAt                             DateTime          @updatedAt
+  attendance                            attendance[]
+  billing                               billing[]
+  classroom                             classroom         @relation(fields: [classroomId], references: [id], map: "Student_classroomId_fkey")
+  parent_student_parentIdToparent       parent            @relation("student_parentIdToparent", fields: [parentId], references: [id], map: "Student_parentId_fkey")
+  parent_student_secondParentIdToparent parent?           @relation("student_secondParentIdToparent", fields: [secondParentId], references: [id], map: "Student_secondParentId_fkey")
+  studentprogress                       studentprogress[]
+
+  @@index([classroomId], map: "Student_classroomId_fkey")
+  @@index([parentId], map: "Student_parentId_fkey")
+  @@index([secondParentId], map: "Student_secondParentId_fkey")
+}
+
+model studentprogress {
+  id          Int      @id @default(autoincrement())
+  studentId   Int
+  reading     Int?
+  writing     Int?
+  speaking    Int?
+  listening   Int?
+  mathematics Int?
+  social      Int?
+  remarks     String?  @db.Text
+  updatedById Int
+  updatedAt   DateTime @updatedAt
+  student     student  @relation(fields: [studentId], references: [id], map: "StudentProgress_studentId_fkey")
+  user        user     @relation(fields: [updatedById], references: [id], map: "StudentProgress_updatedById_fkey")
+
+  @@index([studentId], map: "StudentProgress_studentId_fkey")
+  @@index([updatedById], map: "StudentProgress_updatedById_fkey")
+}
+
+model teacherprofile {
+  teacherId           Int        @id
+  qualification       String?
+  qualificationPdf    String?
+  assignedClassroomId Int?
+  classroom           classroom? @relation(fields: [assignedClassroomId], references: [id], map: "TeacherProfile_assignedClassroomId_fkey")
+  user                user       @relation(fields: [teacherId], references: [id], map: "TeacherProfile_teacherId_fkey")
+
+  @@index([assignedClassroomId], map: "TeacherProfile_assignedClassroomId_fkey")
+}
+
+model user {
+  id                                             Int               @id @default(autoincrement())
+  employeeId                                     String?           @unique(map: "User_employeeId_key")
+  role                                           user_role         @default(TEACHER)
+  fullName                                       String
+  email                                          String?
+  phone                                          String?
+  username                                       String            @unique(map: "User_username_key")
+  password                                       String
+  firstLogin                                     Boolean           @default(true)
+  status                                         user_status       @default(ACTIVE)
+  nationalId                                     String?
+  address                                        String?           @db.Text
+  joiningDate                                    DateTime?
+  photoUrl                                       String?
+  createdAt                                      DateTime          @default(now())
+  updatedAt                                      DateTime          @updatedAt
+  attendance                                     attendance[]
+  auditlog                                       auditlog[]
+  homework                                       homework[]
+  notification_notification_createdByIdTouser    notification[]    @relation("notification_createdByIdTouser")
+  notification_notification_targetParentIdTouser notification[]    @relation("notification_targetParentIdTouser")
+  payment                                        payment[]
+  studentprogress                                studentprogress[]
+  teacherprofile                                 teacherprofile?
+}
+
+enum user_role {
+  SUPER_ADMIN
+  ADMIN
+  TEACHER
+  PARENT
+}
+
+enum parent_relationship {
+  FATHER
+  MOTHER
+  GUARDIAN
+}
+
+enum classroom_status {
+  ACTIVE
+  INACTIVE
+}
+
+enum student_gender {
+  MALE
+  FEMALE
+}
+
+enum payment_status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum user_status {
+  ACTIVE
+  INACTIVE
+}
+
+enum parent_status {
+  ACTIVE
+  INACTIVE
+}
+
+enum student_status {
+  ACTIVE
+  INACTIVE
+}

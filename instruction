@@ -1,0 +1,246 @@
+🟢 PHASE 0 – PROJECT & BASE SETUP
+🎯 Goal
+
+Create a clean backend + admin web foundation.
+
+🧠 Antigravity Prompt
+Create a full-stack project structure for a Preschool Management System.
+
+Backend:
+- Node.js + Express
+- Environment variable support
+- JWT authentication ready
+- Connect to a cloud SQL database (MySQL or PostgreSQL)
+- Use an ORM (Prisma or Sequelize)
+
+Admin Web:
+- React.js
+- Ant Design UI
+- Routing setup
+- Authentication context
+
+Create base folders for:
+- auth
+- users
+- students
+- parents
+- classrooms
+- attendance
+- billing
+- notifications
+
+Ensure backend API is reusable for a future mobile application.
+
+🟢 PHASE 1 – AUTHENTICATION & ROLE-BASED ACCESS (CRITICAL)
+🎯 Goal
+
+Secure login + roles (SuperAdmin, Admin, Teacher)
+
+🧠 Antigravity Prompt
+Implement role-based authentication.
+
+Requirements:
+- User table with roles: SUPER_ADMIN, ADMIN, TEACHER
+- Pre-seed one SUPER_ADMIN user in database
+- Login API using username and password
+- Password hashing using bcrypt
+- JWT-based authentication
+- Middleware for role-based route protection
+- Force password change on first login
+
+Admin Web:
+- Login page using Ant Design
+- After login, redirect based on role
+- Block inactive users
+
+Ensure this authentication system can also be used later by a mobile app.
+
+🟢 PHASE 2 – MASTER DATA (PARENTS, CLASSROOMS, STAFF)
+🎯 Goal
+
+Create stable reference data used everywhere.
+
+🧠 Antigravity Prompt
+Implement master data management modules.
+
+Backend APIs:
+- Parent CRUD
+  - Auto-generate Parent Unique ID
+  - Soft delete using ACTIVE / INACTIVE status
+- Classroom CRUD
+  - Classroom name, age group, capacity, schedule
+- Staff & Teacher management
+  - Create Admin and Teacher users
+  - Generate temporary username and password
+  - First-login password reset
+
+Admin Web:
+- Ant Design tables and forms
+- Add / edit / deactivate Parent, Classroom, Staff
+- Show Parent ID and Staff credentials clearly
+
+Design APIs so the mobile app can consume parent and classroom data later.
+
+🟢 PHASE 3 – STUDENT MANAGEMENT + QR CODE
+🎯 Goal
+
+Core student system with QR attendance support.
+
+🧠 Antigravity Prompt
+Implement Student Management module.
+
+Backend:
+- Student CRUD
+- Student must be linked to:
+  - Parent
+  - Classroom
+- Auto-generate:
+  - Student Unique ID
+  - QR Code (store path or value in DB)
+- Store student profile details:
+  - Name, DOB, gender
+  - Medical info
+  - Photo
+  - Birth certificate PDF
+- Soft delete support
+
+Admin Web:
+- Student list table
+- Student profile page
+- QR code display
+- Parent & Classroom selection dropdowns
+
+Ensure QR code can be scanned by future mobile app.
+
+🟢 PHASE 4 – ATTENDANCE SYSTEM (QR-BASED)
+🎯 Goal
+
+Automated attendance without manual registers.
+
+🧠 Antigravity Prompt
+Implement QR-based attendance system.
+
+Backend:
+- Attendance table
+- API to mark attendance using QR scan
+- Prevent duplicate check-in per day
+- Store:
+  - Check-in time
+  - Check-out time
+  - Date
+- Attendance summary API
+
+Admin Web:
+- QR scan page (use device camera)
+- Daily attendance list
+- Attendance percentage calculation
+
+Design APIs so both admin web and mobile app can use attendance data.
+
+🟢 PHASE 5 – DASHBOARD & ANALYTICS
+🎯 Goal
+
+Visual system overview.
+
+🧠 Antigravity Prompt
+Implement Admin Dashboard.
+
+Backend:
+- APIs for:
+  - Total students, parents, staff, classrooms
+  - Today attendance percentage
+  - Monthly payment percentage
+  - Upcoming events
+
+Admin Web:
+- Ant Design dashboard layout
+- Statistic cards
+- Progress bars for attendance and payments
+- Upcoming events list
+
+Ensure calculations are reusable by mobile app.
+
+🟢 PHASE 6 – NOTIFICATIONS & HOMEWORK
+🎯 Goal
+
+Internal communication system.
+
+🧠 Antigravity Prompt
+Implement Notifications and Homework modules.
+
+Backend:
+- Notification table with:
+  - Title, message
+  - Target role (PARENT, TEACHER, ALL)
+  - Optional classroom
+- Homework table:
+  - Classroom
+  - Title, description
+  - Due date
+  - Created by teacher
+
+Admin Web:
+- Create announcements
+- View sent notifications
+- Homework creation UI
+
+Design notifications as internal system messages (no push service).
+
+🟢 PHASE 7 – BILLING & EXPENSE MANAGEMENT
+🎯 Goal
+
+Financial tracking without online payment gateway.
+
+🧠 Antigravity Prompt
+Implement Billing and Expense Management.
+
+Backend:
+- Monthly billing records per student
+- Billing status:
+  - UNPAID
+  - PENDING (receipt uploaded)
+  - PAID (verified)
+- Payment receipt upload
+- Admin verification flow
+- Expense tracking with category and date
+
+Admin Web:
+- Student billing list
+- Payment verification screen
+- Expense entry and monthly summary
+
+Ensure parent mobile app can later view billing and upload receipts.
+
+🟢 PHASE 8 – SECURITY, LOGS & POLISH
+🎯 Goal
+
+Production-ready behavior.
+
+🧠 Antigravity Prompt
+Finalize system security and stability.
+
+Implement:
+- Role-based access checks on all routes
+- Input validation
+- Audit logs for:
+  - Login
+  - Create / update / verify actions
+- Soft delete everywhere
+- Professional error messages
+
+Admin Web:
+- Handle empty states
+- Loading states
+- Permission-based UI hiding
+
+Ensure APIs remain consistent for mobile app use.
+
+🧠 TECH STACK YOU ARE USING (FINAL CONFIRMATION)
+Layer	Technology
+Backend	Node.js + Express
+ORM	Prisma / Sequelize
+Database	MySQL / PostgreSQL (Cloud)
+Admin Web	React + Ant Design
+Auth	JWT
+Mobile Later	Flutter / React Native
+QR	qrcode + camera API

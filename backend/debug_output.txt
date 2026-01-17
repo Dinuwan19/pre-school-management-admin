@@ -1,0 +1,16 @@
+--- Users and Profiles ---
+User: admin (ID: 1, Role: SUPER_ADMIN)
+  Profile: MISSING
+User: damya.sesadi58 (ID: 2, Role: TEACHER)
+  Profile: Assigned Class: 1
+
+--- Classrooms ---
+Classroom: gotukola class (ID: 1)
+
+--- Students ---
+Student: pasindu dinuwan (ID: 1, ClassroomID: 1, ParentID: 1, 2ndParentID: null)
+Student: pasindu dinuwan (ID: 2, ClassroomID: 1, ParentID: 1, 2ndParentID: null)
+Student: pasindu dinuwan (ID: 3, ClassroomID: 1, ParentID: 1, 2ndParentID: null)
+
+--- Parents ---
+Parent: dehemi (ID: 1)
