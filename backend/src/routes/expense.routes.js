@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const expenseController = require('../controllers/expense.controller');
 const { authenticateToken, authorizeRole } = require('../middlewares/auth.middleware');
+const upload = require('../middlewares/upload.middleware');
 
 router.use(authenticateToken);
 
-router.post('/', authorizeRole(['SUPER_ADMIN', 'ADMIN']), expenseController.createExpense);
+router.post('/', authorizeRole(['SUPER_ADMIN', 'ADMIN']), upload.fields([{ name: 'receipt', maxCount: 1 }]), expenseController.createExpense);
 router.get('/', authorizeRole(['SUPER_ADMIN', 'ADMIN']), expenseController.getAllExpenses);
 router.get('/summary', authorizeRole(['SUPER_ADMIN', 'ADMIN']), expenseController.getExpenseSummary);
 

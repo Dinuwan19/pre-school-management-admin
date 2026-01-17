@@ -37,8 +37,8 @@ const StudentProfile = () => {
         const now = dayjs();
         const years = now.diff(birth, 'year');
         const months = now.diff(birth.add(years, 'year'), 'month');
-        if (years === 0) return `${months} months`;
-        return `${years} years ${months > 0 ? `${months} months` : ''}`;
+        if (years === 0) return `${months}m`;
+        return `${years}y`;
     };
 
     const fetchData = async () => {
@@ -220,7 +220,19 @@ const StudentProfile = () => {
                     <Card size="small" title={<Text strong>Contact Information</Text>} bordered={false} style={{ marginBottom: 16, background: '#fff' }}>
                         <Descriptions column={1} size="small">
                             <Descriptions.Item label="Primary Contact">{student.parent_student_parentIdToparent?.phone || 'N/A'}</Descriptions.Item>
-                            <Descriptions.Item label="Emergency Contact">{student.emergencyContact || 'N/A'}</Descriptions.Item>
+                            <Descriptions.Item label={<span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>Emergency Contact</span>}>
+                                <div style={{
+                                    border: '1px solid #ff4d4f',
+                                    background: '#fff1f0',
+                                    padding: '4px 8px',
+                                    borderRadius: 4,
+                                    color: '#cf1322',
+                                    fontWeight: 600,
+                                    display: 'inline-block'
+                                }}>
+                                    {student.emergencyContact || 'N/A'}
+                                </div>
+                            </Descriptions.Item>
                         </Descriptions>
                         <Divider style={{ margin: '12px 0' }} />
                         <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>Parent/Guardian</Text>
@@ -274,10 +286,22 @@ const StudentProfile = () => {
                                 </Col>
                             </Row>
                         </Form>
+                        {isEditingProgress ? (
+                            <Form.Item name="remarks" label="Teacher Note">
+                                <Input.TextArea rows={4} placeholder="Add a note about the student's progress..." />
+                            </Form.Item>
+                        ) : (
+                            <div>
+                                <Text strong style={{ display: 'block', marginBottom: 8 }}>Teacher Note</Text>
+                                <div style={{ background: '#f0f2f5', padding: 12, borderRadius: 6, minHeight: 60 }}>
+                                    {currentProgress.remarks || <Text type="secondary">No notes added.</Text>}
+                                </div>
+                            </div>
+                        )}
                         {user?.role !== 'PARENT' && (
                             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
                                 {!isEditingProgress ?
-                                    <Button type="primary" size="small" ghost icon={<EditOutlined />} onClick={() => setIsEditingProgress(true)}>Edit Remarks</Button> :
+                                    <Button type="primary" size="small" ghost icon={<EditOutlined />} onClick={() => setIsEditingProgress(true)}>Edit Notes & Progress</Button> :
                                     <Space>
                                         <Button size="small" onClick={() => setIsEditingProgress(false)}>Cancel</Button>
                                         <Button size="small" type="primary" onClick={handleSaveProgress} loading={submittingProgress}>Save</Button>
@@ -285,32 +309,6 @@ const StudentProfile = () => {
                                 }
                             </div>
                         )}
-                    </Card>
-
-                    <Card size="small" title={<Text strong>Recent Activities</Text>} bordered={false}>
-                        <List
-                            dataSource={[
-                                { title: 'Art', desc: 'Drew a family picture', date: '6/1/2023', rating: 5 },
-                                { title: 'Music', desc: 'Learned a new song', date: '6/2/2023', rating: 5 }
-                            ]}
-                            renderItem={item => (
-                                <List.Item style={{ display: 'block', padding: '16px 0' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                        <div>
-                                            <div style={{ fontWeight: 600 }}>{item.title}</div>
-                                            <Text type="secondary" style={{ fontSize: 13 }}>{item.desc}</Text>
-                                            <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>{item.date}</div>
-                                        </div>
-                                        <Space size={2}>
-                                            {[...Array(5)].map((_, i) => <StarOutlined key={i} style={{ color: i < item.rating ? '#000' : '#ccc', fontSize: 12 }} />)}
-                                        </Space>
-                                    </div>
-                                </List.Item>
-                            )}
-                        />
-                        <div style={{ textAlign: 'center', marginTop: 16 }}>
-                            <Button size="small" style={{ borderRadius: 6 }}>Add Activity</Button>
-                        </div>
                     </Card>
                 </div>
             )
@@ -369,14 +367,7 @@ const StudentProfile = () => {
                     ]}
                 />
                 <Space>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ position: 'relative' }}>
-                            <div style={{ width: 8, height: 8, background: '#F5222D', borderRadius: '50%', position: 'absolute', top: -2, right: -2 }}></div>
-                            <Button type="text" icon={<BulbOutlined style={{ fontSize: 20 }} />} />
-                        </div>
-                        <Avatar style={{ background: '#7B57E4' }}>AD</Avatar>
-                        <Text strong>Admin</Text>
-                    </div>
+                    {/* Admin logo removed */}
                 </Space>
             </div>
 
@@ -402,6 +393,10 @@ const StudentProfile = () => {
                                     <span>{student.dateOfBirth ? dayjs(student.dateOfBirth).format('M/D/YYYY') : 'N/A'}</span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                    <InfoCircleOutlined style={{ color: '#999' }} />
+                                    <span>{calculateAge(student.dateOfBirth)}</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                     <PhoneOutlined style={{ color: '#999' }} />
                                     <span>{student.parent_student_parentIdToparent?.phone || 'N/A'}</span>
                                 </div>
@@ -419,7 +414,18 @@ const StudentProfile = () => {
                                 </div>
                             </Space>
                         </div>
-                        <Button block style={{ marginTop: 40, borderRadius: 8, height: 40 }} icon={<DownloadOutlined />}>Download ID & QR Code</Button>
+                        <Button block style={{ marginTop: 40, borderRadius: 8, height: 40 }} icon={<DownloadOutlined />} onClick={() => {
+                            if (student.qrCode) {
+                                const link = document.createElement('a');
+                                link.href = student.qrCode;
+                                link.download = `${student.fullName}_QR.png`;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            } else {
+                                message.error('No QR code available');
+                            }
+                        }}>Download QR Code</Button>
                     </Card>
                 </Col>
 
@@ -428,7 +434,7 @@ const StudentProfile = () => {
                         <Tabs defaultActiveKey="profile" items={tabItems} size="large" />
                     </Card>
                 </Col>
-            </Row>
+            </Row >
 
             <Modal
                 title="Edit Student Info"
@@ -459,7 +465,7 @@ const StudentProfile = () => {
                     </Row>
                 </Form>
             </Modal>
-        </div>
+        </div >
     );
 };
 

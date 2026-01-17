@@ -133,7 +133,7 @@ const StaffProfile = () => {
                                 </div>
                             </Space>
                         </div>
-                        <Button block style={{ marginTop: 40, borderRadius: 8, height: 40 }} icon={<DownloadOutlined />}>Download ID & QR Code</Button>
+                        {/* QR Download removed */}
                     </Card>
                 </Col>
 

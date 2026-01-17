@@ -18,36 +18,26 @@ const BillingOverview = () => {
     useEffect(() => {
         const fetchSummary = async () => {
             try {
-                // In Phase 8, we fetch payments and billings to calculate info
-                // This is a simplified fetch for the overview
-                const [payRes, billRes, expRes] = await Promise.all([
-                    api.get('/payments/pending'),
-                    api.get('/billing?status=PAID'),
-                    api.get('/expenses/summary')
-                ]);
-
-                const paidTotal = billRes.data.reduce((acc, curr) => acc + parseFloat(curr.amount), 0);
-                const pendingTotal = payRes.data.reduce((acc, curr) => acc + parseFloat(curr.amountPaid), 0);
-
-                setSummary(prev => ({
-                    ...prev,
-                    totalIncome: paidTotal,
-                    pending: pendingTotal,
-                    expenses: expRes.data.totalThisMonth || 0,
-                    recentTransactions: payRes.data.slice(0, 5)
-                }));
+                const res = await api.get('/billing/dashboard-stats');
+                setSummary({
+                    totalIncome: res.data.incomeMTD,
+                    pending: res.data.pendingTotal,
+                    expenses: res.data.expenseMTD,
+                    netIncome: res.data.netIncomeMTD,
+                    recentTransactions: res.data.recentTransactions
+                });
             } catch (error) {
-                console.error('Failed to fetch billing summary', error);
+                console.error('Failed to fetch billing dashboard', error);
             }
         };
         fetchSummary();
     }, []);
 
     const cards = [
-        { title: 'Total Income', value: summary.totalIncome, prefix: 'Rs. ', icon: <ArrowUpOutlined />, color: '#7B57E4' },
-        { title: 'Pending', value: summary.pending, prefix: 'Rs. ', icon: <HistoryOutlined />, color: '#FF9500' },
+        { title: 'Total Income (MTD)', value: summary.totalIncome, prefix: 'Rs. ', icon: <ArrowUpOutlined />, color: '#7B57E4' },
+        { title: 'Pending Payments', value: summary.pending, prefix: 'Rs. ', icon: <HistoryOutlined />, color: '#FF9500' },
         { title: 'Expenses (MTD)', value: summary.expenses, prefix: 'Rs. ', icon: <ArrowDownOutlined />, color: '#FF3B30' },
-        { title: 'Net Income', value: summary.totalIncome - summary.expenses, prefix: 'Rs. ', icon: <CreditCardOutlined />, color: '#34C759' },
+        { title: 'Net Income (MTD)', value: summary.netIncome, prefix: 'Rs. ', icon: <CreditCardOutlined />, color: '#34C759' },
     ];
 
     return (
@@ -93,12 +83,24 @@ const BillingOverview = () => {
                             renderItem={(item) => (
                                 <List.Item style={{ padding: '12px 0' }}>
                                     <List.Item.Meta
-                                        title={<Text strong>Payment for {item.billingPayments?.[0]?.billing?.student?.fullName}</Text>}
-                                        description={item.paymentMethod}
+                                        avatar={
+                                            <div style={{
+                                                width: 40, height: 40, borderRadius: 8,
+                                                background: item.type === 'INCOME' ? '#F6FFED' : '#FFF1F0',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                color: item.type === 'INCOME' ? '#52C41A' : '#F5222D'
+                                            }}>
+                                                {item.type === 'INCOME' ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+                                            </div>
+                                        }
+                                        title={<Text strong>{item.details}</Text>}
+                                        description={item.type === 'INCOME' ? item.method : item.description}
                                     />
                                     <div style={{ textAlign: 'right' }}>
-                                        <Text strong style={{ color: '#34C759' }}>+ Rs. {item.amountPaid}</Text><br />
-                                        <Text type="secondary" style={{ fontSize: 12 }}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+                                        <Text strong style={{ color: item.type === 'INCOME' ? '#52C41A' : '#F5222D' }}>
+                                            {item.type === 'INCOME' ? '+' : '-'} Rs. {item.amount.toLocaleString()}
+                                        </Text><br />
+                                        <Text type="secondary" style={{ fontSize: 12 }}>{new Date(item.date).toLocaleDateString()}</Text>
                                     </div>
                                 </List.Item>
                             )}

@@ -102,3 +102,126 @@ exports.notifyUnpaid = async (req, res, next) => {
         next(error);
     }
 };
+
+exports.getOverdueBillings = async (req, res, next) => {
+    try {
+        // Find UNPAID billings.
+        // In a real system, we'd check if currentDate > billingMonth + 1 month or something.
+        // For now, any UNPAID is considered potentially overdue or just pending.
+        // Let's assume we want all UNPAID billings to track them.
+
+        const billings = await prisma.billing.findMany({
+            where: { status: 'UNPAID' },
+            include: {
+                student: {
+                    select: {
+                        fullName: true,
+                        studentUniqueId: true,
+                        parent_student_parentIdToparent: { select: { phone: true, email: true } }
+                    }
+                }
+            },
+            orderBy: { billingMonth: 'desc' }
+        });
+
+        res.json(billings);
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.getDashboardStats = async (req, res, next) => {
+    try {
+        // 1. Total Paid Income (Status = PAID)
+        const paidBillings = await prisma.billing.aggregate({
+            _sum: { amount: true },
+            where: { status: 'PAID' }
+        });
+        const totalIncome = paidBillings._sum.amount ? parseFloat(paidBillings._sum.amount) : 0;
+
+        // 2. Pending Payments (From Payment table with status PENDING)
+        const pendingPayments = await prisma.payment.aggregate({
+            _sum: { amountPaid: true },
+            where: { status: 'PENDING' }
+        });
+        const pendingTotal = pendingPayments._sum.amountPaid ? parseFloat(pendingPayments._sum.amountPaid) : 0;
+
+        // 3. Total Expenses (MTD - Month to Date, or Total? Let's do Total for Net Income context)
+        // Ideally Net Income = Total Income (All Time) - Total Expenses (All Time)
+        // Or Monthly. Let's do Monthly for "Overview" usually.
+        // BUT user asked to "Match with all incomes". Let's assume ALL TIME for Net Income for now unless filtered.
+        // Let's stick to Month for the dashboard cards usually, but allow full range. 
+        // Based on user: "net income calculate of income and expenses not use pending payments"
+
+        // Let's implement MTD (Month to Date) for the cards as it's standard.
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+
+        const currentMonthExpenses = await prisma.expense.aggregate({
+            _sum: { amount: true },
+            where: { expenseDate: { gte: startOfMonth } }
+        });
+        const expenseTotalMTD = currentMonthExpenses._sum.amount ? parseFloat(currentMonthExpenses._sum.amount) : 0;
+
+        // NET INCOME Calculation (MTD)
+        // Paid Incomes MTD
+        // We need to filter billing by payment date? Billing doesn't capture payment date easily without join.
+        // Let's filter Billing by billingMonth = current YYYY-MM.
+        const currentMonthStr = new Date().toISOString().slice(0, 7); // YYYY-MM
+        const monthPaidBillings = await prisma.billing.aggregate({
+            _sum: { amount: true },
+            where: { status: 'PAID', billingMonth: currentMonthStr }
+        });
+        const incomeMTD = monthPaidBillings._sum.amount ? parseFloat(monthPaidBillings._sum.amount) : 0;
+        const netIncomeMTD = incomeMTD - expenseTotalMTD;
+
+
+        // RECENT TRANSACTIONS (Mixed 5)
+        // Payment (Income) vs Expense (Outcome)
+        // We need 5 most recent from both tables combined.
+        const recentPayments = await prisma.payment.findMany({
+            take: 5,
+            orderBy: { createdAt: 'desc' },
+            include: { billingpayment: { include: { billing: { include: { student: true } } } } }
+        });
+
+        const recentExpenses = await prisma.expense.findMany({
+            take: 5,
+            orderBy: { expenseDate: 'desc' }
+        });
+
+        // Combine and sort
+        const transactions = [
+            ...recentPayments.map(p => ({
+                type: 'INCOME',
+                id: `PAY-${p.id}`,
+                date: p.createdAt,
+                amount: parseFloat(p.amountPaid),
+                details: p.billingpayment?.[0]?.billing?.student?.fullName || 'Unknown Student',
+                method: p.paymentMethod,
+                ref: p.transactionRef
+            })),
+            ...recentExpenses.map(e => ({
+                type: 'EXPENSE',
+                id: `EXP-${e.id}`,
+                date: e.expenseDate,
+                amount: parseFloat(e.amount),
+                details: e.category,
+                description: e.description
+            }))
+        ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+
+
+        res.json({
+            incomeMTD,
+            expenseMTD: expenseTotalMTD,
+            netIncomeMTD,
+            pendingTotal, // Total pending queue
+            recentTransactions: transactions
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};

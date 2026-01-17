@@ -132,7 +132,7 @@ Instructions:
             key: 'classroom',
             render: (_, record) => (
                 record.role === 'TEACHER' ?
-                    <Text>{record.teacherProfile?.classroom?.name || 'Not assigned'}</Text> :
+                    <Text>{record.teacherprofile?.classroom?.name || 'Not assigned'}</Text> :
                     <Text type="secondary">-</Text>
             )
         },

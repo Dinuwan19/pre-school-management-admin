@@ -132,10 +132,11 @@ Instructions:
                 <Button
                     icon={<EyeOutlined />}
                     size="small"
+                    type="primary"
+                    ghost
                     onClick={() => navigate(`/parents/${record.id}`)}
-                    style={{ color: '#7B57E4', borderColor: '#7B57E4' }}
                 >
-                    View
+                    View Profile
                 </Button>
             )
         }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Typography, Card, Modal, Form, Input, DatePicker, Select, message, Statistic, Row, Col } from 'antd';
-import { PlusOutlined, DeleteOutlined, WalletOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Typography, Card, Modal, Form, Input, DatePicker, Select, message, Statistic, Row, Col, Upload } from 'antd';
+import { PlusOutlined, DeleteOutlined, WalletOutlined, UploadOutlined, FileImageOutlined } from '@ant-design/icons';
 import api from '../../api/client';
 import dayjs from 'dayjs';
 
@@ -41,7 +41,19 @@ const Expenses = () => {
                 amount: parseFloat(values.amount),
                 expenseDate: values.expenseDate.format('YYYY-MM-DD')
             };
-            await api.post('/expenses', payload);
+
+            const formData = new FormData();
+            Object.keys(payload).forEach(key => {
+                if (key !== 'receipt') formData.append(key, payload[key]);
+            });
+
+            if (values.receipt?.file) {
+                formData.append('receipt', values.receipt.file.originFileObj);
+            }
+
+            await api.post('/expenses', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
             message.success('Expense recorded successfully');
             setIsModalVisible(false);
             form.resetFields();
@@ -58,6 +70,13 @@ const Expenses = () => {
         { title: 'Category', dataIndex: 'category', key: 'category' },
         { title: 'Description', dataIndex: 'description', key: 'desc' },
         { title: 'Amount', dataIndex: 'amount', key: 'amount', render: (a) => `Rs. ${parseFloat(a).toLocaleString()}` },
+        {
+            title: 'Receipt',
+            key: 'receipt',
+            render: (_, record) => record.receiptUrl ? (
+                <Button type="link" icon={<FileImageOutlined />} onClick={() => window.open(record.receiptUrl, '_blank')}>View</Button>
+            ) : <Text type="secondary">-</Text>
+        },
         { title: 'Action', key: 'action', render: () => <Button type="text" danger icon={<DeleteOutlined />} /> }
     ];
 
@@ -134,6 +153,11 @@ const Expenses = () => {
                     </Form.Item>
                     <Form.Item name="description" label="Description">
                         <Input.TextArea rows={3} placeholder="Add details about this expense..." />
+                    </Form.Item>
+                    <Form.Item name="receipt" label="Upload Receipt (Optional)">
+                        <Upload beforeUpload={() => false} maxCount={1} listType="picture">
+                            <Button icon={<UploadOutlined />}>Select Receipt Image</Button>
+                        </Upload>
                     </Form.Item>
                 </Form>
             </Modal>
