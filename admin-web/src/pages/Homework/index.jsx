@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Typography, Row, Col, Modal, Form, Input, DatePicker, Select, message, Space, Tag, Empty, List, Avatar } from 'antd';
+import { Card, Button, Typography, Row, Col, Modal, Form, Input, DatePicker, Select, message, Space, Tag, Empty, List, Avatar, Divider } from 'antd';
 import { PlusOutlined, BookOutlined, CalendarOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -105,7 +105,7 @@ const Homework = () => {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <Avatar size="small" icon={<UserOutlined />} style={{ background: '#F0EAFB', color: '#7B57E4' }} />
-                                    <Text style={{ fontSize: 12 }}>{item.createdBy?.fullName}</Text>
+                                    <Text style={{ fontSize: 12 }}>{item.user?.fullName}</Text>
                                 </div>
                                 <Button
                                     type="text"

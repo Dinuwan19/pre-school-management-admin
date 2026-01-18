@@ -203,6 +203,7 @@ model teacherprofile {
   teacherId           Int        @id
   qualification       String?
   qualificationPdf    String?
+  designation         teacher_designation @default(ASSISTANT)
   assignedClassroomId Int?
   classroom           classroom? @relation(fields: [assignedClassroomId], references: [id], map: "TeacherProfile_assignedClassroomId_fkey")
   user                user       @relation(fields: [teacherId], references: [id], map: "TeacherProfile_teacherId_fkey")
@@ -279,4 +280,9 @@ enum parent_status {
 enum student_status {
   ACTIVE
   INACTIVE
+}
+
+enum teacher_designation {
+  LEAD
+  ASSISTANT
 }

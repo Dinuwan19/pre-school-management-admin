@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const { logAction } = require('../services/audit.service');
 
 exports.createExpense = async (req, res, next) => {
     try {

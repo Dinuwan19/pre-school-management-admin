@@ -24,7 +24,7 @@ exports.getAllStaff = async (req, res, next) => {
 
 exports.createStaff = async (req, res, next) => {
     try {
-        const { fullName, email, phone, role, address, nationalId, joiningDate, classroomId, qualification } = req.body;
+        const { fullName, email, phone, role, address, nationalId, joiningDate, classroomId, qualification, designation } = req.body;
 
         const prefix = role === 'TEACHER' ? 'T' : 'A';
         const count = await prisma.user.count({ where: { role: role } });
@@ -67,7 +67,8 @@ exports.createStaff = async (req, res, next) => {
                     teacherId: user.id,
                     assignedClassroomId: classroomId ? parseInt(classroomId) : null,
                     qualification,
-                    qualificationPdf
+                    qualificationPdf,
+                    designation: designation || 'ASSISTANT'
                 }
             });
         }
@@ -105,7 +106,7 @@ exports.getStaffById = async (req, res, next) => {
 exports.updateStaff = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { qualification, assignedClassroomId, ...userData } = req.body;
+        const { qualification, assignedClassroomId, designation, ...userData } = req.body;
 
         // Handle uploaded files
         if (req.files) {
@@ -120,7 +121,8 @@ exports.updateStaff = async (req, res, next) => {
         if (user.role === 'TEACHER') {
             const profileData = {
                 qualification,
-                assignedClassroomId: assignedClassroomId ? parseInt(assignedClassroomId) : null
+                assignedClassroomId: assignedClassroomId ? parseInt(assignedClassroomId) : null,
+                designation: designation || 'ASSISTANT'
             };
 
             if (req.files && req.files['qualificationPdf']) {

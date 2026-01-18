@@ -19,4 +19,6 @@ router.get('/', billingController.getAllBillings);
 router.post('/generate', authorizeRole(['SUPER_ADMIN', 'ADMIN']), billingController.generateBilling);
 router.post('/notify', authorizeRole(['SUPER_ADMIN', 'ADMIN']), billingController.notifyUnpaid);
 
+router.post('/pay-cash', authorizeRole(['SUPER_ADMIN', 'ADMIN']), billingController.payBillingCash);
+
 module.exports = router;

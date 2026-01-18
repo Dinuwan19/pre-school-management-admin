@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Typography, Row, Col, Avatar, Button, List, Tag, Spin, message, Divider, Space, Table, Modal, Form, Input, InputNumber, Breadcrumb, Descriptions } from 'antd';
+import { Card, Typography, Row, Col, Avatar, Button, List, Tag, Spin, message, Divider, Space, Table, Modal, Form, Input, InputNumber, Breadcrumb, Descriptions, Select } from 'antd';
 import {
     ArrowLeftOutlined, EditOutlined, TeamOutlined,
     SolutionOutlined, CalendarOutlined, InfoCircleOutlined,
@@ -23,6 +23,9 @@ const ClassroomView = () => {
     const [saving, setSaving] = useState(false);
     const [editingDay, setEditingDay] = useState(null);
     const [dayMealInput, setDayMealInput] = useState('');
+    const [isTeamModalVisible, setIsTeamModalVisible] = useState(false);
+    const [allTeachers, setAllTeachers] = useState([]);
+    const [teamForm] = Form.useForm();
 
     const fetchClassroom = async () => {
         setLoading(true);
@@ -66,14 +69,35 @@ const ClassroomView = () => {
         }
     };
 
+    if (loading) return <div style={{ textAlign: 'center', marginTop: 100 }}><Spin size="large" /></div>;
+    if (!classroom) return <div style={{ padding: 40 }}><Text type="danger">Classroom not found</Text></div>;
+
+    // Parse schedule as Meal Plan or default
+    let derivedMealPlan = {
+        Monday: { items: ['Breakfast: Oatmeal', 'Lunch: Rice & Curry'] },
+        Tuesday: { items: ['Breakfast: Bread & Jam', 'Lunch: Pasta'] },
+        Wednesday: { items: ['Breakfast: Cereal', 'Lunch: Chicken Wrap'] },
+        Thursday: { items: ['Breakfast: Roti', 'Lunch: Fish & Chips'] },
+        Friday: { items: ['Breakfast: Milk Rice', 'Lunch: Fried Rice'] }
+    };
+
+    try {
+        if (classroom.mealPlan) {
+            const parsed = JSON.parse(classroom.mealPlan);
+            if (parsed.Monday) derivedMealPlan = parsed;
+        }
+    } catch (e) {
+        console.log("Legacy meal plan format or empty");
+    }
+
     const handleSaveMealPlan = async () => {
         try {
             setSaving(true);
-            const newMealPlan = { ...mealPlan };
+            const newMealPlan = { ...derivedMealPlan };
             newMealPlan[editingDay] = { items: dayMealInput.split('\n').filter(i => i.trim() !== '') };
 
             await api.put(`/classrooms/${id}`, {
-                schedule: JSON.stringify(newMealPlan)
+                mealPlan: JSON.stringify(newMealPlan)
             });
             message.success('Meal plan updated');
             setEditingDay(null);
@@ -85,30 +109,32 @@ const ClassroomView = () => {
         }
     };
 
-    if (loading) return <div style={{ textAlign: 'center', marginTop: 100 }}><Spin size="large" /></div>;
-    if (!classroom) return <div style={{ padding: 40 }}><Text type="danger">Classroom not found</Text></div>;
-
-    const leadTeacherProfile = classroom.teacherProfiles?.[0];
-    const assistantProfiles = classroom.teacherProfiles?.slice(1) || [];
-
-    // Parse schedule as Meal Plan or default
-    let mealPlan = {
-        Monday: { items: ['Breakfast: Oatmeal', 'Lunch: Rice & Curry'] },
-        Tuesday: { items: ['Breakfast: Bread & Jam', 'Lunch: Pasta'] },
-        Wednesday: { items: ['Breakfast: Cereal', 'Lunch: Chicken Wrap'] },
-        Thursday: { items: ['Breakfast: Roti', 'Lunch: Fish & Chips'] },
-        Friday: { items: ['Breakfast: Milk Rice', 'Lunch: Fried Rice'] }
+    const fetchAllTeachers = async () => {
+        try {
+            const res = await api.get('/staff');
+            setAllTeachers(res.data.filter(s => s.role === 'TEACHER'));
+        } catch (error) {
+            console.error('Error fetching teachers:', error);
+        }
     };
 
-    try {
-        if (classroom.schedule) {
-            const parsed = JSON.parse(classroom.schedule);
-            if (parsed.Monday) mealPlan = parsed;
+    const handleAssignTeacher = async () => {
+        try {
+            const values = await teamForm.validateFields();
+            setSaving(true);
+            await api.post(`/classrooms/${id}/teachers`, values);
+            message.success('Team updated successfully');
+            setIsTeamModalVisible(false);
+            fetchClassroom();
+        } catch (error) {
+            message.error(error.response?.data?.message || 'Assignment failed');
+        } finally {
+            setSaving(false);
         }
-    } catch (e) {
-        // If legacy text, maybe put it in Monday or ignore
-        console.log("Legacy schedule format or empty");
-    }
+    };
+
+    const leadTeacherProfile = classroom.teacherProfiles?.find(tp => tp.designation === 'LEAD');
+    const assistantProfiles = classroom.teacherProfiles?.filter(tp => tp.designation === 'ASSISTANT') || [];
 
 
 
@@ -121,16 +147,7 @@ const ClassroomView = () => {
                         { title: <span style={{ fontWeight: 600 }}>C{String(classroom.id).padStart(3, '0')}</span> }
                     ]}
                 />
-                <Space>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ position: 'relative' }}>
-                            <div style={{ width: 8, height: 8, background: '#F5222D', borderRadius: '50%', position: 'absolute', top: -2, right: -2 }}></div>
-                            <Button type="text" icon={<BulbOutlined style={{ fontSize: 20 }} />} />
-                        </div>
-                        <Avatar style={{ background: '#7B57E4' }}>AD</Avatar>
-                        <Text strong>Admin</Text>
-                    </div>
-                </Space>
+                <Space></Space>
             </div>
 
             <div style={{ display: 'flex', gap: 16, marginBottom: 16, alignItems: 'center' }}>
@@ -159,11 +176,16 @@ const ClassroomView = () => {
                             <Descriptions.Item label={<Text type="secondary" style={{ fontSize: 12 }}>Assistant Teachers</Text>}>
                                 <Space direction="vertical" size={0}>
                                     {assistantProfiles.length > 0 ? assistantProfiles.map(tp => (
-                                        <div key={tp?.id} style={{ fontWeight: 500 }}>{tp?.user?.fullName}</div>
+                                        <div key={tp?.teacherId} style={{ fontWeight: 500 }}>{tp?.user?.fullName}</div>
                                     )) : 'None'}
                                 </Space>
                             </Descriptions.Item>
                         </Descriptions>
+                        <Divider style={{ margin: '12px 0' }} />
+                        <Button type="primary" ghost size="small" icon={<TeamOutlined />} onClick={() => {
+                            fetchAllTeachers();
+                            setIsTeamModalVisible(true);
+                        }} style={{ width: '100%', borderRadius: 6 }}>Manage Team</Button>
                     </Card>
                 </Col>
 
@@ -200,14 +222,12 @@ const ClassroomView = () => {
                                         <div style={{ fontWeight: 600, fontSize: 15 }}>{day}</div>
                                         <Button size="small" type="link" onClick={() => {
                                             setEditingDay(day);
-                                            setDayMealInput(mealPlan[day]?.items?.join('\n') || '');
+                                            setDayMealInput(derivedMealPlan[day]?.items?.join('\n') || '');
                                             setIsEditModalVisible(false); // Close other modal if open
-                                            // We need a separate modal for meal plan, reusing state or new one
-                                            // I'll reuse a new state: isMealModalVisible
                                         }}>Edit</Button>
                                     </div>
                                     <List
-                                        dataSource={mealPlan[day]?.items || []}
+                                        dataSource={derivedMealPlan[day]?.items || []}
                                         renderItem={item => (
                                             <List.Item style={{ padding: '4px 0', border: 0 }}>
                                                 <Space><div style={{ width: 6, height: 6, borderRadius: '50%', background: '#52C41A' }} /> {item}</Space>
@@ -252,6 +272,33 @@ const ClassroomView = () => {
 Breakfast: Oatmeal
 Lunch: Rice & Curry"
                 />
+            </Modal>
+            <Modal
+                title={`Manage Classroom Team: ${classroom.name}`}
+                open={isTeamModalVisible}
+                onCancel={() => setIsTeamModalVisible(false)}
+                onOk={handleAssignTeacher}
+                confirmLoading={saving}
+                destroyOnClose
+            >
+                <div style={{ marginBottom: 16 }}>
+                    <Text type="secondary">Assign a teacher to this classroom and set their role.</Text>
+                </div>
+                <Form form={teamForm} layout="vertical">
+                    <Form.Item name="teacherId" label="Select Teacher" rules={[{ required: true }]}>
+                        <Select placeholder="Choose a teacher">
+                            {allTeachers.map(t => (
+                                <Select.Option key={t.id} value={t.id}>{t.fullName}</Select.Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+                    <Form.Item name="designation" label="Designation" rules={[{ required: true }]} initialValue="ASSISTANT">
+                        <Select>
+                            <Select.Option value="LEAD">Lead Teacher</Select.Option>
+                            <Select.Option value="ASSISTANT">Assistant Teacher</Select.Option>
+                        </Select>
+                    </Form.Item>
+                </Form>
             </Modal>
         </div >
     );

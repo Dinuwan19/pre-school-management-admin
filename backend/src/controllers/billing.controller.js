@@ -12,40 +12,58 @@ exports.generateBilling = async (req, res, next) => {
             return res.status(400).json({ message: 'No billing month specified' });
         }
 
-        const results = [];
-        const errors = [];
+        // Consolidated Billing Logic:
+        // Join months into a single string e.g., "January, February"
+        const monthString = monthsToProcess.sort().join(', ');
 
-        for (const month of monthsToProcess) {
-            // Check if billing already exists for this student and month
-            const existing = await prisma.billing.findFirst({
-                where: { studentId: parseInt(studentId), billingMonth: month }
-            });
-
-            if (existing) {
-                errors.push(`Billing for ${month} already exists`);
-                continue;
+        // Create ONE billing record
+        const billing = await prisma.billing.create({
+            data: {
+                studentId: parseInt(studentId),
+                billingMonth: monthString,
+                amount: parseFloat(amount), // Assumes amount passed is total
+                status: 'UNPAID'
             }
-
-            const billing = await prisma.billing.create({
-                data: {
-                    studentId: parseInt(studentId),
-                    billingMonth: month,
-                    amount: parseFloat(amount),
-                    status: 'UNPAID'
-                }
-            });
-            results.push(billing);
-        }
-
-        if (results.length === 0 && errors.length > 0) {
-            return res.status(400).json({ message: errors.join(', ') });
-        }
+        });
 
         res.status(201).json({
-            message: `Generated ${results.length} bills`,
-            data: results,
-            warnings: errors.length > 0 ? errors : undefined
+            message: `Generated consolidated bill for ${monthString}`,
+            data: [billing]
         });
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.payBillingCash = async (req, res, next) => {
+    try {
+        const { billingId } = req.body;
+        const billing = await prisma.billing.findUnique({ where: { id: parseInt(billingId) } });
+
+        if (!billing) return res.status(404).json({ message: 'Billing record not found' });
+        if (billing.status === 'PAID') return res.status(400).json({ message: 'Billing already paid' });
+
+        // 1. Update Billing Status
+        const updatedBilling = await prisma.billing.update({
+            where: { id: billing.id },
+            data: { status: 'PAID' }
+        });
+
+        // 2. Create Payment Record (Auto-Approved)
+        await prisma.payment.create({
+            data: {
+                amountPaid: billing.amount,
+                paymentMethod: 'CASH',
+                status: 'APPROVED',
+                verifiedById: req.user.id,
+                verifiedAt: new Date(),
+                billingpayment: {
+                    create: { billingId: billing.id }
+                }
+            }
+        });
+
+        res.json({ message: 'Cash payment recorded successfully', billing: updatedBilling });
     } catch (error) {
         next(error);
     }
@@ -106,9 +124,6 @@ exports.notifyUnpaid = async (req, res, next) => {
         // In a real app, this would send an SMS/Email. 
         // For this project, we create a Notification record for the Parent.
 
-        // We need the parent's user account. Finding user by parent's email/phone if linked.
-        // Assuming Parent logic links to User in future, for now broadcasting or target parent if exists.
-
         const notification = await prisma.notification.create({
             data: {
                 title: 'Fee Reminder',
@@ -154,66 +169,64 @@ exports.getOverdueBillings = async (req, res, next) => {
 
 exports.getDashboardStats = async (req, res, next) => {
     try {
-        // 1. Total Paid Income (Status = PAID)
-        const paidBillings = await prisma.billing.aggregate({
-            _sum: { amount: true },
-            where: { status: 'PAID' }
-        });
-        const totalIncome = paidBillings._sum.amount ? parseFloat(paidBillings._sum.amount) : 0;
-
-        // 2. Pending Payments (From Payment table with status PENDING)
-        const pendingPayments = await prisma.payment.aggregate({
-            _sum: { amountPaid: true },
-            where: { status: 'PENDING' }
-        });
-        const pendingTotal = pendingPayments._sum.amountPaid ? parseFloat(pendingPayments._sum.amountPaid) : 0;
-
-        // 3. Total Expenses (MTD - Month to Date, or Total? Let's do Total for Net Income context)
-        // Ideally Net Income = Total Income (All Time) - Total Expenses (All Time)
-        // Or Monthly. Let's do Monthly for "Overview" usually.
-        // BUT user asked to "Match with all incomes". Let's assume ALL TIME for Net Income for now unless filtered.
-        // Let's stick to Month for the dashboard cards usually, but allow full range. 
-        // Based on user: "net income calculate of income and expenses not use pending payments"
-
-        // Let's implement MTD (Month to Date) for the cards as it's standard.
         const startOfMonth = new Date();
         startOfMonth.setDate(1);
         startOfMonth.setHours(0, 0, 0, 0);
 
-        const currentMonthExpenses = await prisma.expense.aggregate({
+        const currentMonthStr = new Date().toISOString().slice(0, 7); // YYYY-MM
+
+        // 1. Total Paid Income (All Time) - sum of all APPROVED payments
+        const allPaymentsAgg = await prisma.payment.aggregate({
+            _sum: { amountPaid: true },
+            where: { status: 'APPROVED' }
+        });
+        const totalIncomeAllTime = allPaymentsAgg._sum.amountPaid ? parseFloat(allPaymentsAgg._sum.amountPaid) : 0;
+
+        // 2. Total Expenses (All Time)
+        const allExpenses = await prisma.expense.aggregate({
+            _sum: { amount: true }
+        });
+        const totalExpensesAllTime = allExpenses._sum.amount ? parseFloat(allExpenses._sum.amount) : 0;
+
+        // 3. Income MTD (Payments made this month)
+        const monthPaymentsAgg = await prisma.payment.aggregate({
+            _sum: { amountPaid: true },
+            where: {
+                status: 'APPROVED',
+                createdAt: { gte: startOfMonth }
+            }
+        });
+        const incomeMTD = monthPaymentsAgg._sum.amountPaid ? parseFloat(monthPaymentsAgg._sum.amountPaid) : 0;
+
+        // 4. Expenses MTD
+        const monthExpensesAgg = await prisma.expense.aggregate({
             _sum: { amount: true },
             where: { expenseDate: { gte: startOfMonth } }
         });
-        const expenseTotalMTD = currentMonthExpenses._sum.amount ? parseFloat(currentMonthExpenses._sum.amount) : 0;
+        const expenseMTD = monthExpensesAgg._sum.amount ? parseFloat(monthExpensesAgg._sum.amount) : 0;
 
-        // NET INCOME Calculation (MTD)
-        // Paid Incomes MTD
-        // We need to filter billing by payment date? Billing doesn't capture payment date easily without join.
-        // Let's filter Billing by billingMonth = current YYYY-MM.
-        const currentMonthStr = new Date().toISOString().slice(0, 7); // YYYY-MM
-        const monthPaidBillings = await prisma.billing.aggregate({
-            _sum: { amount: true },
-            where: { status: 'PAID', billingMonth: currentMonthStr }
+        // 5. Pending Payments (Online payments waiting approval)
+        const pendingPaymentsAgg = await prisma.payment.aggregate({
+            _sum: { amountPaid: true },
+            where: { status: 'PENDING' }
         });
-        const incomeMTD = monthPaidBillings._sum.amount ? parseFloat(monthPaidBillings._sum.amount) : 0;
-        const netIncomeMTD = incomeMTD - expenseTotalMTD;
+        const pendingTotal = pendingPaymentsAgg._sum.amountPaid ? parseFloat(pendingPaymentsAgg._sum.amountPaid) : 0;
 
+        const netIncomeAllTime = totalIncomeAllTime - totalExpensesAllTime;
+        const netIncomeMTD = incomeMTD - expenseMTD;
 
         // RECENT TRANSACTIONS (Mixed 5)
-        // Payment (Income) vs Expense (Outcome)
-        // We need 5 most recent from both tables combined.
         const recentPayments = await prisma.payment.findMany({
-            take: 5,
+            take: 10,
             orderBy: { createdAt: 'desc' },
             include: { billingpayment: { include: { billing: { include: { student: true } } } } }
         });
 
         const recentExpenses = await prisma.expense.findMany({
-            take: 5,
+            take: 10,
             orderBy: { expenseDate: 'desc' }
         });
 
-        // Combine and sort
         const transactions = [
             ...recentPayments.map(p => ({
                 type: 'INCOME',
@@ -234,12 +247,14 @@ exports.getDashboardStats = async (req, res, next) => {
             }))
         ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
 
-
         res.json({
             incomeMTD,
-            expenseMTD: expenseTotalMTD,
+            expenseMTD,
             netIncomeMTD,
-            pendingTotal, // Total pending queue
+            totalIncome: totalIncomeAllTime,
+            totalExpenses: totalExpensesAllTime,
+            netIncome: netIncomeAllTime,
+            pendingTotal,
             recentTransactions: transactions
         });
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Tag, Modal, Form, Input, Select, message, Typography, Card, Badge, Descriptions, Divider, List, Tabs } from 'antd';
-import { PlusOutlined, EyeOutlined, BellOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, EyeOutlined, BellOutlined, CheckCircleOutlined, CloseCircleOutlined, WalletOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -128,14 +128,39 @@ const StudentBilling = () => {
             render: (_, record) => (
                 <Space>
                     {record.status === 'UNPAID' && (
-                        <Button
-                            icon={<BellOutlined />}
-                            size="small"
-                            onClick={() => handleNotify(record.id)}
-                            style={{ color: '#FAAD14', borderColor: '#FAAD14' }}
-                        >
-                            Notify
-                        </Button>
+                        <>
+                            <Button
+                                icon={<BellOutlined />}
+                                size="small"
+                                onClick={() => handleNotify(record.id)}
+                                style={{ color: '#FAAD14', borderColor: '#FAAD14' }}
+                            >
+                                Notify
+                            </Button>
+                            <Button
+                                icon={<WalletOutlined />}
+                                size="small"
+                                type="primary"
+                                ghost
+                                onClick={() => {
+                                    Modal.confirm({
+                                        title: 'Confirm Cash Payment',
+                                        content: `Receive Rs. ${record.amount} in CASH for ${record.billingMonth}?`,
+                                        onOk: async () => {
+                                            try {
+                                                await api.post('/billing/pay-cash', { billingId: record.id });
+                                                message.success('Cash payment recorded');
+                                                fetchData();
+                                            } catch (e) {
+                                                message.error('Failed to record cash payment');
+                                            }
+                                        }
+                                    });
+                                }}
+                            >
+                                Pay Cash
+                            </Button>
+                        </>
                     )}
                     {record.status === 'PAID' && (
                         <Button

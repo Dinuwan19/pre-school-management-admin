@@ -285,12 +285,13 @@ const StudentProfile = () => {
                                     {renderProgressBar('Social', currentProgress.social, '#722ED1', 'social')}
                                 </Col>
                             </Row>
+                            {isEditingProgress && (
+                                <Form.Item name="remarks" label="Teacher Note">
+                                    <Input.TextArea rows={4} placeholder="Add a note about the student's progress..." />
+                                </Form.Item>
+                            )}
                         </Form>
-                        {isEditingProgress ? (
-                            <Form.Item name="remarks" label="Teacher Note">
-                                <Input.TextArea rows={4} placeholder="Add a note about the student's progress..." />
-                            </Form.Item>
-                        ) : (
+                        {!isEditingProgress && (
                             <div>
                                 <Text strong style={{ display: 'block', marginBottom: 8 }}>Teacher Note</Text>
                                 <div style={{ background: '#f0f2f5', padding: 12, borderRadius: 6, minHeight: 60 }}>
@@ -366,9 +367,7 @@ const StudentProfile = () => {
                         { title: <span style={{ fontWeight: 600 }}>{student.studentUniqueId}</span> }
                     ]}
                 />
-                <Space>
-                    {/* Admin logo removed */}
-                </Space>
+                <Space></Space>
             </div>
 
             <div style={{ display: 'flex', gap: 16, marginBottom: 16, alignItems: 'center' }}>

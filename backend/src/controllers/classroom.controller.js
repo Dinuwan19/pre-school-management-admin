@@ -117,28 +117,42 @@ exports.updateClassroom = async (req, res, next) => {
 exports.assignTeacher = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { teacherId } = req.body;
+        const { teacherId, designation } = req.body;
 
-        const classroom = await prisma.classroom.findUnique({
-            where: { id: parseInt(id) },
+        const classroomId = parseInt(id);
+
+        const currentClassroom = await prisma.classroom.findUnique({
+            where: { id: classroomId },
             include: { teacherprofile: true }
         });
-        if (!classroom) return res.status(404).json({ message: 'Classroom not found' });
+        if (!currentClassroom) return res.status(404).json({ message: 'Classroom not found' });
 
-        if (classroom.teacherprofile.length >= 3) {
-            return res.status(400).json({ message: 'Maximum of 3 teachers allowed per classroom' });
+        // If setting as LEAD, check if one already exists
+        if (designation === 'LEAD') {
+            const existingLead = currentClassroom.teacherprofile.find(tp => tp.designation === 'LEAD');
+            if (existingLead && existingLead.teacherId !== parseInt(teacherId)) {
+                // Demote existing lead to assistant if we are replacing
+                await prisma.teacherprofile.update({
+                    where: { teacherId: existingLead.teacherId },
+                    data: { designation: 'ASSISTANT' }
+                });
+            }
         }
 
         const profile = await prisma.teacherprofile.upsert({
             where: { teacherId: parseInt(teacherId) },
-            update: { assignedClassroomId: parseInt(id) },
+            update: {
+                assignedClassroomId: classroomId,
+                designation: designation || 'ASSISTANT'
+            },
             create: {
                 teacherId: parseInt(teacherId),
-                assignedClassroomId: parseInt(id)
+                assignedClassroomId: classroomId,
+                designation: designation || 'ASSISTANT'
             }
         });
 
-        res.json({ message: 'Teacher assigned successfully', profile });
+        res.json({ message: 'Teacher assigned and designation updated successfully', profile });
     } catch (error) {
         next(error);
     }

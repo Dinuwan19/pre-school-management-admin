@@ -108,7 +108,7 @@ const Students = () => {
         {
             title: 'Age',
             key: 'age',
-            render: (_, record) => record.dob ? dayjs().diff(dayjs(record.dob), 'year') : '-'
+            render: (_, record) => record.dateOfBirth ? `${dayjs().diff(dayjs(record.dateOfBirth), 'year')}y` : '-'
         },
         {
             title: 'Classroom',
