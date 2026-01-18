@@ -42,7 +42,7 @@ exports.getAllHomework = async (req, res, next) => {
                 classroom: {
                     select: { name: true }
                 },
-                createdBy: {
+                user: {
                     select: { fullName: true }
                 }
             },

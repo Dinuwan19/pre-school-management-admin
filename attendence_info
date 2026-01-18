@@ -1,0 +1,356 @@
+🔷 PHASE 0 — SYSTEM PREPARATION (FOUNDATION)
+✅ TODO 0.1 — Define Attendance Requirements
+
+Antigravity task
+
+Define attendance modes:
+
+QR auto attendance
+
+Manual daily attendance
+
+Define attendance states:
+
+CHECKED_IN
+
+COMPLETED
+
+ABSENT
+
+Define rules:
+
+2-hour gap for auto checkout
+
+Server time only
+
+One attendance record per student per day
+
+📌 Why: Antigravity needs clear domain rules before generating code.
+
+✅ TODO 0.2 — Define User Roles & Permissions
+
+Antigravity task
+
+Roles:
+
+ADMIN
+
+TEACHER
+
+STAFF
+
+Permissions:
+
+STAFF → scan QR only
+
+TEACHER → scan + manual attendance
+
+ADMIN → edit, reset, audit
+
+📌 Why: Access control affects routes, UI, and APIs.
+
+🔷 PHASE 1 — DATABASE DESIGN (ANTIGRAVITY DATA MODELS)
+✅ TODO 1.1 — Create Attendance Model
+
+Antigravity task
+
+Create a database model named Attendance
+
+Fields:
+
+id (primary key)
+
+student_id (foreign key)
+
+date (YYYY-MM-DD)
+
+check_in_time (nullable)
+
+check_out_time (nullable)
+
+status (PRESENT | COMPLETED | ABSENT)
+
+method (QR | MANUAL | SYSTEM)
+
+created_at
+
+updated_at
+
+📌 Why: Central source of truth for attendance.
+
+✅ TODO 1.2 — Create AttendanceAudit Model (ANTI-ERROR)
+
+Antigravity task
+
+Create a database model to track attendance changes
+
+Fields:
+
+id
+
+attendance_id (foreign key)
+
+changed_by (user_id)
+
+old_data (JSON)
+
+new_data (JSON)
+
+reason (text)
+
+changed_at
+
+📌 Why: Anti-tampering, examiner-proof, real-world safe.
+
+🔷 PHASE 2 — QR AUTO ATTENDANCE (FAST MODE)
+✅ TODO 2.1 — Generate QR Codes (Student Side)
+
+Antigravity task
+
+Generate QR code automatically when student is created
+
+QR content = student_id only
+
+Store QR image path or base64
+
+📌 Why: Smaller QR → faster scanning → fewer errors.
+
+✅ TODO 2.2 — Create Separate Scan Page
+
+Antigravity task
+
+Create a new public route /attendance-scan
+
+Rules:
+
+Not inside admin dashboard
+
+Full-screen UI
+
+Mobile-first
+
+Requires STAFF or TEACHER login
+
+📌 Why: Gate usage must be fast and distraction-free.
+
+✅ TODO 2.3 — Add Camera QR Scanner Component
+
+Antigravity task
+
+Add camera access
+
+Enable continuous QR scanning
+
+Disable page reload
+
+Add success beep sound
+
+📌 Why: Staff scans 50–100 students quickly.
+
+🔷 PHASE 3 — AUTO CHECK-IN / CHECK-OUT LOGIC (CORE BRAIN)
+✅ TODO 3.1 — Create Scan API Endpoint
+
+Antigravity task
+
+Create API: POST /api/attendance/scan
+
+Input:
+
+student_id (from QR)
+
+Process:
+
+Validate student exists and is ACTIVE
+
+Fetch today’s attendance
+
+Apply auto logic
+
+📌 Why: All intelligence lives in backend.
+
+✅ TODO 3.2 — Implement 2-Hour Gap Logic
+
+Antigravity task
+
+Implement automatic decision logic
+
+Rules:
+
+No record today → CHECK-IN
+
+Already checked out → IGNORE
+
+Checked in & time < 2 hours → IGNORE
+
+Checked in & time ≥ 2 hours → CHECK-OUT
+
+📌 Why: No buttons, no confirmation, max speed.
+
+✅ TODO 3.3 — Save Attendance Method Automatically
+
+Antigravity task
+
+When scan marks attendance:
+
+method = QR
+
+📌 Why: Needed for reports & corrections.
+
+🔷 PHASE 4 — ANTI-GRAVITY SAFEGUARDS (ERROR RESISTANCE)
+✅ TODO 4.1 — Duplicate Scan Protection
+
+Antigravity task
+
+Block scans within 2-hour window
+
+Return message: “Already recorded”
+
+📌 Why: Kids will rescan accidentally.
+
+✅ TODO 4.2 — Server-Time Enforcement
+
+Antigravity task
+
+Ignore client timestamps
+
+Use backend server time only
+
+📌 Why: Prevent cheating or wrong phone time.
+
+✅ TODO 4.3 — Invalid QR Handling
+
+Antigravity task
+
+If student_id not found → reject
+
+If student inactive → reject
+
+📌 Why: Old QR cards may exist.
+
+🔷 PHASE 5 — AUTO ABSENT SYSTEM (DAILY ACCURACY)
+✅ TODO 5.1 — Daily Auto-Absent Job
+
+Antigravity task
+
+Create scheduled job (cron)
+
+Logic:
+
+Run every day at fixed time (e.g., 10:00 AM)
+
+For students without attendance:
+
+Create attendance
+
+status = ABSENT
+
+method = SYSTEM
+
+📌 Why: Guarantees 100% daily attendance data.
+
+🔷 PHASE 6 — MANUAL DAILY ATTENDANCE (BACKUP)
+✅ TODO 6.1 — Create Manual Attendance Page
+
+Antigravity task
+
+Create /teacher/daily-attendance
+
+Features:
+
+List students by class
+
+Toggle Present / Absent
+
+Save attendance manually
+
+📌 Why: QR can fail; class teacher confirms.
+
+✅ TODO 6.2 — Manual Attendance Logic
+
+Antigravity task
+
+Manual PRESENT → create/update attendance
+
+Manual ABSENT → create/update attendance
+
+method = MANUAL
+
+📌 Why: Overrides auto-absent safely.
+
+🔷 PHASE 7 — ADMIN CORRECTION & AUDIT
+✅ TODO 7.1 — Attendance Edit Screen (Admin)
+
+Antigravity task
+
+Allow admin to:
+
+Edit check-in time
+
+Edit check-out time
+
+Change status
+
+📌 Why: Real-world mistakes must be fixable.
+
+✅ TODO 7.2 — Mandatory Reason for Edit
+
+Antigravity task
+
+Require reason before saving changes
+
+Store change in AttendanceAudit
+
+📌 Why: Prevent silent manipulation.
+
+🔷 PHASE 8 — VISIBILITY & REPORTS
+✅ TODO 8.1 — Parent Attendance View
+
+Antigravity task
+
+Read-only attendance list
+
+Show date, check-in, check-out, status
+
+📌 Why: Transparency for parents.
+
+✅ TODO 8.2 — Admin Attendance Reports
+
+Antigravity task
+
+Daily summary
+
+QR vs Manual comparison
+
+Missing check-outs
+
+📌 Why: Management insight.
+
+🔷 PHASE 9 — PERFORMANCE & UX
+✅ TODO 9.1 — Speed Enhancements
+
+Antigravity task
+
+Cache today’s attendance
+
+Reduce API payload
+
+Disable animations on scan page
+
+Add vibration + beep
+
+📌 Why: Sub-second scanning experience.
+
+🔷 PHASE 10 — DOCUMENTATION (IMPORTANT FOR PROJECT)
+✅ TODO 10.1 — System Explanation Text
+
+Antigravity task
+
+Document:
+
+QR auto attendance
+
+2-hour rule
+
+Manual backup
+
+Audit correction

@@ -3,27 +3,49 @@ const prisma = require('../config/prisma');
 exports.generateBilling = async (req, res, next) => {
     console.log('[Billing] Generating billing for:', req.body);
     try {
-        const { studentId, billingMonth, amount } = req.body;
+        const { studentId, billingMonth, billingMonths, amount } = req.body;
 
-        // Check if billing already exists for this student and month
-        const existing = await prisma.billing.findFirst({
-            where: { studentId: parseInt(studentId), billingMonth }
-        });
+        // Handle multiple months if provided
+        const monthsToProcess = billingMonths || (billingMonth ? [billingMonth] : []);
 
-        if (existing) {
-            return res.status(400).json({ message: 'Billing for this month already exists for this student' });
+        if (monthsToProcess.length === 0) {
+            return res.status(400).json({ message: 'No billing month specified' });
         }
 
-        const billing = await prisma.billing.create({
-            data: {
-                studentId: parseInt(studentId),
-                billingMonth,
-                amount: parseFloat(amount),
-                status: 'UNPAID'
-            }
-        });
+        const results = [];
+        const errors = [];
 
-        res.status(201).json(billing);
+        for (const month of monthsToProcess) {
+            // Check if billing already exists for this student and month
+            const existing = await prisma.billing.findFirst({
+                where: { studentId: parseInt(studentId), billingMonth: month }
+            });
+
+            if (existing) {
+                errors.push(`Billing for ${month} already exists`);
+                continue;
+            }
+
+            const billing = await prisma.billing.create({
+                data: {
+                    studentId: parseInt(studentId),
+                    billingMonth: month,
+                    amount: parseFloat(amount),
+                    status: 'UNPAID'
+                }
+            });
+            results.push(billing);
+        }
+
+        if (results.length === 0 && errors.length > 0) {
+            return res.status(400).json({ message: errors.join(', ') });
+        }
+
+        res.status(201).json({
+            message: `Generated ${results.length} bills`,
+            data: results,
+            warnings: errors.length > 0 ? errors : undefined
+        });
     } catch (error) {
         next(error);
     }

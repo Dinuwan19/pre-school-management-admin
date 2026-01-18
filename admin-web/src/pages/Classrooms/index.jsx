@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Button, Typography, Row, Col, Progress, Avatar, Tag, Modal, Form, Input, InputNumber, message, Space, Empty, Divider, Descriptions, List } from 'antd';
 import { PlusOutlined, UserOutlined, TeamOutlined, ScheduleOutlined, EditOutlined, SaveOutlined } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
@@ -7,6 +8,7 @@ import api from '../../api/client';
 const { Title, Text } = Typography;
 
 const Classrooms = () => {
+    const navigate = useNavigate();
     const { user } = useAuth();
     const [classrooms, setClassrooms] = useState([]);
     const [loading, setLoading] = useState(false);
