@@ -28,7 +28,7 @@ exports.getAllHomework = async (req, res, next) => {
 
         if (role === 'TEACHER') {
             // Find teacher's classroom
-            const profile = await prisma.teacherProfile.findUnique({ where: { teacherId: id } });
+            const profile = await prisma.teacherprofile.findUnique({ where: { teacherId: id } });
             if (profile && profile.assignedClassroomId) {
                 where = { classroomId: profile.assignedClassroomId };
             } else {

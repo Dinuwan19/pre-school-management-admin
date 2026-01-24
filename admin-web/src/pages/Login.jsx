@@ -62,7 +62,7 @@ const Login = () => {
             const token = localStorage.getItem('token');
             await axios.post('http://127.0.0.1:5000/api/auth/change-password', {
                 currentPassword: values.currentPassword,
-                newPassword: values.newPassword
+                newPassword: values.newPassword,
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -217,13 +217,19 @@ const Login = () => {
                                 label={<span style={{ color: '#444', fontWeight: 600, fontSize: 13 }}>PASSWORD</span>}
                                 name="password"
                                 rules={[{ required: true, message: 'Please input your Password!' }]}
-                                style={{ marginBottom: 32 }}
+                                style={{ marginBottom: 8 }}
                             >
                                 <Input.Password
                                     style={{ background: '#F8F8F8', border: '1px solid #EAEAEA', borderRadius: 10, padding: '10px 14px' }}
                                     placeholder="••••••••"
                                 />
                             </Form.Item>
+
+                            <div style={{ textAlign: 'right', marginBottom: 24 }}>
+                                <a onClick={() => navigate('/forgot-password')} style={{ color: primaryColor, fontSize: 13, fontWeight: 500 }}>
+                                    Forgot Password?
+                                </a>
+                            </div>
 
                             <Form.Item>
                                 <Button

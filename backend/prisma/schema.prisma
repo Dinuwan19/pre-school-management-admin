@@ -8,17 +8,36 @@ datasource db {
 }
 
 model attendance {
-  id             Int       @id @default(autoincrement())
-  studentId      Int
-  attendanceDate DateTime  @db.Date
-  checkInTime    DateTime? @db.Time(0)
-  checkOutTime   DateTime? @db.Time(0)
-  markedById     Int
-  user           user      @relation(fields: [markedById], references: [id], map: "Attendance_markedById_fkey")
-  student        student   @relation(fields: [studentId], references: [id], map: "Attendance_studentId_fkey")
+  id              Int               @id @default(autoincrement())
+  studentId       Int
+  attendanceDate  DateTime          @db.Date
+  checkInTime     DateTime?         @db.Time(0)
+  checkOutTime    DateTime?         @db.Time(0)
+  markedById      Int
+  status          attendance_status @default(PRESENT)
+  method          attendance_method @default(MANUAL)
+  deviceId        String?
+  user            user              @relation(fields: [markedById], references: [id], map: "Attendance_markedById_fkey")
+  student         student           @relation(fields: [studentId], references: [id], map: "Attendance_studentId_fkey")
+  attendanceaudit attendanceaudit[]
 
   @@index([markedById], map: "Attendance_markedById_fkey")
   @@index([studentId], map: "Attendance_studentId_fkey")
+}
+
+model attendanceaudit {
+  id           Int        @id @default(autoincrement())
+  attendanceId Int
+  changedById  Int
+  oldData      String     @db.Text // JSON string
+  newData      String     @db.Text // JSON string
+  reason       String?    @db.Text
+  changedAt    DateTime   @default(now())
+  attendance   attendance @relation(fields: [attendanceId], references: [id])
+  user         user       @relation(fields: [changedById], references: [id])
+
+  @@index([attendanceId], map: "AttendanceAudit_attendanceId_fkey")
+  @@index([changedById], map: "AttendanceAudit_changedById_fkey")
 }
 
 model auditlog {
@@ -200,13 +219,13 @@ model studentprogress {
 }
 
 model teacherprofile {
-  teacherId           Int        @id
+  teacherId           Int                 @id
   qualification       String?
   qualificationPdf    String?
   designation         teacher_designation @default(ASSISTANT)
   assignedClassroomId Int?
-  classroom           classroom? @relation(fields: [assignedClassroomId], references: [id], map: "TeacherProfile_assignedClassroomId_fkey")
-  user                user       @relation(fields: [teacherId], references: [id], map: "TeacherProfile_teacherId_fkey")
+  classroom           classroom?          @relation(fields: [assignedClassroomId], references: [id], map: "TeacherProfile_assignedClassroomId_fkey")
+  user                user                @relation(fields: [teacherId], references: [id], map: "TeacherProfile_teacherId_fkey")
 
   @@index([assignedClassroomId], map: "TeacherProfile_assignedClassroomId_fkey")
 }
@@ -226,6 +245,8 @@ model user {
   address                                        String?           @db.Text
   joiningDate                                    DateTime?
   photoUrl                                       String?
+  resetToken                                     String?
+  resetTokenExpires                              DateTime?
   createdAt                                      DateTime          @default(now())
   updatedAt                                      DateTime          @updatedAt
   attendance                                     attendance[]
@@ -236,6 +257,7 @@ model user {
   payment                                        payment[]
   studentprogress                                studentprogress[]
   teacherprofile                                 teacherprofile?
+  attendanceaudit                                attendanceaudit[]
 }
 
 enum user_role {
@@ -285,4 +307,18 @@ enum student_status {
 enum teacher_designation {
   LEAD
   ASSISTANT
+}
+
+enum attendance_status {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+  COMPLETED
+}
+
+enum attendance_method {
+  QR
+  MANUAL
+  SYSTEM
 }

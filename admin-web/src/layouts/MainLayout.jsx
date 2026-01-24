@@ -88,16 +88,19 @@ const MainLayout = () => {
             { key: '/announcements', label: 'Announcements', icon: <BellOutlined /> },
             { key: '/homework', label: 'Homework', icon: <BellOutlined /> }
         ]),
-        {
+        // Only Admin and Super Admin can see Billing (except parents see their own student billing? 
+        // User said: "role base access not working properly staff part no need to billing part also"
+        // I take this as: Teacher doesn't need Billing. Admin/SuperAdmin do.
+        ...((user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') ? [{
             key: 'billing-sub',
             icon: <FileTextOutlined />,
             label: 'Billing',
             children: [
-                ...(user?.role !== 'PARENT' ? [{ key: '/billing/overview', label: 'Overview' }] : []),
+                { key: '/billing/overview', label: 'Overview' },
                 { key: '/billing/students', label: 'Student Billing' },
-                ...(user?.role !== 'PARENT' ? [{ key: '/billing/expenses', label: 'Expenses' }] : [])
+                { key: '/billing/expenses', label: 'Expenses' }
             ]
-        }
+        }] : [])
     ];
 
     // Helper to determine breadcrumbs

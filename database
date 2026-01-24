@@ -1,0 +1,162 @@
+🧱 1️⃣ USERS & AUTHENTICATION
+CREATE TABLE users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    role ENUM('SUPER_ADMIN','ADMIN','TEACHER') NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100),
+    phone VARCHAR(15),
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    first_login BOOLEAN DEFAULT TRUE,
+    status ENUM('ACTIVE','INACTIVE') DEFAULT 'ACTIVE',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+🧱 2️⃣ PARENTS
+CREATE TABLE parents (
+    parent_id INT AUTO_INCREMENT PRIMARY KEY,
+    parent_unique_id VARCHAR(20) UNIQUE NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    relationship ENUM('FATHER','MOTHER','GUARDIAN') NOT NULL,
+    national_id VARCHAR(20),
+    occupation VARCHAR(100),
+    address TEXT,
+    phone VARCHAR(15),
+    photo_url VARCHAR(255),
+    status ENUM('ACTIVE','INACTIVE') DEFAULT 'ACTIVE',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+🧱 3️⃣ CLASSROOMS
+CREATE TABLE classrooms (
+    classroom_id INT AUTO_INCREMENT PRIMARY KEY,
+    classroom_name VARCHAR(50) NOT NULL,
+    age_group VARCHAR(20),
+    capacity INT,
+    schedule TEXT,
+    status ENUM('ACTIVE','INACTIVE') DEFAULT 'ACTIVE'
+);
+
+🧱 4️⃣ TEACHER PROFILE (EXTENSION OF USERS)
+CREATE TABLE teacher_profiles (
+    teacher_id INT PRIMARY KEY,
+    qualification VARCHAR(255),
+    qualification_pdf VARCHAR(255),
+    assigned_classroom INT,
+    FOREIGN KEY (teacher_id) REFERENCES users(user_id),
+    FOREIGN KEY (assigned_classroom) REFERENCES classrooms(classroom_id)
+);
+
+🧱 5️⃣ STUDENTS
+CREATE TABLE students (
+    student_id INT AUTO_INCREMENT PRIMARY KEY,
+    student_unique_id VARCHAR(20) UNIQUE NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    enrollment_date DATE,
+    date_of_birth DATE,
+    gender ENUM('MALE','FEMALE'),
+    medical_info TEXT,
+    photo_url VARCHAR(255),
+    birth_certificate_pdf VARCHAR(255),
+    parent_id INT NOT NULL,
+    classroom_id INT NOT NULL,
+    qr_code VARCHAR(255) UNIQUE NOT NULL,
+    status ENUM('ACTIVE','INACTIVE') DEFAULT 'ACTIVE',
+    FOREIGN KEY (parent_id) REFERENCES parents(parent_id),
+    FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id)
+);
+
+🧱 6️⃣ STUDENT PROGRESS
+CREATE TABLE student_progress (
+    progress_id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    reading INT,
+    writing INT,
+    speaking INT,
+    listening INT,
+    mathematics INT,
+    remarks TEXT,
+    updated_by INT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES students(student_id),
+    FOREIGN KEY (updated_by) REFERENCES users(user_id)
+);
+
+🧱 7️⃣ ATTENDANCE (QR BASED)
+CREATE TABLE attendance (
+    attendance_id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    attendance_date DATE NOT NULL,
+    check_in_time TIME,
+    check_out_time TIME,
+    marked_by INT,
+    FOREIGN KEY (student_id) REFERENCES students(student_id),
+    FOREIGN KEY (marked_by) REFERENCES users(user_id)
+);
+
+🧱 8️⃣ HOMEWORK
+CREATE TABLE homework (
+    homework_id INT AUTO_INCREMENT PRIMARY KEY,
+    classroom_id INT NOT NULL,
+    title VARCHAR(100),
+    description TEXT,
+    due_date DATE,
+    created_by INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id),
+    FOREIGN KEY (created_by) REFERENCES users(user_id)
+);
+
+🧱 9️⃣ NOTIFICATIONS / ANNOUNCEMENTS
+CREATE TABLE notifications (
+    notification_id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(100),
+    message TEXT,
+    target_role ENUM('PARENT','TEACHER','ALL'),
+    target_classroom INT,
+    created_by INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(user_id),
+    FOREIGN KEY (target_classroom) REFERENCES classrooms(classroom_id)
+);
+
+🧱 🔟 BILLING
+Student Billing
+CREATE TABLE billing (
+    billing_id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    billing_month VARCHAR(20),
+    amount DECIMAL(10,2),
+    status ENUM('UNPAID','PENDING','PAID') DEFAULT 'UNPAID',
+    FOREIGN KEY (student_id) REFERENCES students(student_id)
+);
+
+Payments
+CREATE TABLE payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    billing_id INT NOT NULL,
+    payment_method ENUM('CASH','BANK_TRANSFER'),
+    receipt_url VARCHAR(255),
+    verified_by INT,
+    verified_at TIMESTAMP,
+    FOREIGN KEY (billing_id) REFERENCES billing(billing_id),
+    FOREIGN KEY (verified_by) REFERENCES users(user_id)
+);
+
+🧱 1️⃣1️⃣ EXPENSES
+CREATE TABLE expenses (
+    expense_id INT AUTO_INCREMENT PRIMARY KEY,
+    category VARCHAR(100),
+    amount DECIMAL(10,2),
+    expense_date DATE,
+    description TEXT
+);
+
+🧱 1️⃣2️⃣ AUDIT LOG (IMPORTANT & EASY MARKS)
+CREATE TABLE audit_logs (
+    log_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    action TEXT,
+    action_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);

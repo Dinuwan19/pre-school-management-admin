@@ -59,7 +59,7 @@ exports.getAllParents = async (req, res, next) => {
 
         // Data Scoping for Teacher
         if (req.user.role === 'TEACHER') {
-            const teacherProfile = await prisma.teacherProfile.findUnique({
+            const teacherProfile = await prisma.teacherprofile.findUnique({
                 where: { teacherId: req.user.id }
             });
 

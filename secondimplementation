@@ -1,0 +1,175 @@
+Description
+
+The Parent Management module maintains verified parent profiles and establishes a secure link between parents and their children.
+
+Parent Information
+
+Parent ID (auto-generated)
+
+Full name
+
+Relationship to child (Father/Mother/Guardian)
+
+National ID number
+
+Occupation
+
+Address
+
+Contact number
+
+Profile photograph
+
+Parent ID Usage
+
+Parent ID is generated automatically
+
+Shared with parents via physical documents or messaging platforms
+
+Used by parents to activate their mobile application account
+
+Parents cannot delete or modify child associations, ensuring data integrity.
+6. Staff and Teacher Management Module
+Description
+
+This module manages all staff-related accounts including both administrative staff and teachers.
+
+Staff Information
+
+National ID
+
+Full name
+
+Contact details
+
+Address
+
+Joining date
+
+Teacher-Specific Information
+
+Qualification details
+
+Qualification document (PDF)
+
+Assigned classroom
+
+Account Creation
+
+System generates temporary credentials
+
+Credentials are sent via WhatsApp or SMS
+
+First login requires password reset
+
+7. Attendance Management System
+Description
+
+The attendance system automates student presence tracking using QR code scanning.
+
+Attendance Features
+
+QR scan records student ID, date, and time
+
+Prevents duplicate attendance entries
+
+Attendance records are viewable by Admin, Teacher, and Parent
+
+Daily attendance summaries are used in dashboard analytics
+
+This system eliminates manual registers and improves accuracy.
+
+8. Notification and Announcement Module
+Description
+
+The Notification module allows Admins to communicate with parents and teachers through the system.
+
+Notification Attributes
+
+Title
+
+Message content
+
+Target audience (Parent / Teacher / All)
+
+Target classroom (optional)
+
+Created date
+
+Created by
+
+Functionality
+
+Notifications are stored internally
+
+Displayed in user dashboards
+
+Ensures reliable communication without relying on external services
+
+9. Homework Management Module
+Description
+
+Homework assignments are managed on a classroom basis by teachers.
+
+Homework Attributes
+
+Homework ID
+
+Classroom
+
+Title
+
+Description
+
+Due date
+
+Created by (Teacher)
+
+Created date
+
+Parents can view homework but cannot modify or submit content through the system.
+
+10. Billing and Payment Management Module
+Description
+
+The Billing module tracks student fee payments and financial status efficiently while avoiding complex online payment gateways.
+
+Student Billing
+
+Student name
+
+Billing month
+
+Amount
+
+Payment status:
+
+UNPAID
+
+PENDING (receipt uploaded)
+
+PAID (verified)
+
+Payment Handling
+
+Parents upload payment receipts
+
+Admin verifies payment manually
+
+Verified payments generate invoices
+
+Payment history is stored per student
+
+Expenses Management
+
+Expense category
+
+Amount
+
+Date
+
+Description
+
+This approach is cost-effective and suitable for Sri Lankan preschools.
+
+admin can add students /parent details and edit them . only they cant add other admin or staff. teacher can only change student progress add note to student profile and adding and manage attendence . and add homework or annoucement. if teacher login in to system , she/he see only their assigned classroom details , students parent information they only can add homework this classroom only did not see any classrooms. super admin create once account better username and password together like pdf vise download or adding together. 

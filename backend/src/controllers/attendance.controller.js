@@ -1,56 +1,244 @@
 const prisma = require('../config/prisma');
 const dayjs = require('dayjs');
 
-exports.markAttendance = async (req, res, next) => {
+exports.scanAttendance = async (req, res, next) => {
     try {
-        const { studentId, type } = req.body; // type: 'CHECK_IN' or 'CHECK_OUT'
-        const today = dayjs().format('YYYY-MM-DD');
+        console.log(`[Attendance] Scan attempt for studentId: ${req.body.studentId} by user: ${req.user?.username}`);
+        const { studentId } = req.body;
+        const markedById = req.user ? req.user.id : 1;
         const now = new Date();
+        const todayStr = dayjs().format('YYYY-MM-DD');
 
-        // 1. Find or Create attendance record for today
-        let attendance = await prisma.attendance.findFirst({
-            where: {
-                studentId: parseInt(studentId),
-                attendanceDate: new Date(today)
-            }
-        });
-
-        if (type === 'CHECK_IN') {
-            if (attendance && attendance.checkInTime) {
-                return res.status(400).json({ message: 'Already checked in today' });
-            }
-
-            if (!attendance) {
-                attendance = await prisma.attendance.create({
-                    data: {
-                        studentId: parseInt(studentId),
-                        attendanceDate: new Date(today),
-                        checkInTime: now,
-                        markedById: req.user ? req.user.id : 1
-                    }
-                });
-            } else {
-                attendance = await prisma.attendance.update({
-                    where: { id: attendance.id },
-                    data: { checkInTime: now }
-                });
-            }
-        } else if (type === 'CHECK_OUT') {
-            if (!attendance || !attendance.checkInTime) {
-                return res.status(400).json({ message: 'Must check in before checking out' });
-            }
-            if (attendance.checkOutTime) {
-                return res.status(400).json({ message: 'Already checked out today' });
-            }
-
-            attendance = await prisma.attendance.update({
-                where: { id: attendance.id },
-                data: { checkOutTime: now }
+        // 1. Validate Student
+        if (!studentId || isNaN(parseInt(studentId))) {
+            return res.status(400).json({
+                message: 'Invalid or missing student ID in QR code',
+                status: 'ERROR'
             });
         }
 
-        const displayType = type ? type.replace('_', ' ').toLowerCase() : 'marked attendance';
-        res.json({ message: `Successfully ${displayType}`, attendance });
+        const student = await prisma.student.findUnique({ where: { id: parseInt(studentId) } });
+        if (!student || student.status !== 'ACTIVE') {
+            return res.status(404).json({ message: 'Student not found or inactive', status: 'ERROR' });
+        }
+
+        // 2. Find existing record for today
+        const attendance = await prisma.attendance.findFirst({
+            where: {
+                studentId: parseInt(studentId),
+                attendanceDate: new Date(todayStr)
+            }
+        });
+
+        // 3. Logic: 2-Hour Gap Rule
+        let result = {};
+
+        if (!attendance) {
+            // CASE A: No record -> First Check-in
+            const newRecord = await prisma.attendance.create({
+                data: {
+                    studentId: student.id,
+                    attendanceDate: new Date(todayStr),
+                    checkInTime: now,
+                    markedById,
+                    method: 'QR',
+                    status: 'PRESENT',
+                    deviceId: req.body.deviceId || 'UNKNOWN'
+                }
+            });
+            result = { message: 'Checked In Successfully', type: 'CHECK_IN', data: newRecord };
+        } else {
+            // CASE B: Already has record
+            const lastUpdate = attendance.checkOutTime || attendance.checkInTime;
+            const diffMinutes = dayjs(now).diff(dayjs(lastUpdate), 'minute');
+
+            if (diffMinutes < 2) {
+                // Debounce: Double scan within 2 minutes -> Ignore
+                return res.json({
+                    message: 'Already scanned just now',
+                    type: 'IGNORED',
+                    data: attendance,
+                    student: {
+                        fullName: student.fullName,
+                        photoUrl: student.photoUrl,
+                        id: student.studentUniqueId
+                    }
+                });
+            }
+
+            if (!attendance.checkOutTime) {
+                // Has Check-in, No Check-out
+                if (diffMinutes >= 120) { // 2 Hours (120 mins)
+                    // Check-out
+                    const updated = await prisma.attendance.update({
+                        where: { id: attendance.id },
+                        data: {
+                            checkOutTime: now,
+                            status: 'COMPLETED'
+                        }
+                    });
+                    result = { message: 'Checked Out Successfully', type: 'CHECK_OUT', data: updated };
+                } else {
+                    // Less than 2 hours -> Warning/Info
+                    return res.json({
+                        message: 'Already checked in. Try again later for check-out.',
+                        type: 'ALREADY_IN',
+                        data: attendance,
+                        student: {
+                            fullName: student.fullName,
+                            photoUrl: student.photoUrl,
+                            id: student.studentUniqueId
+                        }
+                    });
+                }
+            } else {
+                // Already checked out
+                return res.json({
+                    message: 'Attendance already completed for today',
+                    type: 'COMPLETED',
+                    data: attendance,
+                    student: {
+                        fullName: student.fullName,
+                        photoUrl: student.photoUrl,
+                        id: student.studentUniqueId
+                    }
+                });
+            }
+        }
+
+        // 4. Return enriched data for visual verification
+        res.json({
+            ...result,
+            student: {
+                fullName: student.fullName,
+                photoUrl: student.photoUrl,
+                id: student.studentUniqueId
+            }
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.manualAttendance = async (req, res, next) => {
+    try {
+        const { studentId, status, date, checkInTime, checkOutTime } = req.body;
+        const markedById = req.user.id;
+        const attendanceDate = date ? new Date(date) : new Date();
+        const auditReason = req.body.reason || 'Manual Override';
+
+        // 1. Audit: Get old data if exists
+        const existing = await prisma.attendance.findFirst({
+            where: {
+                studentId: parseInt(studentId),
+                attendanceDate: attendanceDate
+            }
+        });
+
+        let attendance;
+
+        const updateData = {
+            status,
+            method: 'MANUAL',
+            markedById,
+            checkInTime: checkInTime ? new Date(checkInTime) : undefined,
+            checkOutTime: checkOutTime ? new Date(checkOutTime) : undefined
+        };
+
+        if (existing) {
+            // Update
+            attendance = await prisma.attendance.update({
+                where: { id: existing.id },
+                data: updateData
+            });
+            // Create Audit Log
+            await prisma.attendanceaudit.create({
+                data: {
+                    attendanceId: attendance.id,
+                    changedById: markedById,
+                    oldData: JSON.stringify(existing),
+                    newData: JSON.stringify(attendance),
+                    reason: auditReason
+                }
+            });
+        } else {
+            // Create
+            attendance = await prisma.attendance.create({
+                data: {
+                    studentId: parseInt(studentId),
+                    attendanceDate,
+                    ...updateData
+                }
+            });
+        }
+
+        res.json({ message: 'Manual attendance updated', attendance });
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.bulkMarkAttendance = async (req, res, next) => {
+    try {
+        const { classroomId, status, date } = req.body;
+        const markedById = req.user.id;
+        const attendanceDate = date ? new Date(date) : new Date(dayjs().format('YYYY-MM-DD'));
+
+        // 1. Get all students in classroom
+        const students = await prisma.student.findMany({
+            where: {
+                classroomId: parseInt(classroomId),
+                status: 'ACTIVE'
+            },
+            select: { id: true }
+        });
+
+        const studentIds = students.map(s => s.id);
+
+        // 2. Find existing records to avoid duplicates in createMany
+        const existingRecords = await prisma.attendance.findMany({
+            where: {
+                studentId: { in: studentIds },
+                attendanceDate: attendanceDate
+            },
+            select: { studentId: true }
+        });
+
+        const existingSet = new Set(existingRecords.map(r => r.studentId));
+        const newStudentIds = studentIds.filter(id => !existingSet.has(id));
+
+        // 3. Update existing ones if they aren't 'COMPLETED' (or as per rule)
+        if (existingRecords.length > 0) {
+            await prisma.attendance.updateMany({
+                where: {
+                    attendanceDate: attendanceDate,
+                    studentId: { in: Array.from(existingSet) },
+                    status: { not: 'COMPLETED' }
+                },
+                data: {
+                    status,
+                    method: 'MANUAL',
+                    markedById
+                }
+            });
+        }
+
+        // 4. Create new ones
+        if (newStudentIds.length > 0) {
+            await prisma.attendance.createMany({
+                data: newStudentIds.map(id => ({
+                    studentId: id,
+                    attendanceDate: attendanceDate,
+                    status,
+                    method: 'MANUAL',
+                    markedById,
+                    checkInTime: status === 'PRESENT' ? new Date() : null
+                }))
+            });
+        }
+
+        res.json({ message: `Bulk marked ${studentIds.length} students as ${status}` });
     } catch (error) {
         next(error);
     }
@@ -59,35 +247,51 @@ exports.markAttendance = async (req, res, next) => {
 exports.getDailyAttendance = async (req, res, next) => {
     try {
         const date = req.query.date || dayjs().format('YYYY-MM-DD');
-        let where = { attendanceDate: new Date(date) };
+        const searchDate = new Date(date);
 
-        // Data Scoping for Teacher
+        // 1. Get Students (Scoped by role)
+        let studentWhere = { status: 'ACTIVE' };
         if (req.user.role === 'TEACHER') {
             const teacherProfile = await prisma.teacherprofile.findUnique({
                 where: { teacherId: req.user.id }
             });
-
             if (!teacherProfile || !teacherProfile.assignedClassroomId) {
-                return res.json([]); // No classroom assigned, no records visible
+                return res.json([]);
             }
-            // Filter attendance records by student's classroom
-            where.student = { classroomId: teacherProfile.assignedClassroomId };
+            studentWhere.classroomId = teacherProfile.assignedClassroomId;
         }
 
-        const attendance = await prisma.attendance.findMany({
-            where: where,
+        const students = await prisma.student.findMany({
+            where: studentWhere,
             include: {
-                student: {
-                    select: {
-                        fullName: true,
-                        studentUniqueId: true,
-                        photoUrl: true,
-                        classroom: { select: { name: true } }
-                    }
+                classroom: { select: { name: true } },
+                attendance: {
+                    where: { attendanceDate: searchDate }
                 }
             }
         });
-        res.json(attendance);
+
+        // 2. Flatten result: One student with its attendance (if exists)
+        const result = students.map(s => {
+            const att = s.attendance.length > 0 ? s.attendance[0] : null;
+            return {
+                id: att ? att.id : `ST-${s.id}`, // temp ID if not in DB
+                studentId: s.id,
+                checkInTime: att ? att.checkInTime : null,
+                checkOutTime: att ? att.checkOutTime : null,
+                status: att ? att.status : 'NOT_MARKED',
+                method: att ? att.method : null,
+                student: {
+                    id: s.id,
+                    fullName: s.fullName,
+                    studentUniqueId: s.studentUniqueId,
+                    photoUrl: s.photoUrl,
+                    classroom: s.classroom
+                }
+            };
+        });
+
+        res.json(result);
     } catch (error) {
         next(error);
     }

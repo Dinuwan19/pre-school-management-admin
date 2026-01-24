@@ -1,0 +1,324 @@
+1. Student Date of Birth Not Displayed
+
+Issue:
+The student date of birth is not visible in the Student Profile View after the student is added.
+
+Impact:
+Admin and teachers cannot verify student age or personal details correctly.
+
+To-Do / Fix:
+
+Bind the date_of_birth field correctly from the database to the Student Profile UI.
+
+Ensure the field is included in both view and API response layers.
+
+2. Student Details Cannot Be Edited After Creation
+
+Issue:
+Once a student is added, student details cannot be edited.
+
+Impact:
+Admin cannot update incorrect or changed information.
+
+To-Do / Fix:
+
+Allow admin to edit all student details except the Student ID.
+
+Fields allowed to update:
+
+Name
+
+Date of birth
+
+Address
+
+Parent contact details
+
+Class assignment
+
+Student ID must remain read-only to preserve data integrity.
+
+3. Missing “None” Option in Class Filter
+
+Issue:
+The class filter does not have a “None / All Classes” option.
+
+Impact:
+Admin and teachers cannot easily view:
+
+All students
+
+Students without a class assignment
+
+To-Do / Fix:
+
+Add a “None” or “All” option to the class filter dropdown.
+
+Default filter should show all students when no class is selected.
+
+4. Admin Control Limitation
+
+Issue:
+Admin currently has limited control over modifying student records after creation.
+
+Impact:
+System flexibility is reduced in real-world usage.
+
+To-Do / Fix:
+
+Grant admin full edit permission for student records.
+
+Maintain role-based access control so teachers and parents cannot modify restricted fields.
+
+5. UI Validation Improvement (Related)
+
+Issue:
+Changes are not visually confirmed after updates.
+
+To-Do / Fix:
+
+Add success/error messages such as:
+
+“Student details updated successfully”
+
+“Invalid input data”
+
+Refresh student profile automatically after editing.
+Parent Module
+1. Improve Parent Interface Using Execution Screenshots
+
+Issue:
+The parent interface is functional but not fully user-friendly.
+
+To-Do / Fix:
+
+Redesign the Parent UI using actual execution screenshots.
+
+Improve layout for:
+
+Child profile view
+
+Attendance & progress view
+
+Payment and notifications
+
+Ensure the interface is simple and easy for non-technical parents.
+
+2. Unique Parent Validation Code Required
+
+Issue:
+When a parent account is created by the admin, no unique validation code is generated.
+
+Impact:
+Parent identity cannot be securely verified during first login on the mobile app.
+
+To-Do / Fix:
+
+Generate a unique parent verification code when parent is created by admin.
+
+Use this code to validate the parent during first login.
+
+Send the code to parents via:
+
+SMS or
+
+WhatsApp message
+
+Allow login only after successful code validation.
+
+3. Parent Creation Errors (Name Validation)
+
+Issue:
+Parent cannot be added due to validation errors such as:
+
+Uppercase letters
+
+Two-word names
+
+Impact:
+Admin is unable to register valid parent profiles.
+
+To-Do / Fix:
+
+Improve input validation logic to allow:
+
+Uppercase and lowercase letters
+
+Multiple name parts (e.g., first name + last name)
+
+Display clear validation messages instead of blocking submission.
+
+B. Classroom Module
+4. Classroom Interface Needs UI Improvement
+
+Issue:
+Classroom view is technically correct but not user-friendly.
+
+To-Do / Fix:
+
+Redesign the Classroom interface using execution screenshots.
+
+Improve visibility of:
+
+Class name
+
+Assigned teacher
+
+Student list
+
+Use clear tables, spacing, and headings for better readability.
+
+5. Schedule Module Change → Meal Plan
+
+Issue:
+The current schedule feature is not aligned with preschool needs.
+
+To-Do / Fix:
+
+Replace the Schedule module with a Meal Plan module.
+
+Meal plan table should:
+
+Display Monday to Friday
+
+Allow admin to enter only meal details
+
+Teachers and parents can view the meal plan, but only admin can edit.
+
+C. Staff Module
+6. Temporary Username & Password Not Working
+
+Issue:
+When adding new staff, temporary username and password generation is not functioning.
+
+Impact:
+Staff cannot log in for the first time.
+
+To-Do / Fix:
+
+Automatically generate:
+
+Temporary username
+
+Temporary password
+
+Force staff to change password on first login.
+
+Display or send credentials securely to staff.
+and use screenshot and create view button after in staff module.
+Student Billing Function Not Working
+
+Issue:
+The student billing process is not functioning correctly after execution.
+
+Impact:
+
+Monthly fee status is not updated
+
+Admin cannot correctly mark payments as Paid / Unpaid / Pending
+
+To-Do / Fix:
+
+Debug the student billing logic and API integration.
+
+Ensure correct linking between:
+
+Student ID
+
+Billing month
+
+Payment status
+
+Verify database insert and update operations for billing records.
+
+Display confirmation messages after successful billing updates.
+
+2. Expenses Added but Not Displayed
+
+Issue:
+Admin can add expenses, but the expense list does not display saved records.
+
+Impact:
+Financial tracking becomes unreliable and incomplete.
+
+To-Do / Fix:
+
+Fix data retrieval logic for expense records.
+
+Ensure expense data is:
+
+Correctly stored in the database
+
+Fetched and rendered in the Expenses View UI
+
+Add auto-refresh or reload after expense entry.
+
+3. Missing Expense Summary & Visibility
+
+Issue:
+No clear summary or confirmation is shown after adding expenses.
+
+To-Do / Fix:
+
+Show:
+
+Total monthly expenses
+
+Category-wise breakdown (optional)
+
+Add success/error alerts such as:
+
+“Expense added successfully”
+
+“Failed to load expense records”
+
+01/17/2026
+implementation -1
+next integration 
+student-
+view profile ui changed.
+attendence can do manually.
+teacher remark can edit.
+age need show with calculation from date of birth.
+
+parent-
+dont show varification code in view profile.
+
+admin/teacher- cant see when adding staff or teacher temporary password. and username. 
+view button also not working
+
+classroom-
+no excusion after click view details.
+cant see anything about classroom view
+
+implementation -2
+student-
+Age field not show in student bar.(show like age 2y)
+view profile -download Id and qr code change to Qr code and click it download Qr of student.
+ebove the edit profile having admin mark admin logos twise delete it already have admin logo in upper tab.
+imergency contact need more highlighted.
+progress bar their no need activity feature . only skill development and can edit it. 
+add teacher note feature teacher can add note about student.
+
+parent-
+parent bar view button change .
+
+classroom-
+view detail in classroom not working.
+but staff profile nagivation of classroom work , fix it.
+in view of classroom need show lead teacher name and assistant teacher name.
+schedule change to meal plan. meal plan monday to friday . in that feature have only change meal plan that day or add plan.
+in one classroom only have lead teacher and assistant 3 teacher only cant access this limit.
+
+staff-
+classroom already assigned but not show in staff bar.
+remove staff profile download ID and Qr code .
+
+implement-3
+billing part 
+there generate billing part have to generate invoice(confirm payment.) it can download.
+it also have to select year and month to easy to validate to system.
+system need automatically track who are not paying that month and send notification to parent and also overdue payment list in system.
+in overview panel need match with all incomes(student payment total) ,expenses and pending(pending payments.). net income calculate of income and expenses not use pending payments.
+recent tracstaction need save all latest five transaction expense or income. 
+in expenses adding expenses have optional  button add receipt. 

@@ -21,6 +21,8 @@ import Homework from './pages/Homework';
 import BillingOverview from './pages/Billing/BillingOverview';
 import StudentBilling from './pages/Billing/StudentBilling';
 import Expenses from './pages/Billing/Expenses';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 function App() {
   return (
@@ -28,6 +30,8 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           <Route
             element={
@@ -36,21 +40,51 @@ function App() {
               </ProtectedRoute>
             }
           >
+            {/* Dashboard & Common - Accessible by ALL staff/parents (managed by component) */}
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/classrooms" element={<Classrooms />} />
-            <Route path="/classrooms/:id" element={<ClassroomView />} />
-            <Route path="/parents" element={<Parents />} />
-            <Route path="/parents/:id" element={<ParentProfile />} />
-            <Route path="/students" element={<Students />} />
-            <Route path="/students/:id" element={<StudentProfile />} />
-            <Route path="/staff" element={<Staff />} />
-            <Route path="/staff/:id" element={<StaffProfile />} />
-            <Route path="/attendance" element={<Attendance />} />
             <Route path="/announcements" element={<Announcements />} />
             <Route path="/homework" element={<Homework />} />
-            <Route path="/billing/overview" element={<BillingOverview />} />
-            <Route path="/billing/students" element={<StudentBilling />} />
-            <Route path="/billing/expenses" element={<Expenses />} />
+
+            {/* Classrooms - Accessible by Staff */}
+            <Route path="/classrooms" element={<Classrooms />} />
+            <Route path="/classrooms/:id" element={<ClassroomView />} />
+            <Route path="/attendance" element={<Attendance />} />
+
+            {/* Students & Parents - Teachers View Only, Admins Edit */}
+            {/* Note: View components handle internal permission checks (e.g. hiding Edit buttons) */}
+            <Route path="/students" element={<Students />} />
+            <Route path="/students/:id" element={<StudentProfile />} />
+            <Route path="/parents" element={<Parents />} />
+            <Route path="/parents/:id" element={<ParentProfile />} />
+
+            {/* STAFF - SUPER ADMIN ONLY */}
+            <Route path="/staff" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                <Staff />
+              </ProtectedRoute>
+            } />
+            <Route path="/staff/:id" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                <StaffProfile />
+              </ProtectedRoute>
+            } />
+
+            {/* BILLING - ADMIN & SUPER ADMIN ONLY */}
+            <Route path="/billing/overview" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+                <BillingOverview />
+              </ProtectedRoute>
+            } />
+            <Route path="/billing/students" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+                <StudentBilling />
+              </ProtectedRoute>
+            } />
+            <Route path="/billing/expenses" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+                <Expenses />
+              </ProtectedRoute>
+            } />
           </Route>
 
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -58,6 +58,9 @@ app.get('/', (req, res) => {
     res.json({ message: 'Preschool Management System API is running' });
 });
 
+const { initCronJobs } = require('./services/cron.service');
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
+    initCronJobs(); // Initialize Scheduled Jobs
 });

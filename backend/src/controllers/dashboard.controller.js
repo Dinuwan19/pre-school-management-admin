@@ -3,6 +3,7 @@ const dayjs = require('dayjs');
 
 exports.getStats = async (req, res, next) => {
     try {
+        console.log(`[Dashboard] Getting stats for user: ${req.user?.username} (Role: ${req.user?.role})`);
         const today = dayjs().format('YYYY-MM-DD');
         const startOfMonth = dayjs().startOf('month').toDate();
 
@@ -14,28 +15,37 @@ exports.getStats = async (req, res, next) => {
             prisma.parent.count({ where: { status: 'ACTIVE' } })
         ]);
 
-        // 2. Attendance Today %
+        // 2. Attendance Today
         const presentToday = await prisma.attendance.count({
             where: {
                 attendanceDate: new Date(today),
-                checkInTime: { not: null }
+                status: { in: ['PRESENT', 'LATE', 'COMPLETED'] }
             }
         });
-        const attendancePercentage = studentCount > 0 ? Math.round((presentToday / studentCount) * 100) : 0;
+        const attendanceAnalytics = {
+            present: presentToday,
+            total: studentCount,
+            percentage: studentCount > 0 ? Math.round((presentToday / studentCount) * 100) : 0
+        };
 
-        // 3. Billing Stats (Current Month)
+        // 3. Billing & Payments (Current Month)
         const currentMonthBillings = await prisma.billing.findMany({
             where: { createdAt: { gte: startOfMonth } }
         });
-        const totalAmount = currentMonthBillings.reduce((sum, b) => sum + parseFloat(b.amount), 0);
-        const paidAmount = currentMonthBillings
-            .filter(b => b.status === 'PAID')
-            .reduce((sum, b) => sum + parseFloat(b.amount), 0);
 
-        const paymentPercentage = totalAmount > 0 ? Math.round((paidAmount / totalAmount) * 100) : 0;
+        const billingStats = {
+            paid: currentMonthBillings.filter(b => b.status === 'PAID').length,
+            pending: currentMonthBillings.filter(b => b.status === 'PENDING').length,
+            overdue: currentMonthBillings.filter(b => b.status === 'OVERDUE').length,
+            total: currentMonthBillings.length,
+            progress: 0
+        };
 
-        // 4. Upcoming Events (Notifications marked as ALL or PARENT/TEACHER with no billingMonth)
-        // For simplicity, we'll fetch announcements that have a "targetRole" but aren't fee reminders
+        if (billingStats.total > 0) {
+            billingStats.progress = Math.round((billingStats.paid / billingStats.total) * 100);
+        }
+
+        // 4. Upcoming Events
         const events = await prisma.notification.findMany({
             where: {
                 billingMonth: null,
@@ -53,8 +63,8 @@ exports.getStats = async (req, res, next) => {
                 parents: parentCount
             },
             analytics: {
-                attendanceToday: attendancePercentage,
-                paymentProgress: paymentPercentage
+                attendance: attendanceAnalytics,
+                payments: billingStats
             },
             events
         });

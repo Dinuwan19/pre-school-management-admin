@@ -142,18 +142,24 @@ const StudentProfile = () => {
     const handleMarkAttendance = async () => {
         setMarkingAttendance(true);
         try {
-            await api.post('/attendance/mark', {
-                studentId: parseInt(id),
-                attendanceDate: dayjs().format('YYYY-MM-DD'),
-                type: 'CHECK_IN'
+            await api.post('/attendance/scan', {
+                studentId: parseInt(id)
             });
-            message.success('Attendance marked successfully');
+            message.success('Attendance processed');
             fetchData();
         } catch (error) {
             message.error(error.response?.data?.message || 'Failed to mark attendance');
         } finally {
             setMarkingAttendance(false);
         }
+    };
+
+    const getStatusTag = (status) => {
+        if (status === 'COMPLETED') return <Tag color="success">COMPLETED</Tag>;
+        if (status === 'PRESENT') return <Tag color="processing">IN SCHOOL</Tag>;
+        if (status === 'ABSENT') return <Tag color="error">ABSENT</Tag>;
+        if (status === 'LATE') return <Tag color="warning">LATE</Tag>;
+        return <Tag color="default">NOT MARKED</Tag>;
     };
 
     if (loading) return <div style={{ textAlign: 'center', marginTop: 100 }}><Spin size="large" /></div>;
@@ -319,39 +325,51 @@ const StudentProfile = () => {
             label: <span><CalendarOutlined />Attendance</span>,
             children: (
                 <div style={{ paddingTop: 16 }}>
-                    <Card size="small" title={<Text strong>Attendance Records</Text>} bordered={false}>
-                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
-                            {attendanceSummary?.history?.slice(0, 10).map((item, i) => (
-                                <div key={i} style={{
-                                    width: 70,
-                                    height: 70,
-                                    background: item.status === 'PRESENT' ? '#F6FFED' : '#FFF1F0',
-                                    border: `1px solid ${item.status === 'PRESENT' ? '#B7EB8F' : '#FFCCC7'}`,
-                                    borderRadius: 6,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: 10
-                                }}>
-                                    <div style={{ color: '#999' }}>{dayjs(item.attendanceDate).format('M/D/YYYY')}</div>
-                                    <div style={{ fontWeight: 600, color: item.status === 'PRESENT' ? '#52C41A' : '#F5222D', marginTop: 2 }}>
-                                        {item.status === 'PRESENT' ? 'Present' : 'Absent'}
+                    <Card size="small" title={<Text strong>Attendance Overview</Text>} bordered={false} style={{ marginBottom: 16 }}>
+                        <Row gutter={16}>
+                            <Col span={8}>
+                                <Statistic title="Attendance Rate" value={attendanceSummary?.attendanceRate} suffix="%" />
+                            </Col>
+                            <Col span={8}>
+                                <Statistic title="Present Days" value={attendanceSummary?.presentDays} />
+                            </Col>
+                            <Col span={8}>
+                                <Statistic title="Total Days Tracked" value={attendanceSummary?.totalDays} />
+                            </Col>
+                        </Row>
+                        <Divider />
+                        <Button
+                            type="primary"
+                            style={{ borderRadius: 6, height: 40, width: '100%' }}
+                            onClick={handleMarkAttendance}
+                            loading={markingAttendance}
+                            icon={<CheckCircleOutlined />}
+                        >
+                            Fast Check-In / Out (Auto Logic)
+                        </Button>
+                    </Card>
+
+                    <Card size="small" title={<Text strong>Attendance History</Text>} bordered={false}>
+                        <List
+                            dataSource={attendanceSummary?.history || []}
+                            renderItem={(item) => (
+                                <List.Item>
+                                    <List.Item.Meta
+                                        title={dayjs(item.attendanceDate).format('MMMM D, YYYY')}
+                                        description={
+                                            <Space split={<Divider type="vertical" />}>
+                                                <span>Check-In: {item.checkInTime ? dayjs(item.checkInTime).format('hh:mm A') : '-'}</span>
+                                                <span>Check-Out: {item.checkOutTime ? dayjs(item.checkOutTime).format('hh:mm A') : '-'}</span>
+                                            </Space>
+                                        }
+                                    />
+                                    <div>
+                                        {getStatusTag(item.status)}
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                        <div style={{ textAlign: 'center' }}>
-                            <Button
-                                type="primary"
-                                ghost
-                                style={{ borderRadius: 6, padding: '4px 24px', height: 40 }}
-                                onClick={handleMarkAttendance}
-                                loading={markingAttendance}
-                            >
-                                Mark Today's Attendance
-                            </Button>
-                        </div>
+                                </List.Item>
+                            )}
+                            locale={{ emptyText: <Empty description="No attendance history yet" /> }}
+                        />
                     </Card>
                 </div>
             )

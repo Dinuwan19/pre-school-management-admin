@@ -108,6 +108,15 @@ exports.updateStaff = async (req, res, next) => {
         const { id } = req.params;
         const { qualification, assignedClassroomId, designation, ...userData } = req.body;
 
+        // RBAC: Only SUPER_ADMIN can edit staff profiles
+        if (req.user.role !== 'SUPER_ADMIN') {
+            return res.status(403).json({ message: 'Forbidden: Only Super Admin can edit staff' });
+        }
+
+        if (userData.joiningDate) {
+            userData.joiningDate = new Date(userData.joiningDate);
+        }
+
         // Handle uploaded files
         if (req.files) {
             if (req.files['photo']) userData.photoUrl = `/uploads/${req.files['photo'][0].filename}`;

@@ -92,7 +92,9 @@ const StaffProfile = () => {
                 <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/staff')} size="small" style={{ borderRadius: 4 }}>Back</Button>
                 <Title level={4} style={{ margin: 0 }}>{staff.fullName}</Title>
                 <div style={{ flex: 1 }}></div>
-                <Button type="primary" icon={<EditOutlined />} style={{ background: '#7B57E4', borderRadius: 6 }} onClick={() => setIsEditModalVisible(true)}>Edit Profile</Button>
+                {user?.role === 'SUPER_ADMIN' && (
+                    <Button type="primary" icon={<EditOutlined />} style={{ background: '#7B57E4', borderRadius: 6 }} onClick={() => setIsEditModalVisible(true)}>Edit Profile</Button>
+                )}
             </div>
 
             <Row gutter={24}>
