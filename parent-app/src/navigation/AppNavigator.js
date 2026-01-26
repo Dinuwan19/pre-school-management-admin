@@ -1,0 +1,80 @@
+import React from 'react';
+import { createStackNavigator } from '@react-navigation/stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Home, Users, CreditCard, Bell, Settings } from 'lucide-react-native';
+
+import LoginScreen from '../screens/LoginScreen';
+import SignupScreen from '../screens/SignupScreen';
+import DashboardScreen from '../screens/DashboardScreen';
+import MeetingsScreen from '../screens/MeetingsScreen';
+import StudentProfileScreen from '../screens/StudentProfileScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import ChildrenListScreen from '../screens/ChildrenListScreen';
+import AttendanceScreen from '../screens/AttendanceScreen';
+import PaymentHistoryScreen from '../screens/PaymentHistoryScreen';
+
+const Stack = createStackNavigator();
+const Tab = createBottomTabNavigator();
+
+const TabNavigator = () => {
+    return (
+        <Tab.Navigator
+            screenOptions={({ route }) => ({
+                headerShown: false,
+                tabBarActiveTintColor: '#9D5BF0',
+                tabBarInactiveTintColor: '#9CA3AF',
+                tabBarStyle: {
+                    height: 65,
+                    paddingBottom: 10,
+                    paddingTop: 10,
+                    backgroundColor: '#FFFFFF',
+                    borderTopWidth: 1,
+                    borderTopColor: '#F3F4F6',
+                    elevation: 5,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: -2 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 10,
+                },
+                tabBarLabelStyle: {
+                    fontSize: 12,
+                    fontWeight: '600',
+                },
+                tabBarIcon: ({ color, size }) => {
+                    if (route.name === 'Home') return <Home size={22} color={color} />;
+                    if (route.name === 'Students') return <Users size={22} color={color} />;
+                    if (route.name === 'Payments') return <CreditCard size={22} color={color} />;
+                    if (route.name === 'Updates') return <Bell size={22} color={color} />;
+                    if (route.name === 'Settings') return <Settings size={22} color={color} />;
+                },
+            })}
+        >
+            <Tab.Screen name="Home" component={DashboardScreen} />
+            <Tab.Screen name="Students" component={ChildrenListScreen} />
+            <Tab.Screen name="Payments" component={PaymentHistoryScreen} />
+            <Tab.Screen name="Updates" component={MeetingsScreen} />
+            <Tab.Screen name="Settings" component={ProfileScreen} />
+        </Tab.Navigator>
+    );
+};
+
+const AppNavigator = () => {
+    return (
+        <Stack.Navigator
+            initialRouteName="Login"
+            screenOptions={{
+                headerShown: false,
+                cardStyle: { backgroundColor: '#fff' }
+            }}
+        >
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Signup" component={SignupScreen} />
+            <Stack.Screen name="MainTabs" component={TabNavigator} />
+            <Stack.Screen name="StudentProfile" component={StudentProfileScreen} />
+            <Stack.Screen name="AttendanceHistory" component={AttendanceScreen} />
+            <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
+        </Stack.Navigator>
+    );
+};
+
+export default AppNavigator;

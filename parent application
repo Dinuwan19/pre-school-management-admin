@@ -1,0 +1,55 @@
+Develop a complete Parent Mobile Application for a Preschool Management System using the provided UI references as the base.
+
+The system must follow a NIC-based parent validation model where parents are uniquely identified using their NIC number.
+
+AUTHENTICATION:
+- Implement Login and Sign Up as two separate flows.
+- Sign Up validates NIC and registered email before allowing account creation.
+- Login uses username and password.
+- Email-based forgot password is mandatory.
+
+PARENT CONTEXT:
+- One parent can have multiple enrolled children.
+- Automatically load all children linked to the parent NIC.
+- Implement a global child switcher at the top of the app.
+
+HOME:
+- Display active child summary, attendance status, payment status, quick actions, recent updates, and upcoming events.
+
+STUDENT PROFILE:
+- Use a tab-based layout: Details, Progress, Attendance.
+- Details must include full student bio, medical notes, emergency contact, and class info.
+- Progress must show skill development using read-only animated progress bars and teacher notes.
+- Attendance must show historical check-in/check-out data with summaries.
+
+MEETINGS:
+- Allow parents to request meetings with assigned teachers.
+- Track meeting status and notify parents.
+
+PAYMENTS:
+- Allow parents to submit payments per child with month, amount, mandatory slip upload, and optional description.
+- Show payment status as Pending or Paid based on admin approval.
+
+UPDATES:
+- Merge homework, alerts, and announcements into a unified feed with filters.
+
+EVENTS:
+- Implement a minimal event system focused on information, not social interaction.
+
+SETTINGS:
+- Allow parents to edit profile details except NIC.
+- Include secure logout and password management.
+
+DESIGN:
+- Use a modern, clean, card-based UI.
+- Apply Shadcn / Magic Pattern principles.
+- Avoid bulky layouts.
+- Ensure accessibility and usability.
+
+SECURITY:
+- Enforce strict role-based access control.
+- Parent access must be read-only except for payments and meeting requests.
+
+GOAL:
+Deliver a secure, production-ready, modern parent application suitable for a real preschool environment in Sri Lanka.
+

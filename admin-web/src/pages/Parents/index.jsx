@@ -15,10 +15,11 @@ const Parents = () => {
     const [loading, setLoading] = useState(false);
     const [searchText, setSearchText] = useState('');
     const [isModalVisible, setIsModalVisible] = useState(false);
-    const [isViewModalVisible, setIsViewModalVisible] = useState(false);
-    const [selectedParent, setSelectedParent] = useState(null);
+    const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+    const [editingParent, setEditingParent] = useState(null);
     const [successModal, setSuccessModal] = useState({ visible: false, data: null });
     const [form] = Form.useForm();
+    const [editForm] = Form.useForm();
 
     const fetchParents = async () => {
         setLoading(true);
@@ -57,6 +58,27 @@ const Parents = () => {
         }
     };
 
+    const handleEdit = (record) => {
+        setEditingParent(record);
+        editForm.setFieldsValue(record);
+        setIsEditModalVisible(true);
+    };
+
+    const handleUpdate = async () => {
+        try {
+            const values = await editForm.validateFields();
+            setLoading(true);
+            await api.put(`/parents/${editingParent.id}`, values);
+            message.success('Parent updated successfully');
+            setIsEditModalVisible(false);
+            fetchParents();
+        } catch (error) {
+            message.error(error.response?.data?.message || 'Failed to update parent');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const copyToClipboard = (text) => {
         if (!text) return;
         navigator.clipboard.writeText(text);
@@ -69,11 +91,10 @@ Malkakulu Future Mind - Parent Registration Slip
 ------------------------------------------------
 Parent Name: ${data.fullName}
 Parent ID: ${data.parentUniqueId}
-Verification Code: ${data.verificationCode}
 
 Instructions:
 1. Download the Malkakulu Mobile App.
-2. Enter your Parent ID and the Verification Code above to link your account.
+2. Go to "Sign Up" and enter your NIC Number (${data.nationalId || 'N/A'}) to verify your account.
 3. Once verified, you can track your child's attendance and progress.
 ------------------------------------------------
         `;
@@ -106,6 +127,11 @@ Instructions:
             render: (text) => <Text strong>{text}</Text>
         },
         {
+            title: 'NIC',
+            dataIndex: 'nationalId',
+            key: 'nic',
+        },
+        {
             title: 'Relationship',
             dataIndex: 'relationship',
             key: 'rel',
@@ -129,18 +155,82 @@ Instructions:
             title: 'Actions',
             key: 'actions',
             render: (_, record) => (
-                <Button
-                    icon={<EyeOutlined />}
-                    size="small"
-                    type="primary"
-                    ghost
-                    onClick={() => navigate(`/parents/${record.id}`)}
-                >
-                    View Profile
-                </Button>
+                <Space>
+                    <Button
+                        icon={<EyeOutlined />}
+                        size="small"
+                        type="primary"
+                        ghost
+                        onClick={() => navigate(`/parents/${record.id}`)}
+                    >
+                        View
+                    </Button>
+                    {user?.role !== 'TEACHER' && (
+                        <Button
+                            size="small"
+                            onClick={() => handleEdit(record)}
+                        >
+                            Edit
+                        </Button>
+                    )}
+                </Space>
             )
         }
     ];
+
+    const parentFormFields = (
+        <>
+            <Form.Item name="fullName" label="Father Name" rules={[{ required: true }]}>
+                <Input placeholder="Enter full name" />
+            </Form.Item>
+
+            <Row gutter={16}>
+                <Col span={12}>
+                    <Form.Item
+                        name="nationalId"
+                        label="NIC Number"
+                        rules={[
+                            { required: true, message: 'NIC is required' },
+                            { pattern: /^([0-9]{9}[x|X|v|V]|[0-9]{12})$/, message: 'Invalid NIC Format' }
+                        ]}
+                    >
+                        <Input placeholder="991234567V" />
+                    </Form.Item>
+                </Col>
+                <Col span={12}>
+                    <Form.Item name="relationship" label="Relationship" rules={[{ required: true }]}>
+                        <Select>
+                            <Option value="FATHER">Father</Option>
+                            <Option value="MOTHER">Mother</Option>
+                            <Option value="GUARDIAN">Guardian</Option>
+                        </Select>
+                    </Form.Item>
+                </Col>
+            </Row>
+            <Row gutter={16}>
+                <Col span={12}>
+                    <Form.Item name="occupation" label="Occupation">
+                        <Input />
+                    </Form.Item>
+                </Col>
+                <Col span={12}>
+                    <Form.Item name="phone" label="Phone Number" rules={[{ required: true }]}>
+                        <Input />
+                    </Form.Item>
+                </Col>
+            </Row>
+            <Row gutter={16}>
+                <Col span={24}>
+                    <Form.Item name="email" label="Email Address">
+                        <Input />
+                    </Form.Item>
+                </Col>
+            </Row>
+            <Form.Item name="address" label="Address">
+                <Input.TextArea rows={2} />
+            </Form.Item>
+        </>
+    );
 
     return (
         <div style={{ paddingBottom: 40 }}>
@@ -185,41 +275,22 @@ Instructions:
                 okButtonProps={{ style: { background: '#7B57E4' } }}
             >
                 <Form form={form} layout="vertical" style={{ marginTop: 20 }}>
-                    <Form.Item name="fullName" label="Father Name" rules={[{ required: true }]}>
-                        <Input placeholder="Enter full name" />
-                    </Form.Item>
+                    {parentFormFields}
+                </Form>
+            </Modal>
 
-                    <Row gutter={16}>
-                        <Col span={12}>
-                            <Form.Item name="relationship" label="Relationship" rules={[{ required: true }]}>
-                                <Select>
-                                    <Option value="FATHER">Father</Option>
-                                    <Option value="MOTHER">Mother</Option>
-                                    <Option value="GUARDIAN">Guardian</Option>
-                                </Select>
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item name="occupation" label="Occupation">
-                                <Input />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                    <Row gutter={16}>
-                        <Col span={12}>
-                            <Form.Item name="phone" label="Phone Number" rules={[{ required: true }]}>
-                                <Input />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item name="email" label="Email Address">
-                                <Input />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                    <Form.Item name="address" label="Address">
-                        <Input.TextArea rows={2} />
-                    </Form.Item>
+            {/* Edit Parent Modal */}
+            <Modal
+                title="Edit Parent Details"
+                open={isEditModalVisible}
+                onCancel={() => setIsEditModalVisible(false)}
+                onOk={handleUpdate}
+                okText="Update Parent"
+                confirmLoading={loading}
+                okButtonProps={{ style: { background: '#7B57E4' } }}
+            >
+                <Form form={editForm} layout="vertical" style={{ marginTop: 20 }}>
+                    {parentFormFields}
                 </Form>
             </Modal>
 
@@ -240,7 +311,7 @@ Instructions:
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
                     <div style={{ background: '#F6FFED', border: '1px solid #B7EB8F', padding: 20, borderRadius: 12, marginBottom: 24 }}>
                         <Title level={5} style={{ margin: 0, color: '#389E0D' }}>Parent Record Created</Title>
-                        <Text type="secondary">Provide these details to the parent for mobile app access</Text>
+                        <Text type="secondary">Parent can now sign up using their NIC number on the mobile app</Text>
                     </div>
 
                     <Descriptions column={1} bordered size="small">
@@ -250,18 +321,15 @@ Instructions:
                                 <Button size="small" type="text" icon={<CopyOutlined />} onClick={() => copyToClipboard(successModal.data?.parentUniqueId)} />
                             </Space>
                         </Descriptions.Item>
-                        <Descriptions.Item label="Verification Code">
-                            <Space>
-                                <Text strong style={{ color: '#7B57E4', fontSize: 18, letterSpacing: 2 }}>{successModal.data?.verificationCode}</Text>
-                                <Button size="small" type="text" icon={<CopyOutlined />} onClick={() => copyToClipboard(successModal.data?.verificationCode)} />
-                            </Space>
+                        <Descriptions.Item label="NIC Number">
+                            <Text strong>{successModal.data?.nationalId}</Text>
                         </Descriptions.Item>
                     </Descriptions>
 
                     <Alert
-                        message="Security Reminder"
-                        description="This 6-digit code is required for the parent to verify their identity on the mobile app."
-                        type="info"
+                        message="Login Instruction"
+                        description={`Parent should use NIC: ${successModal.data?.nationalId} to sign up on the mobile app.`}
+                        type="success"
                         showIcon
                         style={{ marginTop: 16, textAlign: 'left' }}
                     />

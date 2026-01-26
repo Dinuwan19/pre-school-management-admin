@@ -18,6 +18,8 @@ const billingRoutes = require('./routes/billing.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const expenseRoutes = require('./routes/expense.routes'); // Placeholder for now
 const dashboardRoutes = require('./routes/dashboard.routes');
+const parentAuthRoutes = require('./routes/parent_auth.routes');
+const meetingRoutes = require('./routes/meeting.routes');
 const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
@@ -48,6 +50,8 @@ app.use('/api/billing', billingRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/parent-auth', parentAuthRoutes);
+app.use('/api/meetings', meetingRoutes);
 
 // Error Handler Middleware
 app.use(errorHandler);

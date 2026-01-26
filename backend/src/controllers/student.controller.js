@@ -68,8 +68,8 @@ exports.getAllStudents = async (req, res, next) => {
                 where.classroomId = teacherProfile.assignedClassroomId;
             }
         } else if (req.user.role === 'PARENT') {
-            const parentProfile = await prisma.parent.findFirst({
-                where: { email: req.user.username }
+            const parentProfile = await prisma.parent.findUnique({
+                where: { userId: req.user.id }
             });
             if (parentProfile) {
                 where.OR = [
@@ -121,24 +121,102 @@ exports.getStudentById = async (req, res, next) => {
                 where: { ...queryCondition, classroomId: teacherProfile.assignedClassroomId }
             });
             if (!studentCheck) return res.status(403).json({ message: 'Forbidden: Student not in your classroom' });
+        } else if (req.user.role === 'PARENT') {
+            const parentProfile = await prisma.parent.findUnique({
+                where: { userId: req.user.id }
+            });
+            if (!parentProfile) return res.status(403).json({ message: 'Forbidden: Parent profile not found' });
+
+            const studentCheck = await prisma.student.findFirst({
+                where: { ...queryCondition, OR: [{ parentId: parentProfile.id }, { secondParentId: parentProfile.id }] }
+            });
+            if (!studentCheck) return res.status(403).json({ message: 'Forbidden: This is not your child' });
+        }
+
+        // Determine date range for attendance
+        const { month } = req.query; // Expect 'YYYY-MM'
+        let dateFilter = {};
+        let summaryStart;
+        let summaryEnd;
+
+        if (month) {
+            const startStr = `${month}-01`;
+            summaryStart = dayjs(startStr).startOf('month').toDate();
+            summaryEnd = dayjs(startStr).endOf('month').toDate();
+        } else {
+            summaryStart = dayjs().startOf('month').toDate();
+            // Default: show last 60 days history if no month selected, but summary is current month
+            // Actually, matching user request: "History: Show last 10 days" initially.
+            // But let's allow fetching full month if requested.
+        }
+
+        // We'll return 2 sets: 'history' (limited or specific month) and 'summary' (stats)
+        // If month is specific: return ALL records for that month.
+        // If no month: return last 30 records.
+
+        let attendanceQuery = { orderBy: { attendanceDate: 'desc' } };
+        if (month) {
+            attendanceQuery.where = {
+                attendanceDate: {
+                    gte: summaryStart,
+                    lte: summaryEnd
+                }
+            };
+        } else {
+            attendanceQuery.take = 30;
         }
 
         const student = await prisma.student.findFirst({
             where: queryCondition,
             include: {
-                classroom: true,
+                classroom: {
+                    include: {
+                        teacherprofile: {
+                            where: { designation: 'LEAD' },
+                            include: { user: { select: { fullName: true } } }
+                        }
+                    }
+                },
                 parent_student_parentIdToparent: true,
                 parent_student_secondParentIdToparent: true,
-                studentprogress: { orderBy: { updatedAt: 'desc' }, take: 1 }
+                studentprogress: {
+                    orderBy: { updatedAt: 'desc' },
+                    take: 10,
+                    include: { user: { select: { fullName: true } } }
+                },
+                attendance: attendanceQuery
             }
         });
         if (!student) return res.status(404).json({ message: 'Student not found' });
+
+        // Calculate Summary for the requested month (or current month if none)
+        // Note: use Prisma aggregate for efficiency in real app, but filter here is fine for now
+        const summaryContextDate = month ? dayjs(`${month}-01`) : dayjs();
+        const summaryAttendance = await prisma.attendance.findMany({
+            where: {
+                studentId: student.id,
+                attendanceDate: {
+                    gte: summaryContextDate.startOf('month').toDate(),
+                    lte: summaryContextDate.endOf('month').toDate()
+                }
+            }
+        });
+
+        const presentCount = summaryAttendance.filter(a => ['PRESENT', 'LATE', 'COMPLETED'].includes(a.status)).length;
+        const totalDays = summaryAttendance.length;
+        const attendancePercentage = totalDays > 0 ? Math.round((presentCount / totalDays) * 100) : 0;
 
         res.json({
             ...student,
             parent: student.parent_student_parentIdToparent,
             secondParent: student.parent_student_secondParentIdToparent,
-            progress: student.studentprogress
+            progress: student.studentprogress, // Now returns array
+            attendanceHistory: student.attendance,
+            attendanceSummary: {
+                present: presentCount,
+                total: totalDays,
+                percentage: attendancePercentage
+            }
         });
     } catch (error) {
         next(error);
@@ -148,8 +226,29 @@ exports.getStudentById = async (req, res, next) => {
 exports.updateStudent = async (req, res, next) => {
     try {
         const { id } = req.params;
+        const studentId = parseInt(id);
         const data = { ...req.body };
 
+        // 1. Authorization check
+        const existingStudent = await prisma.student.findUnique({
+            where: { id: studentId }
+        });
+
+        if (!existingStudent) return res.status(404).json({ message: 'Student not found' });
+
+        if (req.user.role === 'PARENT') {
+            const parent = await prisma.parent.findUnique({ where: { userId: req.user.id } });
+            if (!parent || (existingStudent.parentId !== parent.id && existingStudent.secondParentId !== parent.id)) {
+                return res.status(403).json({ message: 'Forbidden: This is not your child' });
+            }
+            // Limit what parents can update
+            const allowedFields = ['fullName', 'emergencyContact', 'medicalInfo', 'photoUrl', 'dob', 'dateOfBirth', 'gender'];
+            Object.keys(data).forEach(key => {
+                if (!allowedFields.includes(key)) delete data[key];
+            });
+        }
+
+        // 2. Data processing
         delete data.id;
         delete data.studentUniqueId;
 
@@ -167,7 +266,7 @@ exports.updateStudent = async (req, res, next) => {
         }
 
         const student = await prisma.student.update({
-            where: { id: parseInt(id) },
+            where: { id: studentId },
             data: data
         });
 

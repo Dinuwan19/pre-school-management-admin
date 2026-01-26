@@ -42,10 +42,27 @@ exports.getAllNotifications = async (req, res, next) => {
                 ]
             };
         } else if (role === 'PARENT') {
+            const parent = await prisma.parent.findFirst({
+                where: { email: req.user.username },
+                include: {
+                    student_student_parentIdToparent: { select: { classroomId: true } },
+                    student_student_secondParentIdToparent: { select: { classroomId: true } }
+                }
+            });
+
+            let classroomIds = [];
+            if (parent) {
+                classroomIds = [
+                    ...(parent.student_student_parentIdToparent || []).map(s => s.classroomId),
+                    ...(parent.student_student_secondParentIdToparent || []).map(s => s.classroomId)
+                ];
+            }
+
             where = {
                 OR: [
                     { targetRole: 'ALL' },
-                    { targetRole: 'PARENT' }
+                    { targetRole: 'PARENT' },
+                    { targetClassroomId: { in: classroomIds } }
                 ]
             };
         }

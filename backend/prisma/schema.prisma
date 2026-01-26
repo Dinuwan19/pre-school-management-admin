@@ -149,8 +149,11 @@ model parent {
   status                                 parent_status       @default(ACTIVE)
   createdAt                              DateTime            @default(now())
   updatedAt                              DateTime            @updatedAt
+  userId                                 Int?                @unique
+  user                                   user?               @relation(fields: [userId], references: [id])
   student_student_parentIdToparent       student[]           @relation("student_parentIdToparent")
   student_student_secondParentIdToparent student[]           @relation("student_secondParentIdToparent")
+  meeting_requests                       meeting_request[]
 }
 
 model payment {
@@ -258,6 +261,24 @@ model user {
   studentprogress                                studentprogress[]
   teacherprofile                                 teacherprofile?
   attendanceaudit                                attendanceaudit[]
+  parent                                         parent?
+  meetings_created                               meeting_request[] @relation("meeting_created_by")
+}
+
+model meeting_request {
+  id           Int            @id @default(autoincrement())
+  parentId     Int
+  teacherId    Int?
+  studentId    Int?
+  title        String
+  description  String?        @db.Text
+  requestDate  DateTime
+  preferredTime String?
+  status       meeting_status @default(PENDING)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  parent       parent         @relation(fields: [parentId], references: [id])
+  teacher      user?          @relation("meeting_created_by", fields: [teacherId], references: [id])
 }
 
 enum user_role {
@@ -321,4 +342,12 @@ enum attendance_method {
   QR
   MANUAL
   SYSTEM
+}
+
+enum meeting_status {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+  CANCELLED
 }

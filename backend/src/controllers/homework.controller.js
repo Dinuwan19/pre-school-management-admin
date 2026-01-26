@@ -34,6 +34,24 @@ exports.getAllHomework = async (req, res, next) => {
             } else {
                 return res.json([]); // No classroom assigned
             }
+        } else if (role === 'PARENT') {
+            const parent = await prisma.parent.findFirst({
+                where: { email: req.user.username },
+                include: {
+                    student_student_parentIdToparent: { select: { classroomId: true } },
+                    student_student_secondParentIdToparent: { select: { classroomId: true } }
+                }
+            });
+
+            if (parent) {
+                const classroomIds = [
+                    ...(parent.student_student_parentIdToparent || []).map(s => s.classroomId),
+                    ...(parent.student_student_secondParentIdToparent || []).map(s => s.classroomId)
+                ];
+                where = { classroomId: { in: classroomIds } };
+            } else {
+                return res.json([]);
+            }
         }
 
         const homework = await prisma.homework.findMany({

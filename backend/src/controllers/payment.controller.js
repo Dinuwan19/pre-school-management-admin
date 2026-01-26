@@ -2,7 +2,22 @@ const prisma = require('../config/prisma');
 
 exports.submitPayment = async (req, res, next) => {
     try {
-        const { billingIds, amountPaid, paymentMethod, transactionRef, receiptUrl } = req.body;
+        let { billingIds, amountPaid, paymentMethod, transactionRef } = req.body;
+
+        // Handle billingIds if sent as string (common with multipart/form-data)
+        if (typeof billingIds === 'string') {
+            try {
+                billingIds = JSON.parse(billingIds);
+            } catch (e) {
+                // If it's just a single ID or comma separated
+                billingIds = billingIds.split(',').map(id => id.trim());
+            }
+        } else if (!Array.isArray(billingIds)) {
+            // Check for billingIds[] from multipart
+            billingIds = req.body['billingIds[]'] || [billingIds];
+        }
+
+        const receiptUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
         // Create the Payment
         const payment = await prisma.payment.create({

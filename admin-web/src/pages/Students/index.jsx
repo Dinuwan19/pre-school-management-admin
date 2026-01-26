@@ -205,15 +205,29 @@ const Students = () => {
                     <Row gutter={24}>
                         <Col span={12}>
                             <Form.Item name="parentId" label="Primary Parent (Required)" rules={[{ required: true }]}>
-                                <Select placeholder="Assign Primary Parent" showSearch optionFilterProp="children">
-                                    {parents.map(p => <Option key={p.id} value={p.id}>{p.fullName} ({p.relationship})</Option>)}
+                                <Select placeholder="Assign Primary Parent" showSearch optionFilterProp="label">
+                                    {parents.map(p => (
+                                        <Option key={p.id} value={p.id} label={`${p.nationalId} - ${p.fullName}`}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                <span>{p.fullName}</span>
+                                                <span style={{ color: '#aaa', fontSize: '12px' }}>{p.nationalId}</span>
+                                            </div>
+                                        </Option>
+                                    ))}
                                 </Select>
                             </Form.Item>
                         </Col>
                         <Col span={12}>
                             <Form.Item name="secondParentId" label="Secondary Parent (Optional)">
-                                <Select placeholder="Assign Secondary Parent" showSearch optionFilterProp="children" allowClear>
-                                    {parents.map(p => <Option key={p.id} value={p.id}>{p.fullName} ({p.relationship})</Option>)}
+                                <Select placeholder="Assign Secondary Parent" showSearch optionFilterProp="label" allowClear>
+                                    {parents.map(p => (
+                                        <Option key={p.id} value={p.id} label={`${p.nationalId} - ${p.fullName}`}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                <span>{p.fullName}</span>
+                                                <span style={{ color: '#aaa', fontSize: '12px' }}>{p.nationalId}</span>
+                                            </div>
+                                        </Option>
+                                    ))}
                                 </Select>
                             </Form.Item>
                         </Col>
