@@ -100,7 +100,7 @@ const PaymentsScreen = ({ navigation }) => {
 
     const pickImage = async () => {
         let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: ImagePicker.MediaType.Images,
             allowsEditing: true,
             quality: 1,
         });
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
 
     bottomContainer: {
         position: 'absolute',
-        bottom: 20,
+        bottom: 30,
         left: 20,
         right: 20,
         alignItems: 'center'

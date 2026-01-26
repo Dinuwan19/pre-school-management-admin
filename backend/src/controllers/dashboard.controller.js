@@ -1,5 +1,7 @@
 const prisma = require('../config/prisma');
 const dayjs = require('dayjs');
+const relativeTime = require('dayjs/plugin/relativeTime');
+dayjs.extend(relativeTime);
 
 exports.getStats = async (req, res, next) => {
     try {

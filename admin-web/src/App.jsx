@@ -23,6 +23,8 @@ import StudentBilling from './pages/Billing/StudentBilling';
 import Expenses from './pages/Billing/Expenses';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Reports from './pages/Reports';
+import Events from './pages/Events';
 
 function App() {
   return (
@@ -83,6 +85,16 @@ function App() {
             <Route path="/billing/expenses" element={
               <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
                 <Expenses />
+              </ProtectedRoute>
+            } />
+            <Route path="/events" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEACHER']}>
+                <Events />
+              </ProtectedRoute>
+            } />
+            <Route path="/reports" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+                <Reports />
               </ProtectedRoute>
             } />
           </Route>

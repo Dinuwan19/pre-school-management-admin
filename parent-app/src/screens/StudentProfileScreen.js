@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator, Modal, TouchableWithoutFeedback, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     ChevronLeft,
@@ -53,11 +54,13 @@ const StudentProfileScreen = ({ route, navigation }) => {
         'https://cdn-icons-png.flaticon.com/512/4140/4140050.png',
     ];
 
-    useEffect(() => {
-        if (initialStudent?.id) {
-            fetchDetails();
-        }
-    }, [initialStudent]);
+    useFocusEffect(
+        useCallback(() => {
+            if (initialStudent?.id) {
+                fetchDetails();
+            }
+        }, [initialStudent?.id])
+    );
 
     const fetchDetails = async () => {
         setLoading(true);

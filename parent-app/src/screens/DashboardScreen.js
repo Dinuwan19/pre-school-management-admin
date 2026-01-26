@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Dimensions, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+
 import { logout } from '../services/auth.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -34,11 +36,13 @@ const DashboardScreen = ({ navigation }) => {
     const [loading, setLoading] = useState(true);
     const [isChildModalVisible, setIsChildModalVisible] = useState(false);
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            fetchData();
+        }, [])
+    );
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             const data = await getParentDashboardStats();
             setChildren(data.children);
@@ -57,7 +61,7 @@ const DashboardScreen = ({ navigation }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     if (loading) {
         return (
@@ -134,7 +138,7 @@ const DashboardScreen = ({ navigation }) => {
                                         <Text style={styles.mainChildName}>{selectedChild.fullName}</Text>
                                         <ChevronDown size={18} color="#94A3B8" style={{ marginLeft: 8 }} />
                                     </View>
-                                    <Text style={styles.mainChildSub}>{selectedChild.classroom?.name || selectedChild.classroom || 'Nursery'} • {selectedChild.teacherName || 'Ms. Dilani'}</Text>
+                                    <Text style={styles.mainChildSub}>{selectedChild.classroom || 'Nursery'} • {selectedChild.teacherName || 'Ms. Dilani'}</Text>
                                     <View style={styles.badgeRow}>
                                         <View style={[styles.badge, selectedChild.attendance === 'Present' ? styles.presentBadge : styles.absentBadge]}>
                                             <Text style={[styles.presentBadgeText, selectedChild.attendance !== 'Present' && { color: '#EF4444' }]}>
@@ -319,7 +323,7 @@ const DashboardScreen = ({ navigation }) => {
                                     />
                                     <View style={{ flex: 1 }}>
                                         <Text style={styles.optionName}>{child.fullName}</Text>
-                                        <Text style={styles.optionSub}>{child.classroom?.name || child.classroom || 'Nursery'}</Text>
+                                        <Text style={styles.optionSub}>{child.classroom || 'Nursery'}</Text>
                                     </View>
                                     {selectedChild?.id === child.id && (
                                         <View style={styles.activeIndicator} />

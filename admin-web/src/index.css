@@ -13,3 +13,13 @@ body {
 * {
   box-sizing: border-box;
 }
+
+/* Ant Design Menu Overlay */
+.ant-menu-item-selected {
+  background-color: #F0EAFB !important;
+  color: #7B57E4 !important;
+}
+
+.ant-menu-item-selected path {
+  fill: #7B57E4 !important;
+}

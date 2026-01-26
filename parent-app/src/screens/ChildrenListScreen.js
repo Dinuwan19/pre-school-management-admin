@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { getLinkedChildren } from '../services/child.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -19,11 +20,13 @@ const ChildrenListScreen = ({ navigation }) => {
     const [children, setChildren] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        fetchChildren();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            fetchChildren();
+        }, [])
+    );
 
-    const fetchChildren = async () => {
+    const fetchChildren = useCallback(async () => {
         try {
             const data = await getLinkedChildren();
             setChildren(data);
@@ -32,7 +35,7 @@ const ChildrenListScreen = ({ navigation }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     if (loading) {
         return (

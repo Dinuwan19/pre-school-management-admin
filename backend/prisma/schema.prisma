@@ -200,6 +200,8 @@ model student {
   @@index([classroomId], map: "Student_classroomId_fkey")
   @@index([parentId], map: "Student_parentId_fkey")
   @@index([secondParentId], map: "Student_secondParentId_fkey")
+  event_attendance   event_attendance[]
+  event_waiting_list event_waiting_list[]
 }
 
 model studentprogress {
@@ -263,6 +265,8 @@ model user {
   attendanceaudit                                attendanceaudit[]
   parent                                         parent?
   meetings_created                               meeting_request[] @relation("meeting_created_by")
+  report_logs                                    report_log[]
+  events                                         event[]
 }
 
 model meeting_request {
@@ -348,6 +352,68 @@ enum meeting_status {
   PENDING
   APPROVED
   REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+model report_log {
+  id            Int      @id @default(autoincrement())
+  reportType    String
+  dateRange     String
+  generatedById Int
+  filePath      String?
+  createdAt     DateTime @default(now())
+  user          user     @relation(fields: [generatedById], references: [id])
+
+  @@index([generatedById], map: "ReportLog_generatedById_fkey")
+}
+
+model event {
+  id                 Int                  @id @default(autoincrement())
+  title              String
+  description        String?              @db.Text
+  eventDate          DateTime             @db.Date
+  startTime          String?
+  endTime            String?
+  location           String?
+  status             event_status         @default(UPCOMING)
+  createdById        Int
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  user               user                 @relation(fields: [createdById], references: [id])
+  event_attendance   event_attendance[]
+  event_waiting_list event_waiting_list[]
+
+  @@index([createdById], map: "Event_createdById_fkey")
+}
+
+model event_attendance {
+  id        Int               @id @default(autoincrement())
+  eventId   Int
+  studentId Int
+  status    attendance_status @default(PRESENT)
+  event     event             @relation(fields: [eventId], references: [id])
+  student   student           @relation(fields: [studentId], references: [id])
+
+  @@unique([eventId, studentId], map: "EventAttendance_eventId_studentId_key")
+  @@index([studentId], map: "EventAttendance_studentId_fkey")
+}
+
+model event_waiting_list {
+  id          Int      @id @default(autoincrement())
+  eventId     Int
+  studentId   Int
+  status      String   @default("PENDING")
+  requestedAt DateTime @default(now())
+  event       event    @relation(fields: [eventId], references: [id])
+  student     student  @relation(fields: [studentId], references: [id])
+
+  @@unique([eventId, studentId], map: "EventWaitingList_eventId_studentId_key")
+  @@index([studentId], map: "EventWaitingList_studentId_fkey")
+}
+
+enum event_status {
+  UPCOMING
   COMPLETED
   CANCELLED
 }

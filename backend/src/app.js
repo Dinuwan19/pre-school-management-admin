@@ -52,6 +52,8 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/parent-auth', parentAuthRoutes);
 app.use('/api/meetings', meetingRoutes);
+app.use('/api/reports', require('./routes/report.routes'));
+app.use('/api/events', require('./routes/event.routes'));
 
 // Error Handler Middleware
 app.use(errorHandler);

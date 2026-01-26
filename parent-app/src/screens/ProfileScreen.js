@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Switch, Alert, ActivityIndicator, Modal, TextInput, TouchableWithoutFeedback, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { logout, changePassword as apiChangePassword } from '../services/auth.service';
 import { getParentDashboardStats } from '../services/dashboard.service';
@@ -40,11 +41,13 @@ const ProfileScreen = ({ navigation }) => {
         'https://cdn-icons-png.flaticon.com/512/4140/4140050.png',
     ];
 
-    useEffect(() => {
-        fetchProfile();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            fetchProfile();
+        }, [])
+    );
 
-    const fetchProfile = async () => {
+    const fetchProfile = useCallback(async () => {
         try {
             const data = await getParentDashboardStats();
             if (data.profile) {
@@ -55,7 +58,7 @@ const ProfileScreen = ({ navigation }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     const handleUpdateProfile = async (updatedData) => {
         try {

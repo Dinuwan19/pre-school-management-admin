@@ -8,9 +8,11 @@ import {
     TeamOutlined,
     HomeOutlined,
     LogoutOutlined,
-    FileTextOutlined,
     BellOutlined,
-    CalendarOutlined
+    CalendarOutlined,
+    BarChartOutlined,
+    ScheduleOutlined,
+    FileTextOutlined
 } from '@ant-design/icons';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -39,6 +41,7 @@ const MainLayout = () => {
             icon: <DashboardOutlined />,
             label: 'Dashboard',
         },
+
         {
             key: 'students-sub',
             icon: <UserOutlined />,
@@ -100,6 +103,16 @@ const MainLayout = () => {
                 { key: '/billing/students', label: 'Student Billing' },
                 { key: '/billing/expenses', label: 'Expenses' }
             ]
+        }] : []),
+        {
+            key: '/events',
+            icon: <ScheduleOutlined />,
+            label: 'Events',
+        },
+        ...((user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') ? [{
+            key: '/reports',
+            icon: <BarChartOutlined />,
+            label: 'Reports',
         }] : [])
     ];
 
@@ -140,7 +153,7 @@ const MainLayout = () => {
                         }
                     }}
                     items={menuItems}
-                    style={{ borderRight: 0 }}
+                    style={{ borderRight: 0, paddingBottom: 80 }}
                 />
                 <div style={{ position: 'absolute', bottom: 20, width: '100%', padding: '0 24px' }}>
                     <Button
@@ -167,17 +180,17 @@ const MainLayout = () => {
                         <Breadcrumb items={breadcrumbItems} />
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-                        <Badge dot>
-                            <BellOutlined style={{ fontSize: 20, color: '#666', cursor: 'pointer' }} />
-                        </Badge>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ textAlign: 'right', lineHeight: 1.2 }}>
-                                <div style={{ fontWeight: 600, color: '#333' }}>{user?.fullName || user?.username}</div>
-                                <div style={{ fontSize: 11, color: '#888' }}>{user?.role}</div>
-                            </div>
-                            <Avatar style={{ backgroundColor: '#F0EAFB', color: '#7B57E4' }}>AD</Avatar>
+                    <div
+                        style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+                        onClick={() => navigate('/dashboard')}
+                    >
+                        <div style={{ textAlign: 'right', lineHeight: 1.2 }}>
+                            <div style={{ fontWeight: 600, color: '#333' }}>{user?.username}</div>
+                            <div style={{ fontSize: 11, color: '#888' }}>{user?.role}</div>
                         </div>
+                        <Avatar style={{ backgroundColor: '#F0EAFB', color: '#7B57E4' }}>
+                            {user?.username?.substring(0, 2).toUpperCase() || 'AD'}
+                        </Avatar>
                     </div>
                 </Header>
                 <Content
@@ -188,8 +201,8 @@ const MainLayout = () => {
                 >
                     <Outlet />
                 </Content>
-            </Layout>
-        </Layout>
+            </Layout >
+        </Layout >
     );
 };
 

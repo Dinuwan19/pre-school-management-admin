@@ -98,7 +98,7 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
 
     const pickImage = async () => {
         let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: ImagePicker.MediaType.Images,
             allowsEditing: true,
             quality: 1,
         });
@@ -424,6 +424,20 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                                     placeholder="Any additional details..."
                                 />
 
+                                {selectedMonths.length > 0 && (
+                                    <View style={styles.paymentSummaryCard}>
+                                        <Text style={styles.summaryCardTitle}>Payment Details</Text>
+                                        <View style={styles.summaryCardRow}>
+                                            <Text style={styles.summaryCardLabel}>Months</Text>
+                                            <Text style={styles.summaryCardValue}>{selectedMonths.join(', ')}</Text>
+                                        </View>
+                                        <View style={styles.summaryCardRow}>
+                                            <Text style={styles.summaryCardLabel}>Amount</Text>
+                                            <Text style={[styles.summaryCardValue, { color: '#9D5BF0' }]}>LKR {parseFloat(paymentAmount).toLocaleString()}</Text>
+                                        </View>
+                                    </View>
+                                )}
+
                                 <TouchableOpacity
                                     style={[styles.submitPaymentBtn, (!image || selectedMonths.length === 0) && { opacity: 0.5 }]}
                                     onPress={handlePaymentSubmit}
@@ -475,7 +489,7 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                                     />
                                     <View style={{ flex: 1 }}>
                                         <Text style={styles.optionName}>{child.fullName}</Text>
-                                        <Text style={styles.optionSub}>{child.classroom?.name || child.classroom || 'Nursery'}</Text>
+                                        <Text style={styles.optionSub}>{child.classroom || 'Nursery'}</Text>
                                     </View>
                                     {selectedStudent?.id === child.id && (
                                         <View style={styles.activeIndicator} />
@@ -497,6 +511,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: SIZES.padding,
+        paddingBottom: 100,
     },
     header: {
         flexDirection: 'row',
@@ -676,7 +691,7 @@ const styles = StyleSheet.create({
     // Floating Button (Bottom Right)
     makePaymentFab: {
         position: 'absolute',
-        bottom: 20,
+        bottom: 30,
         right: 24,
         backgroundColor: '#9D5BF0',
         flexDirection: 'row',
@@ -823,6 +838,37 @@ const styles = StyleSheet.create({
         color: '#9D5BF0',
         fontWeight: 'bold',
         fontSize: 16,
+    },
+    paymentSummaryCard: {
+        backgroundColor: '#F5F3FF',
+        borderRadius: 16,
+        padding: 15,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#DDD6FE',
+    },
+    summaryCardTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#4B5563',
+        marginBottom: 10,
+    },
+    summaryCardRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 5,
+    },
+    summaryCardLabel: {
+        fontSize: 13,
+        color: '#6B7280',
+    },
+    summaryCardValue: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#1F2937',
+        flex: 1,
+        textAlign: 'right',
+        marginLeft: 10,
     },
 });
 
