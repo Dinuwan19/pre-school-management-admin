@@ -154,7 +154,9 @@ const ClassroomView = () => {
                 <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/classrooms')} size="small" style={{ borderRadius: 4 }}>Back</Button>
                 <Title level={4} style={{ margin: 0 }}>{classroom.name}</Title>
                 <div style={{ flex: 1 }}></div>
-                <Button type="primary" icon={<EditOutlined />} style={{ background: '#7B57E4', borderRadius: 6 }} onClick={() => setIsEditModalVisible(true)}>Edit Classroom</Button>
+                {user?.role !== 'TEACHER' && (
+                    <Button type="primary" icon={<EditOutlined />} style={{ background: '#7B57E4', borderRadius: 6 }} onClick={() => setIsEditModalVisible(true)}>Edit Classroom</Button>
+                )}
             </div>
 
             <Row gutter={24}>
@@ -182,10 +184,12 @@ const ClassroomView = () => {
                             </Descriptions.Item>
                         </Descriptions>
                         <Divider style={{ margin: '12px 0' }} />
-                        <Button type="primary" ghost size="small" icon={<TeamOutlined />} onClick={() => {
-                            fetchAllTeachers();
-                            setIsTeamModalVisible(true);
-                        }} style={{ width: '100%', borderRadius: 6 }}>Manage Team</Button>
+                        {user?.role !== 'TEACHER' && (
+                            <Button type="primary" ghost size="small" icon={<TeamOutlined />} onClick={() => {
+                                fetchAllTeachers();
+                                setIsTeamModalVisible(true);
+                            }} style={{ width: '100%', borderRadius: 6 }}>Manage Team</Button>
+                        )}
                     </Card>
                 </Col>
 

@@ -3,12 +3,14 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { login } from '../services/auth.service';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Eye, EyeOff } from 'lucide-react-native';
 
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 
 const LoginScreen = ({ navigation }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const handleLogin = async () => {
@@ -22,7 +24,13 @@ const LoginScreen = ({ navigation }) => {
             await login(username, password);
             navigation.replace('MainTabs');
         } catch (error) {
-            Alert.alert('Login Failed', error.message || 'Invalid credentials');
+            if (error.response?.status === 403 && error.response?.data?.requiresVerification) {
+                Alert.alert('Verify Email', 'Your email is not verified. Redirecting to verification page...', [
+                    { text: 'Verify Now', onPress: () => navigation.navigate('EmailVerification', { userId: error.response.data.userId, email: username }) }
+                ]);
+            } else {
+                Alert.alert('Login Failed', error.message || 'Invalid credentials');
+            }
         } finally {
             setLoading(false);
         }
@@ -48,17 +56,32 @@ const LoginScreen = ({ navigation }) => {
                                 placeholderTextColor={COLORS.gray[400]}
                             />
 
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Password"
-                                value={password}
-                                onChangeText={setPassword}
-                                secureTextEntry={true}
-                                placeholderTextColor={COLORS.gray[400]}
-                            />
+                            <View style={styles.passwordContainer}>
+                                <TextInput
+                                    style={styles.passwordInput}
+                                    placeholder="Password"
+                                    value={password}
+                                    onChangeText={setPassword}
+                                    secureTextEntry={!showPassword}
+                                    placeholderTextColor={COLORS.gray[400]}
+                                />
+                                <TouchableOpacity
+                                    style={styles.eyeIcon}
+                                    onPress={() => setShowPassword(!showPassword)}
+                                >
+                                    {showPassword ? <Eye size={22} color={COLORS.gray[500]} /> : <EyeOff size={22} color={COLORS.gray[500]} />}
+                                </TouchableOpacity>
+                            </View>
 
                             <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading === true}>
                                 {loading ? <ActivityIndicator color="#fff" animating={true} /> : <Text style={styles.buttonText}>Login</Text>}
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={{ marginTop: 15, alignItems: 'center' }}
+                                onPress={() => navigation.navigate('ForgotPassword')}
+                            >
+                                <Text style={styles.primaryText}>Forgot Password?</Text>
                             </TouchableOpacity>
 
                             <View style={styles.signupLink}>
@@ -101,6 +124,24 @@ const styles = StyleSheet.create({
         fontSize: 16,
         marginBottom: 20,
         color: COLORS.black,
+    },
+    passwordContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.gray[50],
+        borderWidth: 1,
+        borderColor: COLORS.gray[200],
+        borderRadius: SIZES.radius,
+        marginBottom: 20,
+    },
+    passwordInput: {
+        flex: 1,
+        padding: 16,
+        fontSize: 16,
+        color: COLORS.black,
+    },
+    eyeIcon: {
+        padding: 16,
     },
     button: {
         backgroundColor: COLORS.primary,

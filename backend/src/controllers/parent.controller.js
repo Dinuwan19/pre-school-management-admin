@@ -4,6 +4,11 @@ const { logAction } = require('../services/audit.service');
 
 exports.createParent = async (req, res, next) => {
     try {
+        // Teachers and Staff cannot add parents
+        if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
+            return res.status(403).json({ message: 'Access denied: Teachers and Staff cannot create parent records.' });
+        }
+
         const { relationship, nationalId, occupation, address, phone, email, photoUrl } = req.body;
         const fullName = req.body.fullName.trim();
 
@@ -57,22 +62,16 @@ exports.getAllParents = async (req, res, next) => {
     try {
         let where = { status: 'ACTIVE' };
 
-        // Data Scoping for Teacher
-        if (req.user.role === 'TEACHER') {
-            const teacherProfile = await prisma.teacherprofile.findUnique({
-                where: { teacherId: req.user.id }
-            });
-
-            if (!teacherProfile || !teacherProfile.assignedClassroomId) {
-                return res.json([]); // No classroom assigned, no parents visible
-            }
-
-            // Filter parents who have students in the teacher's classroom (Primary or Secondary)
-            const classroomId = teacherProfile.assignedClassroomId;
+        // Use classroom scoping from middleware for Teachers/Staff
+        if (req.classroomScope) {
+            const classroomId = req.classroomScope;
             where.OR = [
                 { student_student_parentIdToparent: { some: { classroomId } } },
                 { student_student_secondParentIdToparent: { some: { classroomId } } }
             ];
+        } else if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
+            // Teacher with no classroom assigned sees no parents
+            return res.json([]);
         }
 
         const parents = await prisma.parent.findMany({
@@ -117,6 +116,23 @@ exports.getParentById = async (req, res) => {
         });
         if (!parent) return res.status(404).json({ message: 'Parent not found' });
 
+        // Scoping check for Teacher
+        if (req.classroomScope) {
+            const classroomId = req.classroomScope;
+            const isAuthorized = await prisma.student.findFirst({
+                where: {
+                    classroomId: classroomId,
+                    OR: [
+                        { parentId: parent.id },
+                        { secondParentId: parent.id }
+                    ]
+                }
+            });
+            if (!isAuthorized) {
+                return res.status(403).json({ message: 'Forbidden: Parent has no children in your assigned classroom' });
+            }
+        }
+
         // Flatten student lists for frontend convenience
         const students = [...(parent.student_student_parentIdToparent || []), ...(parent.student_student_secondParentIdToparent || [])];
         res.json({ ...parent, students });
@@ -125,8 +141,11 @@ exports.getParentById = async (req, res) => {
     }
 };
 
-exports.updateParent = async (req, res) => {
+exports.updateParent = async (req, res, next) => {
     try {
+        if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
+            return res.status(403).json({ message: 'Access denied: Teachers and Staff cannot update parent records.' });
+        }
         const { id } = req.params;
         const parent = await prisma.parent.update({
             where: { id: parseInt(id) },
@@ -138,8 +157,11 @@ exports.updateParent = async (req, res) => {
     }
 };
 
-exports.deleteParent = async (req, res) => {
+exports.deleteParent = async (req, res, next) => {
     try {
+        if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
+            return res.status(403).json({ message: 'Access denied: Teachers and Staff cannot deactivate parent records.' });
+        }
         const { id } = req.params;
         await prisma.parent.update({
             where: { id: parseInt(id) },

@@ -12,6 +12,9 @@ import ProfileScreen from '../screens/ProfileScreen';
 import ChildrenListScreen from '../screens/ChildrenListScreen';
 import AttendanceScreen from '../screens/AttendanceScreen';
 import PaymentHistoryScreen from '../screens/PaymentHistoryScreen';
+import SplashScreen from '../screens/SplashScreen';
+import EmailVerificationScreen from '../screens/EmailVerificationScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -61,14 +64,17 @@ const TabNavigator = () => {
 const AppNavigator = () => {
     return (
         <Stack.Navigator
-            initialRouteName="Login"
+            initialRouteName="Splash"
             screenOptions={{
                 headerShown: false,
                 cardStyle: { backgroundColor: '#fff' }
             }}
         >
+            <Stack.Screen name="Splash" component={SplashScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
             <Stack.Screen name="MainTabs" component={TabNavigator} />
             <Stack.Screen name="StudentProfile" component={StudentProfileScreen} />
             <Stack.Screen name="AttendanceHistory" component={AttendanceScreen} />

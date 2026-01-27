@@ -14,10 +14,11 @@ export const login = async (username, password) => {
     }
 };
 
-export const signup = async (data) => {
+export const signup = async (data, isPublic = false) => {
     try {
-        const response = await api.post('/parent-auth/signup', data);
-        if (response.data.token) {
+        const endpoint = isPublic ? '/parent-auth/public-signup' : '/parent-auth/signup';
+        const response = await api.post(endpoint, data);
+        if (response.data.token && !response.data.requiresVerification) {
             await SecureStore.setItemAsync('parentToken', response.data.token);
             await SecureStore.setItemAsync('parentUser', JSON.stringify(response.data.user));
         }

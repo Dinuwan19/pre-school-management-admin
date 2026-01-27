@@ -5,6 +5,11 @@ const { generateQRCode } = require('../utils/qrGenerator');
 
 exports.createStudent = async (req, res, next) => {
     try {
+        // Teachers and Staff cannot add students
+        if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
+            return res.status(403).json({ message: 'Access denied: Teachers and Staff cannot create students.' });
+        }
+
         const {
             fullName, firstName, lastName, dob, gender, classroomId, parentId,
             medicalInfo, emergencyContact, enrollmentDate, secondParentId
@@ -60,13 +65,13 @@ exports.createStudent = async (req, res, next) => {
 exports.getAllStudents = async (req, res, next) => {
     try {
         let where = { status: 'ACTIVE' };
-        if (req.user.role === 'TEACHER') {
-            const teacherProfile = await prisma.teacherprofile.findUnique({
-                where: { teacherId: req.user.id }
-            });
-            if (teacherProfile && teacherProfile.assignedClassroomId) {
-                where.classroomId = teacherProfile.assignedClassroomId;
-            }
+
+        // Use classroom scoping from middleware
+        if (req.classroomScope) {
+            where.classroomId = req.classroomScope;
+        } else if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
+            // Teacher with no classroom assigned sees nothing
+            return res.json([]);
         } else if (req.user.role === 'PARENT') {
             const parentProfile = await prisma.parent.findUnique({
                 where: { userId: req.user.id }
@@ -110,15 +115,9 @@ exports.getStudentById = async (req, res, next) => {
             ]
         };
 
-        if (req.user.role === 'TEACHER') {
-            const teacherProfile = await prisma.teacherprofile.findUnique({
-                where: { teacherId: req.user.id }
-            });
-            if (!teacherProfile || !teacherProfile.assignedClassroomId) {
-                return res.status(403).json({ message: 'Forbidden: No classroom assigned' });
-            }
+        if (req.classroomScope) {
             const studentCheck = await prisma.student.findFirst({
-                where: { ...queryCondition, classroomId: teacherProfile.assignedClassroomId }
+                where: { ...queryCondition, classroomId: req.classroomScope }
             });
             if (!studentCheck) return res.status(403).json({ message: 'Forbidden: Student not in your classroom' });
         } else if (req.user.role === 'PARENT') {

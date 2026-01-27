@@ -3,6 +3,7 @@ const prisma = require('../config/prisma');
 exports.createEvent = async (req, res, next) => {
     try {
         const { title, description, eventDate, startTime, endTime, location } = req.body;
+        const isTeacher = req.user.role === 'TEACHER' || req.user.role === 'STAFF';
 
         const event = await prisma.event.create({
             data: {
@@ -12,7 +13,7 @@ exports.createEvent = async (req, res, next) => {
                 startTime,
                 endTime,
                 location,
-                status: 'UPCOMING',
+                status: isTeacher ? 'PENDING' : 'UPCOMING',
                 createdById: req.user.id
             }
         });

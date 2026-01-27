@@ -4,6 +4,10 @@ const parentAuthController = require('../controllers/parent_auth.controller');
 const { authenticateToken, authorizeRole } = require('../middlewares/auth.middleware');
 
 router.post('/signup', parentAuthController.parentSignup);
+router.post('/public-signup', parentAuthController.publicSignup);
+router.post('/verify-email', parentAuthController.verifyEmail);
+router.post('/resend-verification', parentAuthController.resendVerification);
+
 router.get('/children', authenticateToken, authorizeRole(['PARENT']), parentAuthController.getLinkedChildren);
 router.get('/billings', authenticateToken, authorizeRole(['PARENT']), parentAuthController.getParentBillings);
 router.get('/profile', authenticateToken, authorizeRole(['PARENT']), parentAuthController.getParentProfile);

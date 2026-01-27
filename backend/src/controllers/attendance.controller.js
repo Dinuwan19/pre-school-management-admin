@@ -22,6 +22,11 @@ exports.scanAttendance = async (req, res, next) => {
             return res.status(404).json({ message: 'Student not found or inactive', status: 'ERROR' });
         }
 
+        // Scoping check for Teacher/Staff
+        if (req.classroomScope && student.classroomId !== req.classroomScope) {
+            return res.status(403).json({ message: 'Forbidden: Student is not in your assigned classroom', status: 'ERROR' });
+        }
+
         // 2. Find existing record for today
         const attendance = await prisma.attendance.findFirst({
             where: {
@@ -128,6 +133,14 @@ exports.manualAttendance = async (req, res, next) => {
         const attendanceDate = date ? new Date(date) : new Date();
         const auditReason = req.body.reason || 'Manual Override';
 
+        // Scoping check
+        if (req.classroomScope) {
+            const student = await prisma.student.findUnique({ where: { id: parseInt(studentId) } });
+            if (!student || student.classroomId !== req.classroomScope) {
+                return res.status(403).json({ message: 'Forbidden: Student not in your classroom' });
+            }
+        }
+
         // 1. Audit: Get old data if exists
         const existing = await prisma.attendance.findFirst({
             where: {
@@ -181,14 +194,18 @@ exports.manualAttendance = async (req, res, next) => {
 
 exports.bulkMarkAttendance = async (req, res, next) => {
     try {
-        const { classroomId, status, date } = req.body;
-        const markedById = req.user.id;
-        const attendanceDate = date ? new Date(date) : new Date(dayjs().format('YYYY-MM-DD'));
+        // Use classroom scoping from middleware if exists
+        let finalClassroomId = parseInt(classroomId);
+        if (req.classroomScope) {
+            finalClassroomId = req.classroomScope;
+        } else if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
+            return res.status(403).json({ message: 'Access denied: No classroom assigned' });
+        }
 
         // 1. Get all students in classroom
         const students = await prisma.student.findMany({
             where: {
-                classroomId: parseInt(classroomId),
+                classroomId: finalClassroomId,
                 status: 'ACTIVE'
             },
             select: { id: true }
@@ -251,14 +268,10 @@ exports.getDailyAttendance = async (req, res, next) => {
 
         // 1. Get Students (Scoped by role)
         let studentWhere = { status: 'ACTIVE' };
-        if (req.user.role === 'TEACHER') {
-            const teacherProfile = await prisma.teacherprofile.findUnique({
-                where: { teacherId: req.user.id }
-            });
-            if (!teacherProfile || !teacherProfile.assignedClassroomId) {
-                return res.json([]);
-            }
-            studentWhere.classroomId = teacherProfile.assignedClassroomId;
+        if (req.classroomScope) {
+            studentWhere.classroomId = req.classroomScope;
+        } else if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
+            return res.json([]);
         }
 
         const students = await prisma.student.findMany({
@@ -307,7 +320,7 @@ exports.getStudentAttendanceSummary = async (req, res, next) => {
             const student = await prisma.student.findUnique({
                 where: { id: studentIdInt }
             });
-            const parentProfile = await prisma.parent.findFirst({ where: { email: req.user.username } });
+            const parentProfile = await prisma.parent.findUnique({ where: { userId: req.user.id } });
 
             if (!student || !parentProfile || (student.parentId !== parentProfile.id && student.secondParentId !== parentProfile.id)) {
                 return res.status(403).json({ message: 'Forbidden' });

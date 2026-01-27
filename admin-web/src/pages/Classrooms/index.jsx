@@ -222,9 +222,10 @@ const Classrooms = () => {
                             <Col span={12}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                                     <Title level={5} style={{ margin: 0 }}>Schedule</Title>
-                                    {!isEditingSchedule ? (
+                                    {(user?.role !== 'TEACHER' && !isEditingSchedule) && (
                                         <Button size="small" icon={<EditOutlined />} onClick={() => setIsEditingSchedule(true)}>Edit</Button>
-                                    ) : (
+                                    )}
+                                    {(user?.role !== 'TEACHER' && isEditingSchedule) && (
                                         <Button size="small" type="primary" icon={<SaveOutlined />} onClick={handleSaveSchedule} loading={loading}>Save</Button>
                                     )}
                                 </div>

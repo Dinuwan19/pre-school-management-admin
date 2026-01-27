@@ -48,7 +48,7 @@ const MainLayout = () => {
             label: 'Students',
             children: [
                 { key: '/students', label: 'All Students' },
-                ...(user?.role !== 'TEACHER' && user?.role !== 'PARENT' ? [{ key: '/students/add', label: 'Add Student' }] : [])
+                ...(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ key: '/students/add', label: 'Add Student' }] : [])
             ]
         },
         ...(user?.role !== 'PARENT' ? [
@@ -58,7 +58,7 @@ const MainLayout = () => {
                 label: 'Parents',
                 children: [
                     { key: '/parents', label: 'All Parents' },
-                    ...(user?.role !== 'TEACHER' ? [{ key: '/parents/add', label: 'Add Parent' }] : [])
+                    ...(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ key: '/parents/add', label: 'Add Parent' }] : [])
                 ]
             },
             {

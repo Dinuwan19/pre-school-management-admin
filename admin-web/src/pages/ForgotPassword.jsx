@@ -9,22 +9,63 @@ const { Title, Text, Paragraph } = Typography;
 const ForgotPassword = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
-    const [submitted, setSubmitted] = useState(false);
+    const [step, setStep] = useState('request'); // 'request' | 'verify' | 'reset'
+    const [username, setUsername] = useState('');
+    const [otp, setOtp] = useState('');
     const [error, setError] = useState('');
-    const [devLink, setDevLink] = useState(null); // To store the dev link for user testing
 
-    const onFinish = async (values) => {
+    const onFinishRequest = async (values) => {
         try {
             setLoading(true);
             setError('');
-            const response = await api.post('/auth/forgot-password', { username: values.username });
-            if (response.data._dev_token) {
-                setDevLink(`http://localhost:5173/reset-password?token=${response.data._dev_token}`);
-            }
-            setSubmitted(true);
-            message.success('Reset link requested');
+            setUsername(values.username);
+            await api.post('/auth/forgot-password', { username: values.username });
+            setStep('verify');
+            message.success('OTP has been sent to your email');
         } catch (err) {
             setError(err.response?.data?.message || 'Something went wrong');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const onFinishVerify = async (values) => {
+        try {
+            setLoading(true);
+            setError('');
+            await api.post('/auth/validate-otp', {
+                username,
+                otp: values.otp
+            });
+            setOtp(values.otp);
+            setStep('reset');
+            message.success('OTP verified. Set your new password.');
+        } catch (err) {
+            setError(err.response?.data?.message || 'Verification failed');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const onFinishReset = async (values) => {
+        try {
+            setLoading(true);
+            setError('');
+            if (values.newPassword !== values.confirmPassword) {
+                setError('Passwords do not match');
+                return;
+            }
+
+            await api.post('/auth/verify-otp', {
+                username,
+                otp,
+                newPassword: values.newPassword
+            });
+
+            message.success('Password reset successfully');
+            navigate('/login');
+        } catch (err) {
+            setError(err.response?.data?.message || 'Reset failed');
         } finally {
             setLoading(false);
         }
@@ -68,7 +109,7 @@ const ForgotPassword = () => {
                     <Text style={{ fontSize: 13, color: '#888888', letterSpacing: '0.5px' }}>MONTESSORI MANAGEMENT</Text>
                 </div>
 
-                {!submitted ? (
+                {step === 'request' && (
                     <div style={{ animation: 'slideIn 0.3s ease-out', textAlign: 'left' }}>
                         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32 }}>
                             <Button
@@ -79,13 +120,13 @@ const ForgotPassword = () => {
                             />
                             <div>
                                 <Title level={4} style={{ margin: 0, color: '#333' }}>Forgot Password</Title>
-                                <Text type="secondary" style={{ fontSize: 13 }}>We'll send you a link to reset your password</Text>
+                                <Text type="secondary" style={{ fontSize: 13 }}>Enter your username to receive an OTP</Text>
                             </div>
                         </div>
 
                         {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 24, borderRadius: 8 }} />}
 
-                        <Form onFinish={onFinish} layout="vertical" size="large">
+                        <Form onFinish={onFinishRequest} layout="vertical" size="large">
                             <Form.Item
                                 label={<span style={{ color: '#444', fontWeight: 600, fontSize: 13 }}>USERNAME</span>}
                                 name="username"
@@ -113,43 +154,121 @@ const ForgotPassword = () => {
                                     boxShadow: '0 4px 14px rgba(123, 87, 228, 0.4)'
                                 }}
                             >
-                                Send Reset Link
+                                Send OTP
                             </Button>
                         </Form>
                     </div>
-                ) : (
-                    <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-                        <div style={{
-                            width: 64, height: 64, background: '#F6FFED',
-                            borderRadius: '50%', display: 'flex', alignItems: 'center',
-                            justifyContent: 'center', margin: '0 auto 24px'
-                        }}>
-                            <MailOutlined style={{ fontSize: 32, color: '#52C41A' }} />
-                        </div>
-                        <Title level={3} style={{ marginBottom: 12 }}>Check your console!</Title>
-                        <Paragraph style={{ color: '#666', marginBottom: 24 }}>
-                            Since we don't have an email server, the reset link is logged to the backend console.
-                        </Paragraph>
+                )}
 
-                        {devLink && (
-                            <div style={{ background: '#fff1f0', padding: 16, borderRadius: 8, marginBottom: 24, border: '1px solid #ffa39e' }}>
-                                <Text strong style={{ color: '#cf1322', display: 'block', marginBottom: 8 }}>DEVELOPER MODE:</Text>
-                                <Text style={{ fontSize: 13 }}>Click below to simulate "clicking the email link":</Text>
-                                <div style={{ marginTop: 8 }}>
-                                    <a href={devLink} style={{ wordBreak: 'break-all', color: primaryColor, fontWeight: 500 }}>
-                                        {devLink}
-                                    </a>
-                                </div>
+                {step === 'verify' && (
+                    <div style={{ animation: 'slideIn 0.3s ease-out', textAlign: 'left' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32 }}>
+                            <Button
+                                type="text"
+                                icon={<ArrowLeftOutlined style={{ fontSize: 18 }} />}
+                                onClick={() => setStep('request')}
+                                style={{ marginRight: 8, padding: 4 }}
+                            />
+                            <div>
+                                <Title level={4} style={{ margin: 0, color: '#333' }}>Verify OTP</Title>
+                                <Text type="secondary" style={{ fontSize: 13 }}>Enter the code sent to your email</Text>
                             </div>
-                        )}
-                        <Button
-                            type="primary"
-                            block
-                            onClick={() => navigate('/login')}
-                            style={{ height: 52, background: primaryColor, borderRadius: 12 }}
-                        >
-                            Back to Login
-                        </Button>
+                        </div>
+
+                        {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 24, borderRadius: 8 }} />}
+
+                        <Form onFinish={onFinishVerify} layout="vertical" size="large">
+                            <Form.Item
+                                label={<span style={{ color: '#444', fontWeight: 600, fontSize: 13 }}>OTP CODE</span>}
+                                name="otp"
+                                rules={[{ required: true, message: 'Please input the OTP!' }]}
+                            >
+                                <Input
+                                    style={{ background: '#F8F8F8', border: '1px solid #EAEAEA', borderRadius: 10, padding: '10px 14px', letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold' }}
+                                    placeholder="123456"
+                                    maxLength={6}
+                                />
+                            </Form.Item>
+
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                loading={loading}
+                                block
+                                style={{
+                                    height: 52,
+                                    fontSize: 16,
+                                    fontWeight: 600,
+                                    background: primaryColor,
+                                    borderRadius: 12,
+                                    marginTop: 16,
+                                    boxShadow: '0 4px 14px rgba(123, 87, 228, 0.4)'
+                                }}
+                            >
+                                Verify OTP
+                            </Button>
+                        </Form>
+                    </div>
+                )}
+
+                {step === 'reset' && (
+                    <div style={{ animation: 'slideIn 0.3s ease-out', textAlign: 'left' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32 }}>
+                            <Button
+                                type="text"
+                                icon={<ArrowLeftOutlined style={{ fontSize: 18 }} />}
+                                onClick={() => setStep('verify')}
+                                style={{ marginRight: 8, padding: 4 }}
+                            />
+                            <div>
+                                <Title level={4} style={{ margin: 0, color: '#333' }}>Reset Password</Title>
+                                <Text type="secondary" style={{ fontSize: 13 }}>Set a new secure password</Text>
+                            </div>
+                        </div>
+
+                        {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 24, borderRadius: 8 }} />}
+
+                        <Form onFinish={onFinishReset} layout="vertical" size="large">
+                            <Form.Item
+                                label={<span style={{ color: '#444', fontWeight: 600, fontSize: 13 }}>NEW PASSWORD</span>}
+                                name="newPassword"
+                                rules={[{ required: true }, { min: 6, message: 'Min 6 characters' }]}
+                            >
+                                <Input.Password
+                                    style={{ background: '#F8F8F8', border: '1px solid #EAEAEA', borderRadius: 10, padding: '10px 14px' }}
+                                    placeholder="••••••••"
+                                />
+                            </Form.Item>
+
+                            <Form.Item
+                                label={<span style={{ color: '#444', fontWeight: 600, fontSize: 13 }}>CONFIRM PASSWORD</span>}
+                                name="confirmPassword"
+                                rules={[{ required: true }]}
+                            >
+                                <Input.Password
+                                    style={{ background: '#F8F8F8', border: '1px solid #EAEAEA', borderRadius: 10, padding: '10px 14px' }}
+                                    placeholder="••••••••"
+                                />
+                            </Form.Item>
+
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                loading={loading}
+                                block
+                                style={{
+                                    height: 52,
+                                    fontSize: 16,
+                                    fontWeight: 600,
+                                    background: primaryColor,
+                                    borderRadius: 12,
+                                    marginTop: 16,
+                                    boxShadow: '0 4px 14px rgba(123, 87, 228, 0.4)'
+                                }}
+                            >
+                                Reset Password
+                            </Button>
+                        </Form>
                     </div>
                 )}
             </Card>
@@ -158,10 +277,6 @@ const ForgotPassword = () => {
                 @keyframes slideIn {
                     from { opacity: 0; transform: translateX(20px); }
                     to { opacity: 1; transform: translateX(0); }
-                }
-                @keyframes fadeIn {
-                    from { opacity: 0; transform: scale(0.95); }
-                    to { opacity: 1; transform: scale(1); }
                 }
             `}</style>
         </div>

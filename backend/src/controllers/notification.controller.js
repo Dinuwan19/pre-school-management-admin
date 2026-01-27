@@ -5,12 +5,20 @@ exports.createNotification = async (req, res, next) => {
         const { title, message, targetRole, targetClassroomId } = req.body;
         const createdById = req.user.id;
 
+        // Scoping for Teacher/Staff
+        let finalTargetClassroomId = targetClassroomId ? parseInt(targetClassroomId) : null;
+        if (req.classroomScope) {
+            finalTargetClassroomId = req.classroomScope;
+        } else if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
+            return res.status(403).json({ message: 'Access denied: No classroom assigned to send notifications.' });
+        }
+
         const notification = await prisma.notification.create({
             data: {
                 title,
                 message,
-                targetRole,
-                targetClassroomId: targetClassroomId ? parseInt(targetClassroomId) : null,
+                targetRole: targetRole || 'PARENT',
+                targetClassroomId: finalTargetClassroomId,
                 createdById
             },
             include: {
@@ -32,15 +40,19 @@ exports.getAllNotifications = async (req, res, next) => {
 
         // Filter based on role
         let where = {};
-        if (role === 'TEACHER') {
-            // Teachers see ALL or TEACHER target notifications
+        if (req.classroomScope) {
+            // Teachers see notifications for their classroom or their own creations
             where = {
                 OR: [
-                    { targetRole: 'ALL' },
+                    { targetClassroomId: req.classroomScope },
+                    { createdById: id },
                     { targetRole: 'TEACHER' },
-                    { createdById: id } // Their own
+                    { targetRole: 'ALL' }
                 ]
             };
+        } else if (role === 'TEACHER' || role === 'STAFF') {
+            // Teacher with no classroom sees only their own
+            where = { createdById: id };
         } else if (role === 'PARENT') {
             const parent = await prisma.parent.findFirst({
                 where: { email: req.user.username },

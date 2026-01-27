@@ -2,15 +2,16 @@ const express = require('express');
 const router = express.Router();
 const eventController = require('../controllers/event.controller');
 const { authenticateToken, authorizeRole } = require('../middlewares/auth.middleware');
+const { checkClassroomScope } = require('../middlewares/access.middleware');
 
 router.use(authenticateToken);
 
-// View events - Open to staff/parents (managed by frontend filtering/backend role check if needed)
-router.get('/', eventController.getAllEvents);
-router.get('/:id', eventController.getEventById);
+// View events - Open to staff/parents
+router.get('/', checkClassroomScope, eventController.getAllEvents);
+router.get('/:id', checkClassroomScope, eventController.getEventById);
 
-// Manage events - Admin only
-router.post('/', authorizeRole(['SUPER_ADMIN', 'ADMIN']), eventController.createEvent);
+// Manage events
+router.post('/', checkClassroomScope, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'TEACHER']), eventController.createEvent);
 router.put('/:id/status', authorizeRole(['SUPER_ADMIN', 'ADMIN']), eventController.updateEventStatus);
 
 // Waiting List

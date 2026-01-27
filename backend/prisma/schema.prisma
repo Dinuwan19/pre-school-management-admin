@@ -252,8 +252,12 @@ model user {
   photoUrl                                       String?
   resetToken                                     String?
   resetTokenExpires                              DateTime?
+  isActive                                       Boolean           @default(true)
+  isEmailVerified                                Boolean           @default(false)
   createdAt                                      DateTime          @default(now())
   updatedAt                                      DateTime          @updatedAt
+  otp                                            otp[]
+  tempPasswordLog                                tempPasswordLog[]
   attendance                                     attendance[]
   auditlog                                       auditlog[]
   homework                                       homework[]
@@ -416,4 +420,36 @@ enum event_status {
   UPCOMING
   COMPLETED
   CANCELLED
+  PENDING
+}
+
+model otp {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  codeHash  String
+  expiresAt DateTime
+  purpose   otp_purpose
+  isUsed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      user     @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "OTP_userId_fkey")
+}
+
+enum otp_purpose {
+  FORGOT_PASSWORD
+  EMAIL_VERIFY
+  ACCOUNT_ACTIVATION
+}
+
+model tempPasswordLog {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  passwordHash String
+  expiresAt    DateTime
+  used         Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  user         user     @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "TempPasswordLog_userId_fkey")
 }

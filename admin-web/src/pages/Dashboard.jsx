@@ -36,7 +36,9 @@ const Dashboard = () => {
     const statCards = [
         { title: 'Students', value: data?.counts?.students || 0, icon: <UserOutlined />, color: '#7B57E4', path: '/students' },
         { title: 'Classrooms', value: data?.counts?.classrooms || 0, icon: <HomeOutlined />, color: '#FF9500', path: '/classrooms' },
-        { title: 'Staff', value: data?.counts?.staff || 0, icon: <TeamOutlined />, color: '#00C7BE', path: '/staff' },
+        ...(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? [
+            { title: 'Staff', value: data?.counts?.staff || 0, icon: <TeamOutlined />, color: '#00C7BE', path: '/staff' }
+        ] : []),
         { title: 'Parents', value: data?.counts?.parents || 0, icon: <TeamOutlined />, color: '#FF4D4F', path: '/parents' },
     ];
 
@@ -106,37 +108,40 @@ const Dashboard = () => {
                                         </Button>
                                     </Card>
                                 </Col>
-                                <Col xs={24} md={12}>
-                                    <Card
-                                        title={<Space><BookOutlined style={{ color: '#7B57E4' }} /> Payment</Space>}
-                                        style={{ borderRadius: 16, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.02)', height: '100%' }}
-                                    >
-                                        <div style={{ marginBottom: 12 }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                                                <Text type="secondary">Paid</Text>
-                                                <Text strong>{payments.paid}</Text>
+                                {/* Only show Billing for Admins */}
+                                {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                                    <Col xs={24} md={12}>
+                                        <Card
+                                            title={<Space><BookOutlined style={{ color: '#7B57E4' }} /> Payment</Space>}
+                                            style={{ borderRadius: 16, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.02)', height: '100%' }}
+                                        >
+                                            <div style={{ marginBottom: 12 }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                                                    <Text type="secondary">Paid</Text>
+                                                    <Text strong>{payments.paid}</Text>
+                                                </div>
+                                                <Progress percent={payments.total > 0 ? (payments.paid / payments.total) * 100 : 0} strokeColor="#52C41A" size="small" showInfo={false} />
                                             </div>
-                                            <Progress percent={payments.total > 0 ? (payments.paid / payments.total) * 100 : 0} strokeColor="#52C41A" size="small" showInfo={false} />
-                                        </div>
-                                        <div style={{ marginBottom: 12 }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                                                <Text type="secondary">Pending</Text>
-                                                <Text strong>{payments.pending}</Text>
+                                            <div style={{ marginBottom: 12 }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                                                    <Text type="secondary">Pending</Text>
+                                                    <Text strong>{payments.pending}</Text>
+                                                </div>
+                                                <Progress percent={payments.total > 0 ? (payments.pending / payments.total) * 100 : 0} strokeColor="#1890FF" size="small" showInfo={false} />
                                             </div>
-                                            <Progress percent={payments.total > 0 ? (payments.pending / payments.total) * 100 : 0} strokeColor="#1890FF" size="small" showInfo={false} />
-                                        </div>
-                                        <div style={{ marginBottom: 20 }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                                                <Text type="secondary">Overdue</Text>
-                                                <Text strong>{payments.overdue}</Text>
+                                            <div style={{ marginBottom: 20 }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                                                    <Text type="secondary">Overdue</Text>
+                                                    <Text strong>{payments.overdue}</Text>
+                                                </div>
+                                                <Progress percent={payments.total > 0 ? (payments.overdue / payments.total) * 100 : 0} strokeColor="#F5222D" size="small" showInfo={false} />
                                             </div>
-                                            <Progress percent={payments.total > 0 ? (payments.overdue / payments.total) * 100 : 0} strokeColor="#F5222D" size="small" showInfo={false} />
-                                        </div>
-                                        <Button type="link" onClick={() => navigate('/billing/overview')} style={{ padding: 0 }}>
-                                            View Payment <ArrowRightOutlined />
-                                        </Button>
-                                    </Card>
-                                </Col>
+                                            <Button type="link" onClick={() => navigate('/billing/overview')} style={{ padding: 0 }}>
+                                                View Payment <ArrowRightOutlined />
+                                            </Button>
+                                        </Card>
+                                    </Col>
+                                )}
                             </Row>
                         </Col>
 
@@ -183,9 +188,11 @@ const Dashboard = () => {
                             <Button block size="large" onClick={() => navigate('/homework')} icon={<BookOutlined />} style={{ borderRadius: 12, height: 50, textAlign: 'left', fontWeight: 500 }}>
                                 Assign New Homework
                             </Button>
-                            <Button block size="large" onClick={() => navigate('/billing/overview')} icon={<DollarOutlined />} style={{ borderRadius: 12, height: 50, textAlign: 'left', fontWeight: 500 }}>
-                                Manage School Fees
-                            </Button>
+                            {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                                <Button block size="large" onClick={() => navigate('/billing/overview')} icon={<DollarOutlined />} style={{ borderRadius: 12, height: 50, textAlign: 'left', fontWeight: 500 }}>
+                                    Manage School Fees
+                                </Button>
+                            )}
                         </Space>
                     </Card>
 

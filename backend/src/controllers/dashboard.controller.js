@@ -10,49 +10,91 @@ exports.getStats = async (req, res, next) => {
         const startOfMonth = dayjs().startOf('month').toDate();
 
         // 1. Basic Counts
-        const [studentCount, staffCount, classroomCount, parentCount] = await Promise.all([
-            prisma.student.count({ where: { status: 'ACTIVE' } }),
-            prisma.user.count({ where: { role: { in: ['ADMIN', 'TEACHER'] }, status: 'ACTIVE' } }),
-            prisma.classroom.count({ where: { status: 'ACTIVE' } }),
-            prisma.parent.count({ where: { status: 'ACTIVE' } })
-        ]);
+        let studentCount, staffCount, classroomCount, parentCount;
+
+        if (req.classroomScope) {
+            // Teacher Scope
+            const [sCount, pCount] = await Promise.all([
+                prisma.student.count({ where: { status: 'ACTIVE', classroomId: req.classroomScope } }),
+                prisma.parent.count({
+                    where: {
+                        status: 'ACTIVE',
+                        OR: [
+                            { student_student_parentIdToparent: { some: { classroomId: req.classroomScope } } },
+                            { student_student_secondParentIdToparent: { some: { classroomId: req.classroomScope } } }
+                        ]
+                    }
+                })
+            ]);
+            studentCount = sCount;
+            parentCount = pCount;
+            staffCount = null; // Hide staff count from teachers
+            classroomCount = 1; // Only their own
+        } else {
+            // Admin Scope
+            const [sCount, sCCount, cCount, pCount] = await Promise.all([
+                prisma.student.count({ where: { status: 'ACTIVE' } }),
+                prisma.user.count({ where: { role: { in: ['ADMIN', 'TEACHER'] }, status: 'ACTIVE' } }),
+                prisma.classroom.count({ where: { status: 'ACTIVE' } }),
+                prisma.parent.count({ where: { status: 'ACTIVE' } })
+            ]);
+            studentCount = sCount;
+            staffCount = sCCount;
+            classroomCount = cCount;
+            parentCount = pCount;
+        }
 
         // 2. Attendance Today
-        const presentToday = await prisma.attendance.count({
-            where: {
-                attendanceDate: new Date(today),
-                status: { in: ['PRESENT', 'LATE', 'COMPLETED'] }
-            }
-        });
+        let attendanceWhere = {
+            attendanceDate: new Date(today),
+            status: { in: ['PRESENT', 'LATE', 'COMPLETED'] }
+        };
+        if (req.classroomScope) {
+            attendanceWhere.student = { classroomId: req.classroomScope };
+        }
+
+        const presentToday = await prisma.attendance.count({ where: attendanceWhere });
         const attendanceAnalytics = {
             present: presentToday,
             total: studentCount,
             percentage: studentCount > 0 ? Math.round((presentToday / studentCount) * 100) : 0
         };
 
-        // 3. Billing & Payments (Current Month)
-        const currentMonthBillings = await prisma.billing.findMany({
-            where: { createdAt: { gte: startOfMonth } }
-        });
+        // 3. Billing & Payments (Only for Admins)
+        let billingStats = null;
+        if (!req.classroomScope) {
+            const currentMonthBillings = await prisma.billing.findMany({
+                where: { createdAt: { gte: startOfMonth } }
+            });
 
-        const billingStats = {
-            paid: currentMonthBillings.filter(b => b.status === 'PAID').length,
-            pending: currentMonthBillings.filter(b => b.status === 'PENDING').length,
-            overdue: currentMonthBillings.filter(b => b.status === 'OVERDUE').length,
-            total: currentMonthBillings.length,
-            progress: 0
-        };
+            billingStats = {
+                paid: currentMonthBillings.filter(b => b.status === 'PAID').length,
+                pending: currentMonthBillings.filter(b => b.status === 'PENDING').length,
+                overdue: currentMonthBillings.filter(b => b.status === 'OVERDUE').length,
+                total: currentMonthBillings.length,
+                progress: 0
+            };
 
-        if (billingStats.total > 0) {
-            billingStats.progress = Math.round((billingStats.paid / billingStats.total) * 100);
+            if (billingStats.total > 0) {
+                billingStats.progress = Math.round((billingStats.paid / billingStats.total) * 100);
+            }
         }
 
-        // 4. Upcoming Events
+        // 4. Upcoming Events / Notifications
+        let notificationWhere = {
+            billingMonth: null,
+            createdAt: { gte: dayjs().subtract(7, 'days').toDate() }
+        };
+        if (req.classroomScope) {
+            notificationWhere.OR = [
+                { targetClassroomId: req.classroomScope },
+                { targetRole: 'ALL' },
+                { targetRole: 'TEACHER' }
+            ];
+        }
+
         const events = await prisma.notification.findMany({
-            where: {
-                billingMonth: null,
-                createdAt: { gte: dayjs().subtract(7, 'days').toDate() }
-            },
+            where: notificationWhere,
             take: 5,
             orderBy: { createdAt: 'desc' }
         });

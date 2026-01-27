@@ -10,6 +10,8 @@ const { authorizeRole } = require('../middlewares/auth.middleware');
 router.post('/register', authenticateToken, authorizeRole(['SUPER_ADMIN']), authController.register);
 router.post('/change-password', authenticateToken, authController.changePassword);
 router.post('/forgot-password', authController.requestPasswordReset);
+router.post('/validate-otp', authController.verifyOTPOnly);
+router.post('/verify-otp', authController.verifyOTPAndReset);
 router.post('/reset-password', authController.resetPassword);
 
 module.exports = router;

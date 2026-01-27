@@ -5,12 +5,20 @@ exports.createHomework = async (req, res, next) => {
         const { title, description, dueDate, classroomId } = req.body;
         const createdById = req.user.id;
 
+        // Scoping for Teacher/Staff
+        let finalClassroomId = classroomId ? parseInt(classroomId) : null;
+        if (req.classroomScope) {
+            finalClassroomId = req.classroomScope;
+        } else if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
+            return res.status(403).json({ message: 'Access denied: No classroom assigned to create homework.' });
+        }
+
         const homework = await prisma.homework.create({
             data: {
                 title,
                 description,
                 dueDate: dueDate ? new Date(dueDate) : null,
-                classroomId: parseInt(classroomId),
+                classroomId: finalClassroomId,
                 createdById
             }
         });
@@ -26,14 +34,10 @@ exports.getAllHomework = async (req, res, next) => {
         const { role, id } = req.user;
         let where = {};
 
-        if (role === 'TEACHER') {
-            // Find teacher's classroom
-            const profile = await prisma.teacherprofile.findUnique({ where: { teacherId: id } });
-            if (profile && profile.assignedClassroomId) {
-                where = { classroomId: profile.assignedClassroomId };
-            } else {
-                return res.json([]); // No classroom assigned
-            }
+        if (req.classroomScope) {
+            where = { classroomId: req.classroomScope };
+        } else if (role === 'TEACHER' || role === 'STAFF') {
+            return res.json([]); // No classroom assigned
         } else if (role === 'PARENT') {
             const parent = await prisma.parent.findFirst({
                 where: { email: req.user.username },

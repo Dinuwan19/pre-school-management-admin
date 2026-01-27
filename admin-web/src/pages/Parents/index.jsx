@@ -121,7 +121,7 @@ Instructions:
             render: (text) => <Tag color="blue">{text || 'Pending'}</Tag>
         },
         {
-            title: 'Father Name',
+            title: 'Parent Name',
             dataIndex: 'fullName',
             key: 'name',
             render: (text) => <Text strong>{text}</Text>
@@ -180,7 +180,7 @@ Instructions:
 
     const parentFormFields = (
         <>
-            <Form.Item name="fullName" label="Father Name" rules={[{ required: true }]}>
+            <Form.Item name="fullName" label="Parent Name" rules={[{ required: true }]}>
                 <Input placeholder="Enter full name" />
             </Form.Item>
 

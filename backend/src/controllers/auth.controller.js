@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { logAction } = require('../services/audit.service');
+const { generateOTP, generateTempPassword, hashToken } = require('../utils/auth.utils');
+const { sendTempPasswordEmail, sendOTPEmail } = require('../services/mailer.service');
 
 const generateToken = (user) => {
     return jwt.sign(
@@ -16,13 +18,44 @@ exports.login = async (req, res, next) => {
     try {
         const { username, password } = req.body;
 
-        const user = await prisma.user.findUnique({ where: { username } });
+        const user = await prisma.user.findUnique({
+            where: { username },
+            include: { tempPasswordLog: { where: { used: false, expiresAt: { gte: new Date() } } } }
+        });
 
-        if (!user || user.status !== 'ACTIVE') {
+        if (!user || user.status !== 'ACTIVE' || !user.isActive) {
             return res.status(401).json({ message: 'Invalid credentials or inactive account' });
         }
 
-        const isMatch = await bcrypt.compare(password, user.password);
+        // Parent specific verification check
+        if (user.role === 'PARENT' && !user.isEmailVerified) {
+            return res.status(403).json({
+                message: 'Your email is not verified yet.',
+                requiresVerification: true,
+                userId: user.id
+            });
+        }
+
+        let isMatch = await bcrypt.compare(password, user.password);
+        let usedTempPassword = false;
+
+        // If regular password fails, check temp passwords
+        if (!isMatch && user.tempPasswordLog && user.tempPasswordLog.length > 0) {
+            for (const log of user.tempPasswordLog) {
+                const tempMatch = await bcrypt.compare(password, log.passwordHash);
+                if (tempMatch) {
+                    isMatch = true;
+                    usedTempPassword = true;
+                    // Mark this temp password as used
+                    await prisma.tempPasswordLog.update({
+                        where: { id: log.id },
+                        data: { used: true }
+                    });
+                    break;
+                }
+            }
+        }
+
         if (!isMatch) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
@@ -35,7 +68,7 @@ exports.login = async (req, res, next) => {
                 username: user.username,
                 role: user.role,
                 fullName: user.fullName,
-                firstLogin: user.firstLogin
+                firstLogin: user.firstLogin || usedTempPassword // Force reset if temp password used
             },
         });
 
@@ -75,27 +108,60 @@ exports.changePassword = async (req, res, next) => {
 };
 
 exports.register = async (req, res, next) => {
-    // NOTE: This endpoint should be protected or removed in production
     try {
-        const { username, password, role, fullName } = req.body;
+        const { username, email, role, fullName } = req.body;
+
+        // Staff/Teacher prefix validation
+        if ((role === 'TEACHER' || role === 'STAFF' || role === 'ADMIN') && !username.startsWith('MFM_')) {
+            return res.status(400).json({ message: 'Staff usernames must start with MFM_' });
+        }
 
         const existingUser = await prisma.user.findUnique({ where: { username } });
         if (existingUser) {
             return res.status(400).json({ message: 'Username already exists' });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // Generate temporary password
+        const tempRawPassword = generateTempPassword();
+        const hashedPassword = await bcrypt.hash(tempRawPassword, 10);
 
         const user = await prisma.user.create({
             data: {
                 username,
-                password: hashedPassword,
+                email,
+                password: hashedPassword, // Store initially as standard password for first login
                 role: role || 'TEACHER',
                 fullName,
+                firstLogin: true,
+                isActive: true
             },
         });
 
-        res.status(201).json({ message: 'User created successfully', userId: user.id });
+        // Also log it in TempPasswordLog for redundancy/expiry logic
+        await prisma.tempPasswordLog.create({
+            data: {
+                userId: user.id,
+                passwordHash: hashedPassword,
+                expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+            }
+        });
+
+        // Send email with credentials
+        if (email) {
+            try {
+                await sendTempPasswordEmail(email, username, tempRawPassword);
+            } catch (mailError) {
+                console.error('Failed to send credential email:', mailError);
+                // We still return success as user is created, but notify about email failure
+                return res.status(201).json({
+                    message: 'User created but email failed. Please provide temp password manually.',
+                    userId: user.id,
+                    _dev_temp_pass: tempRawPassword
+                });
+            }
+        }
+
+        res.status(201).json({ message: 'User created and credentials emailed successfully', userId: user.id });
     } catch (error) {
         next(error);
     }
@@ -107,37 +173,105 @@ exports.requestPasswordReset = async (req, res, next) => {
         const user = await prisma.user.findUnique({ where: { username } });
 
         if (!user || !user.email) {
-            // Success even if not found/no email to prevent user enumeration
-            return res.json({ message: 'If an account exists with this username and email, a reset link will be sent.' });
+            return res.json({ message: 'If an account exists, an OTP will be sent to your email.' });
         }
 
-        const token = crypto.randomBytes(32).toString('hex');
-        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-        const expires = new Date(Date.now() + 3600000); // 1 hour from now
+        const otpCode = generateOTP();
+        const otpHash = hashToken(otpCode);
+        const expires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
-        await prisma.user.update({
-            where: { id: user.id },
+        await prisma.otp.create({
             data: {
-                resetToken: tokenHash,
-                resetTokenExpires: expires
+                userId: user.id,
+                codeHash: otpHash,
+                expiresAt: expires,
+                purpose: 'FORGOT_PASSWORD'
             }
         });
 
-        // IMPORTANT: Log token to console since no email server is available
-        // In a real system, this would be sent to user.email
-        console.log('-----------------------------------------');
-        console.log(`PASSWORD RESET REQUEST for user: ${username}`);
-        console.log(`TARGET EMAIL: ${user.email}`);
-        console.log(`RESET TOKEN: ${token}`);
-        console.log(`RESET LINK: http://localhost:5173/reset-password?token=${token}`);
-        console.log('-----------------------------------------');
+        // Send OTP via Email
+        try {
+            await sendOTPEmail(user.email, otpCode, 'Password Reset');
+        } catch (mailError) {
+            console.error('OTP Mail Error:', mailError);
+            // Developer fallback for testing without SMTP
+            return res.json({
+                message: 'OTP generation failed. (Dev: Check server logs)',
+                _dev_otp: otpCode
+            });
+        }
 
-        await logAction(user.id, `PASSWORD_RESET_REQUEST: Reset requested for ${username} (Email: ${user.email})`);
+        await logAction(user.id, `PASSWORD_RESET_OTP: Sent to ${user.email}`);
 
-        res.json({
-            message: 'If an account exists, a reset link will be sent.',
-            _dev_token: token // Still keeping this for their "Developer Mode" UI fix I implemented earlier
+        res.json({ message: 'An OTP has been sent to your registered email.' });
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.verifyOTPOnly = async (req, res, next) => {
+    try {
+        const { username, otp } = req.body;
+        const user = await prisma.user.findUnique({ where: { username } });
+
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        const otpHash = hashToken(otp);
+        const validOtp = await prisma.otp.findFirst({
+            where: {
+                userId: user.id,
+                codeHash: otpHash,
+                isUsed: false,
+                expiresAt: { gte: new Date() }
+            }
         });
+
+        if (!validOtp) {
+            return res.status(400).json({ message: 'Invalid or expired OTP' });
+        }
+
+        res.json({ message: 'OTP verified successfully. You may now change your password.' });
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.verifyOTPAndReset = async (req, res, next) => {
+    try {
+        const { username, otp, newPassword } = req.body;
+        const user = await prisma.user.findUnique({ where: { username } });
+
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        const otpHash = hashToken(otp);
+        const validOtp = await prisma.otp.findFirst({
+            where: {
+                userId: user.id,
+                codeHash: otpHash,
+                isUsed: false,
+                expiresAt: { gte: new Date() }
+            }
+        });
+
+        if (!validOtp) {
+            return res.status(400).json({ message: 'Invalid or expired OTP' });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        await prisma.$transaction([
+            prisma.user.update({
+                where: { id: user.id },
+                data: { password: hashedPassword, firstLogin: false, isEmailVerified: true }
+            }),
+            prisma.otp.update({
+                where: { id: validOtp.id },
+                data: { isUsed: true }
+            })
+        ]);
+
+        await logAction(user.id, 'PASSWORD_RESET_SUCCESS: User reset password via OTP');
+        res.json({ message: 'Password reset successful. You can now login.' });
     } catch (error) {
         next(error);
     }

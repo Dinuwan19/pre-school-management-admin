@@ -2,6 +2,9 @@ const prisma = require('../config/prisma');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { logAction } = require('../services/audit.service');
+const { generateOTP, hashToken } = require('../utils/auth.utils');
+const { sendOTPEmail } = require('../services/mailer.service');
+const crypto = require('crypto');
 
 const generateToken = (user) => {
     return jwt.sign(
@@ -44,41 +47,218 @@ exports.parentSignup = async (req, res, next) => {
 
         // 4. Create User Record
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = await prisma.user.create({
-            data: {
-                username,
-                password: hashedPassword,
-                role: 'PARENT',
-                fullName: parentRecord.fullName,
-                email: parentRecord.email,
-                phone: parentRecord.phone,
-                status: 'ACTIVE',
-                firstLogin: false
-            }
+
+        // Generate Verification OTP
+        const otpCode = generateOTP();
+        const otpHash = hashToken(otpCode);
+        const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes for verification
+
+        const newUser = await prisma.$transaction(async (tx) => {
+            const user = await tx.user.create({
+                data: {
+                    username,
+                    password: hashedPassword,
+                    role: 'PARENT',
+                    fullName: parentRecord.fullName,
+                    email: email || parentRecord.email,
+                    phone: parentRecord.phone,
+                    status: 'ACTIVE',
+                    firstLogin: false,
+                    isEmailVerified: false
+                }
+            });
+
+            await tx.parent.update({
+                where: { id: parentRecord.id },
+                data: { userId: user.id, email: email || undefined }
+            });
+
+            await tx.otp.create({
+                data: {
+                    userId: user.id,
+                    codeHash: otpHash,
+                    expiresAt: otpExpires,
+                    purpose: 'EMAIL_VERIFY'
+                }
+            });
+
+            return user;
         });
 
-        // 5. Link User to Parent
-        await prisma.parent.update({
-            where: { id: parentRecord.id },
-            data: { userId: newUser.id }
-        });
-
-        const token = generateToken(newUser);
+        // Send Verification Email
+        try {
+            await sendOTPEmail(email || parentRecord.email, otpCode, 'Email Verification');
+        } catch (mailErr) {
+            console.error('Failed to send verification email:', mailErr);
+        }
 
         res.status(201).json({
-            message: 'Parent account created successfully',
-            token,
-            user: {
-                id: newUser.id,
-                username: newUser.username,
-                role: 'PARENT',
-                fullName: newUser.fullName,
-                parentId: parentRecord.id
+            message: 'Parent account created. Please verify your email.',
+            requiresVerification: true,
+            user: { id: newUser.id, username: newUser.username, role: 'PARENT' }
+        });
+
+        await logAction(newUser.id, `PARENT_SIGNUP: Linked to existing NIC ${nationalId}`);
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Public Signup: Create Parent + User record if NIC doesn't exist
+ */
+exports.publicSignup = async (req, res, next) => {
+    try {
+        const { nationalId, email, password, username, fullName, phone, relationship } = req.body;
+
+        // 1. Check if user exists
+        const existingUser = await prisma.user.findUnique({ where: { username } });
+        if (existingUser) return res.status(400).json({ message: 'Username already taken' });
+
+        // 2. Check if parent record exists by NIC or Phone
+        const existingParent = await prisma.parent.findFirst({
+            where: { OR: [{ nationalId }, { phone }] }
+        });
+
+        if (existingParent && existingParent.userId) {
+            return res.status(400).json({ message: 'This NIC or Phone is already linked to an account.' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const otpCode = generateOTP();
+        const otpHash = hashToken(otpCode);
+        const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+        const result = await prisma.$transaction(async (tx) => {
+            // Create User
+            const user = await tx.user.create({
+                data: {
+                    username,
+                    password: hashedPassword,
+                    role: 'PARENT',
+                    fullName,
+                    email,
+                    phone,
+                    isEmailVerified: false
+                }
+            });
+
+            // Create or Link Parent
+            let parent;
+            if (existingParent) {
+                parent = await tx.parent.update({
+                    where: { id: existingParent.id },
+                    data: { userId: user.id, fullName, relationship, email, phone }
+                });
+            } else {
+                // Generate a unique Parent ID
+                const count = await tx.parent.count();
+                const parentUniqueId = `P${String(count + 1).padStart(4, '0')}`;
+
+                parent = await tx.parent.create({
+                    data: {
+                        parentUniqueId,
+                        fullName,
+                        relationship,
+                        nationalId,
+                        phone,
+                        email,
+                        userId: user.id
+                    }
+                });
+            }
+
+            await tx.otp.create({
+                data: {
+                    userId: user.id,
+                    codeHash: otpHash,
+                    expiresAt: otpExpires,
+                    purpose: 'EMAIL_VERIFY'
+                }
+            });
+
+            return { user, parent };
+        });
+
+        try {
+            await sendOTPEmail(email, otpCode, 'Email Verification');
+        } catch (mailErr) {
+            console.error('Mail error in public signup:', mailErr);
+        }
+
+        res.status(201).json({
+            message: 'Registration successful. Please verify your email.',
+            requiresVerification: true,
+            userId: result.user.id
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.verifyEmail = async (req, res, next) => {
+    try {
+        const { userId, otp } = req.body;
+        const otpHash = hashToken(otp);
+
+        const validOtp = await prisma.otp.findFirst({
+            where: {
+                userId: parseInt(userId),
+                codeHash: otpHash,
+                purpose: 'EMAIL_VERIFY',
+                isUsed: false,
+                expiresAt: { gte: new Date() }
             }
         });
 
-        await logAction(newUser.id, `PARENT_SIGNUP: Account created via NIC ${nationalId}`);
+        if (!validOtp) {
+            return res.status(400).json({ message: 'Invalid or expired verification code' });
+        }
 
+        await prisma.$transaction([
+            prisma.user.update({
+                where: { id: parseInt(userId) },
+                data: { isEmailVerified: true, status: 'ACTIVE' }
+            }),
+            prisma.otp.update({
+                where: { id: validOtp.id },
+                data: { isUsed: true }
+            })
+        ]);
+
+        res.json({ message: 'Email verified successfully. You can now login.' });
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.resendVerification = async (req, res, next) => {
+    try {
+        const { username, email } = req.body;
+        const user = await prisma.user.findFirst({
+            where: { OR: [{ username }, { email }] }
+        });
+
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        if (user.isEmailVerified) return res.status(400).json({ message: 'Email already verified' });
+
+        const otpCode = generateOTP();
+        const otpHash = hashToken(otpCode);
+        const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+        await prisma.otp.create({
+            data: {
+                userId: user.id,
+                codeHash: otpHash,
+                expiresAt: otpExpires,
+                purpose: 'EMAIL_VERIFY'
+            }
+        });
+
+        await sendOTPEmail(user.email || email, otpCode, 'Email Verification');
+        res.json({ message: 'A new verification code has been sent to your email.' });
     } catch (error) {
         next(error);
     }

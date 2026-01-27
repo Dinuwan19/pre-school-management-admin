@@ -1,0 +1,256 @@
+✅ 1. Database Design (Auth-related)
+
+Create these collections / tables:
+
+User (Base)
+
+id
+
+role → SUPER_ADMIN | ADMIN | STAFF | TEACHER | PARENT
+
+username
+
+email
+
+passwordHash
+
+isActive
+
+isFirstLogin
+
+createdAt
+
+OTP
+
+userId
+
+otpCode (hashed)
+
+expiresAt
+
+purpose → FORGOT_PASSWORD | EMAIL_VERIFY
+
+isUsed
+
+TempPasswordLog
+
+userId
+
+tempPasswordHash
+
+expiresAt
+
+used
+
+✅ 2. Security Utilities
+
+Password hashing → bcrypt
+
+OTP generator → 6 digits (not predictable)
+
+Temp password generator → random, mixed chars
+
+JWT middleware (role-based access)
+
+✅ 3. Nodemailer Setup
+
+Create mailer.service.js
+
+Configure SMTP (Gmail / Outlook / custom)
+
+Reusable functions:
+
+sendOTPEmail(email, otp)
+
+sendTempPasswordEmail(email, username, tempPassword)
+
+👑 SUPER ADMIN (HARD CODED)
+✅ 4. Super Admin Setup
+
+Hard-code Super Admin credentials in .env
+
+Only allowed to:
+
+Create Admin / Staff / Teacher
+
+Generate temporary passwords
+
+No sign-up page for Super Admin
+
+🧑‍💼 ADMIN / STAFF / TEACHER FLOW
+✅ 5. Create Admin / Staff / Teacher (By Super Admin)
+
+TO-DO
+
+Create user with:
+
+username starts with MFM (example: MFM_ADMIN_01)
+
+role assigned
+
+email required
+
+Generate temporary password
+
+Save temp password hash + expiry (24 hours)
+
+Send temp password via EMAIL or SMS
+
+Mark isFirstLogin = true
+
+✅ 6. First Login with Temporary Password
+
+TO-DO
+
+Login using username + temp password
+
+Validate temp password + expiry
+
+Force password change
+
+Save new password (bcrypt)
+
+Mark isFirstLogin = false
+
+Invalidate temp password
+
+✅ 7. Role-Based Portal Restriction (IMPORTANT)
+
+TO-DO
+
+Admin/Staff CANNOT access Teacher portal
+
+Teacher CANNOT access Admin portal
+
+Middleware:
+
+allowRoles("ADMIN", "STAFF")
+allowRoles("TEACHER")
+
+
+Block route access at backend level (not only UI)
+
+✅ 8. Forgot Password (Admin / Staff / Teacher)
+
+Flow
+
+Enter username
+
+System finds linked email
+
+Generate OTP
+
+Send OTP via Nodemailer
+
+Verify OTP
+
+Allow new password creation
+
+Hash & save password
+
+Invalidate OTP
+
+TO-DO
+
+OTP expires in 5 minutes
+
+Max retry limit (security)
+
+Same flow reused for Parents
+
+👨‍👩‍👧 PARENT AUTHENTICATION
+✅ 9. Parent Registration (Self-Signup)
+
+TO-DO
+
+Parent enters:
+
+Email
+
+Password
+
+Generate OTP
+
+Send OTP to email
+
+Verify OTP
+
+Activate parent account
+
+No admin approval needed
+
+⚠️ Parent can log in, but:
+
+❌ Cannot see child data until admin links child
+
+✅ 10. Prevent Dummy Accounts
+
+TO-DO
+
+Email verification mandatory
+
+Block login if email not verified
+
+One email = one parent account
+
+✅ 11. Parent Login
+
+TO-DO
+
+Email + password login
+
+JWT issued
+
+Dashboard shows:
+
+“No child linked yet” message
+
+✅ 12. Parent – Forgot Password
+
+✅ Same exact flow as Staff
+
+Email → OTP → verify → reset password
+
+(Reuse same services)
+
+🔒 AUTH & ACCESS CONTROL (VERY IMPORTANT)
+✅ 13. JWT Payload
+
+Include:
+
+userId
+
+role
+
+✅ 14. Route Guards
+
+/admin/* → ADMIN, STAFF only
+
+/teacher/* → TEACHER only
+
+/parent/* → PARENT only
+
+📧 EMAIL CONTENT (NODEMAILER)
+✅ 15. OTP Email Template
+
+Subject: MFM – OTP Verification
+
+Message:
+
+OTP code
+
+Expiry time
+
+Warning message
+
+✅ 16. Temporary Password Email
+
+Subject: MFM – Temporary Login Credentials
+
+Include:
+
+Username
+
+Temp password
+
+Instruction to change password immediately
