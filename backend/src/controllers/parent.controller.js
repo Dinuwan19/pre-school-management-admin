@@ -12,43 +12,24 @@ exports.createParent = async (req, res, next) => {
         const { relationship, nationalId, occupation, address, phone, email, photoUrl } = req.body;
         const fullName = req.body.fullName.trim();
 
-        // Auto-Generate Parent ID
         const count = await prisma.parent.count();
-        const parentUniqueId = `P${(count + 1).toString().padStart(4, '0')}`; // P0001, P0002...
-
-        // Generate a 6-digit verification code
+        const parentUniqueId = `P${String(count + 1).padStart(4, '0')}`;
         const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
         const parent = await prisma.parent.create({
             data: {
-                fullName,
                 parentUniqueId,
+                fullName,
                 relationship,
                 nationalId,
                 occupation,
-                address,
                 phone,
-                email: email || null,
+                email,
+                address,
                 photoUrl,
-                verificationCode,
-                status: 'ACTIVE'
-            },
+                verificationCode
+            }
         });
-
-        // Create a User record for the parent if email exists, allowing them to log in
-        if (email) {
-            const hashedPassword = await bcrypt.hash(verificationCode, 10);
-            await prisma.user.create({
-                data: {
-                    username: email,
-                    password: hashedPassword,
-                    role: 'PARENT',
-                    fullName: fullName,
-                    status: 'ACTIVE',
-                    firstLogin: true
-                }
-            });
-        }
 
         await logAction(req.user?.id || 1, `CREATE_PARENT: Created parent ${parent.parentUniqueId}`);
 

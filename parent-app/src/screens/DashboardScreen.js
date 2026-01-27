@@ -76,6 +76,7 @@ const DashboardScreen = ({ navigation }) => {
             <CommonHeader
                 title="Home"
                 showBack={false}
+                backgroundColor={['#9D5BF0', '#7C3AED'][0]} // Matches gradient start
             />
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
@@ -89,7 +90,7 @@ const DashboardScreen = ({ navigation }) => {
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                 >
-                    <SafeAreaView edges={['top']} style={styles.headerContent}>
+                    <View style={styles.headerContent}>
                         <View style={styles.topRow}>
                             <View style={styles.greetingContainer}>
                                 <View style={styles.greetingRow}>
@@ -115,7 +116,7 @@ const DashboardScreen = ({ navigation }) => {
                         </View>
 
                         {/* Removed headerDeco (white circle/stars) as requested */}
-                    </SafeAreaView>
+                    </View>
                 </LinearGradient>
 
                 {/* Overlapping Quick Child Card */}
@@ -371,7 +372,7 @@ const styles = StyleSheet.create({
         borderBottomLeftRadius: 32,
         borderBottomRightRadius: 32,
     },
-    headerContent: { paddingHorizontal: 24, paddingTop: 10 },
+    headerContent: { paddingHorizontal: 24, paddingTop: 10, paddingBottom: 20 },
     topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     greetingContainer: { flex: 1 },
     greetingRow: { flexDirection: 'row', alignItems: 'center' },

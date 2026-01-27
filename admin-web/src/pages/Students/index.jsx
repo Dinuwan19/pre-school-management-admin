@@ -189,13 +189,24 @@ const Students = () => {
                 <Form form={form} layout="vertical" style={{ marginTop: 24 }}>
                     <Row gutter={24}>
                         <Col span={12}>
-                            <Form.Item name="fullName" label="Full Name" rules={[{ required: true }]}>
+                            <Form.Item
+                                name="fullName"
+                                label="Full Name"
+                                rules={[
+                                    { required: true, message: 'Full name is required' },
+                                    { min: 3, message: 'Name must be at least 3 characters' }
+                                ]}
+                            >
                                 <Input placeholder="Enter full name" />
                             </Form.Item>
                         </Col>
                         <Col span={12}>
-                            <Form.Item name="gender" label="Gender">
-                                <Select>
+                            <Form.Item
+                                name="gender"
+                                label="Gender"
+                                rules={[{ required: true, message: 'Please select gender' }]}
+                            >
+                                <Select placeholder="Select Gender">
                                     <Option value="MALE">Male</Option>
                                     <Option value="FEMALE">Female</Option>
                                 </Select>
@@ -241,8 +252,22 @@ const Students = () => {
                             </Form.Item>
                         </Col>
                         <Col span={12}>
-                            <Form.Item name="dob" label="Date of Birth">
-                                <DatePicker style={{ width: '100%' }} />
+                            <Form.Item
+                                name="dob"
+                                label="Date of Birth"
+                                rules={[
+                                    { required: true, message: 'DOB is required' },
+                                    {
+                                        validator: (_, value) => {
+                                            if (value && value.isAfter(dayjs())) {
+                                                return Promise.reject(new Error('DOB cannot be a future date'));
+                                            }
+                                            return Promise.resolve();
+                                        }
+                                    }
+                                ]}
+                            >
+                                <DatePicker style={{ width: '100%' }} disabledDate={(current) => current && current > dayjs().endOf('day')} />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -253,7 +278,14 @@ const Students = () => {
                             </Form.Item>
                         </Col>
                         <Col span={12}>
-                            <Form.Item name="emergencyContact" label="Emergency Contact (Name & Phone)" rules={[{ required: true }]}>
+                            <Form.Item
+                                name="emergencyContact"
+                                label="Emergency Contact (Name & Phone)"
+                                rules={[
+                                    { required: true, message: 'Emergency contact is required' },
+                                    { min: 6, message: 'Contact details must be at least 6 characters' }
+                                ]}
+                            >
                                 <Input placeholder="e.g. Aunt - 0712345678" />
                             </Form.Item>
                         </Col>

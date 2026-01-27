@@ -47,7 +47,10 @@ const ChildrenListScreen = ({ navigation }) => {
 
     return (
         <View style={styles.container}>
-            <CommonHeader title="My Children" />
+            <CommonHeader
+                title="My Children"
+                backgroundColor={['#9D5BF0', '#7C3AED'][0]}
+            />
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
@@ -60,12 +63,12 @@ const ChildrenListScreen = ({ navigation }) => {
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                 >
-                    <SafeAreaView edges={['top']} style={styles.headerContent}>
+                    <View style={styles.headerContent}>
                         <View style={styles.greetingRow}>
                             <Zap size={24} color="#FFD700" fill="#FFD700" />
                             <Text style={styles.headerSubtext}>Track progress and manage your children's education</Text>
                         </View>
-                    </SafeAreaView>
+                    </View>
                     <View style={styles.headerWave} />
                 </LinearGradient>
 
@@ -133,7 +136,7 @@ const styles = StyleSheet.create({
     headerGradient: {
         paddingBottom: 40,
     },
-    headerContent: { paddingHorizontal: 24, paddingVertical: 20 },
+    headerContent: { paddingHorizontal: 24, paddingVertical: 10, paddingBottom: 20 },
     greetingRow: { flexDirection: 'row', alignItems: 'center' },
     headerTitle: { color: '#fff', fontSize: 28, fontWeight: 'bold', marginLeft: 12 },
     headerSubtext: { color: 'rgba(255,255,255,0.8)', fontSize: 16, marginTop: 12, lineHeight: 22 },

@@ -178,9 +178,34 @@ Instructions:
         }
     ];
 
-    const parentFormFields = (
+    const PasswordStrength = ({ value }) => {
+        if (!value) return null;
+        let score = 0;
+        if (value.length >= 6) score++;
+        if (/[A-Z]/.test(value)) score++;
+        if (/[0-9]/.test(value)) score++;
+        if (/[^A-Za-z0-9]/.test(value)) score++;
+
+        const colors = ['#ff4d4f', '#faad14', '#52c41a', '#22c55e'];
+        const labels = ['Weak', 'Fair', 'Strong', 'Excellent'];
+        const currentColor = colors[Math.min(score - 1, 3)] || colors[0];
+        const currentLabel = labels[Math.min(score - 1, 3)] || labels[0];
+
+        return (
+            <div style={{ marginTop: -5, marginBottom: 15 }}>
+                <div style={{ display: 'flex', gap: 4, height: 4, marginBottom: 4 }}>
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} style={{ flex: 1, backgroundColor: i <= score ? currentColor : '#f0f0f0', borderRadius: 2 }} />
+                    ))}
+                </div>
+                <Text style={{ fontSize: 11, color: currentColor }}>Strength: {currentLabel}</Text>
+            </div>
+        );
+    };
+
+    const parentFormFields = (isEdit = false) => (
         <>
-            <Form.Item name="fullName" label="Parent Name" rules={[{ required: true }]}>
+            <Form.Item name="fullName" label="Parent Name" rules={[{ required: true, message: 'Parent name is required' }]}>
                 <Input placeholder="Enter full name" />
             </Form.Item>
 
@@ -191,7 +216,24 @@ Instructions:
                         label="NIC Number"
                         rules={[
                             { required: true, message: 'NIC is required' },
-                            { pattern: /^([0-9]{9}[x|X|v|V]|[0-9]{12})$/, message: 'Invalid NIC Format' }
+                            {
+                                validator: (_, value) => {
+                                    if (!value) return Promise.resolve();
+                                    const val = value.toUpperCase();
+                                    const isOld = /^[0-9]{9}[V|X]$/.test(val);
+                                    const isNew = /^[0-9]{12}$/.test(val);
+
+                                    if (!isOld && !isNew) {
+                                        return Promise.reject(new Error('Invalid NIC Format (10 chars ending in V/X or 12 digits)'));
+                                    }
+
+                                    if (val.startsWith('19') || val.startsWith('20')) {
+                                        if (isNew) return Promise.reject(new Error('NIC cannot start with 19 or 20'));
+                                    }
+
+                                    return Promise.resolve();
+                                }
+                            }
                         ]}
                     >
                         <Input placeholder="991234567V" />
@@ -214,20 +256,56 @@ Instructions:
                     </Form.Item>
                 </Col>
                 <Col span={12}>
-                    <Form.Item name="phone" label="Phone Number" rules={[{ required: true }]}>
-                        <Input />
+                    <Form.Item
+                        name="phone"
+                        label="Phone Number"
+                        rules={[
+                            { required: true, message: 'Phone number is required' },
+                            {
+                                validator: (_, value) => {
+                                    if (!value) return Promise.resolve();
+                                    const cleaned = value.replace(/[^0-9]/g, '');
+                                    const isLocal = /^07[0-9]{8}$/.test(cleaned);
+                                    const isIntl = /^947[0-9]{8}$/.test(cleaned);
+                                    if (!isLocal && !isIntl) {
+                                        return Promise.reject(new Error('Use format 07XXXXXXXX or 947XXXXXXXX'));
+                                    }
+                                    return Promise.resolve();
+                                }
+                            }
+                        ]}
+                    >
+                        <Input placeholder="07XXXXXXXX" />
                     </Form.Item>
                 </Col>
             </Row>
             <Row gutter={16}>
-                <Col span={24}>
-                    <Form.Item name="email" label="Email Address">
-                        <Input />
+                <Col span={12}>
+                    <Form.Item
+                        name="email"
+                        label="Email Address"
+                        rules={[
+                            { required: true, message: 'Email is required' },
+                            { type: 'email', message: 'Invalid email format' },
+                            {
+                                validator: (_, value) => {
+                                    if (!value) return Promise.resolve();
+                                    const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'icloud.com'];
+                                    const domain = value.split('@')[1];
+                                    if (domain && !allowedDomains.includes(domain.toLowerCase())) {
+                                        return Promise.reject(new Error(`Only ${allowedDomains.join(', ')} domains are allowed`));
+                                    }
+                                    return Promise.resolve();
+                                }
+                            }
+                        ]}
+                    >
+                        <Input placeholder="parent@gmail.com" />
                     </Form.Item>
                 </Col>
             </Row>
-            <Form.Item name="address" label="Address">
-                <Input.TextArea rows={2} />
+            <Form.Item name="address" label="Address" rules={[{ required: true, message: 'Address is required' }]}>
+                <Input.TextArea rows={2} placeholder="Home address" />
             </Form.Item>
         </>
     );
@@ -275,7 +353,7 @@ Instructions:
                 okButtonProps={{ style: { background: '#7B57E4' } }}
             >
                 <Form form={form} layout="vertical" style={{ marginTop: 20 }}>
-                    {parentFormFields}
+                    {parentFormFields(false)}
                 </Form>
             </Modal>
 
@@ -290,7 +368,7 @@ Instructions:
                 okButtonProps={{ style: { background: '#7B57E4' } }}
             >
                 <Form form={editForm} layout="vertical" style={{ marginTop: 20 }}>
-                    {parentFormFields}
+                    {parentFormFields(true)}
                 </Form>
             </Modal>
 

@@ -785,12 +785,14 @@ const styles = StyleSheet.create({
     childHeaderSwitcher: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 5,
-        borderRadius: 20,
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 22,
         backgroundColor: '#F3EFFF',
         borderWidth: 1,
-        borderColor: '#9D5BF0'
+        borderColor: '#9D5BF0',
+        minWidth: 80,
+        justifyContent: 'center'
     },
     childHeaderSwitcherText: {
         fontSize: 13,

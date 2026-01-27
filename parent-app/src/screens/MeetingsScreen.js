@@ -103,6 +103,7 @@ const UpdatesScreen = () => {
                 <CommonHeader
                     title="Updates"
                     showBack={false}
+                    backgroundColor={['#9D5BF0', '#7C3AED'][0]}
                     rightIcon={
                         <TouchableOpacity style={styles.childSwitcher} onPress={() => setIsChildModalVisible(true)}>
                             <Text style={styles.selectedChildText}>{selectedChild?.fullName ? selectedChild.fullName.split(' ')[0] : 'All'}</Text>
@@ -222,15 +223,17 @@ const styles = StyleSheet.create({
     childSwitcher: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20
+        backgroundColor: 'rgba(255,255,255,0.25)',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 22,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.3)'
     },
     selectedChildText: { color: '#fff', fontWeight: 'bold', marginRight: 6 },
     optionAvatar: { width: 44, height: 44, borderRadius: 22, marginRight: 15 },
 
-    bodyContainer: { marginTop: -25 },
+    bodyContainer: { marginTop: 0, paddingTop: 16 },
     filterScroll: { marginBottom: 20 },
     filterContent: { paddingHorizontal: 24 },
     filterTab: {

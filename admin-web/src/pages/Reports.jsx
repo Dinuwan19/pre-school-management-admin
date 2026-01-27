@@ -12,15 +12,21 @@ const Reports = () => {
     const [recentReports, setRecentReports] = useState([]);
     const [reportType, setReportType] = useState('Attendance Report');
     const [dateRange, setDateRange] = useState('This Month');
+    const [classrooms, setClassrooms] = useState([]);
+    const [selectedClassroom, setSelectedClassroom] = useState('All');
     const [generating, setGenerating] = useState(false);
 
     const fetchRecentReports = async () => {
         setLoading(true);
         try {
-            const response = await mockApi.get('/reports/recent');
-            setRecentReports(response.data);
+            const [reportsRes, classroomsRes] = await Promise.all([
+                mockApi.get('/reports/recent'),
+                mockApi.get('/classrooms')
+            ]);
+            setRecentReports(reportsRes.data);
+            setClassrooms(classroomsRes.data);
         } catch (error) {
-            message.error('Failed to fetch recent reports');
+            message.error('Failed to fetch initial data');
         } finally {
             setLoading(false);
         }
@@ -35,7 +41,8 @@ const Reports = () => {
         try {
             const response = await mockApi.post('/reports/generate', {
                 type: reportType,
-                dateRange
+                dateRange,
+                classroomId: selectedClassroom === 'All' ? null : selectedClassroom
             });
             message.success('Report generated successfully');
             if (response.data.details) {
@@ -122,9 +129,27 @@ const Reports = () => {
                                     onChange={setReportType}
                                     style={{ width: '100%' }}
                                 >
-                                    <Option value="Attendance Report">Attendance Report</Option>
-                                    <Option value="Classroom Report">Classroom Report</Option>
-                                    <Option value="Financial Report">Financial Report</Option>
+                                    <Option value="Attendance Report">Daily Attendance Summary</Option>
+                                    <Option value="Student Progress Report">Student Progress & Development</Option>
+                                    <Option value="Fee Payment Report">Fee Collection & Outstanding</Option>
+                                    <Option value="Medical & Safety Report">Medical, Allergies & Safety</Option>
+                                    <Option value="Enrollment Summary">New Enrollment Analytics</Option>
+                                    <Option value="Classroom Activity Report">Classroom Activity Log</Option>
+                                </Select>
+                            </div>
+
+                            <div>
+                                <Text strong style={{ display: 'block', marginBottom: 8 }}>Select Target Scope</Text>
+                                <Select
+                                    value={selectedClassroom}
+                                    onChange={setSelectedClassroom}
+                                    style={{ width: '100%' }}
+                                    placeholder="Select a classroom"
+                                >
+                                    <Option value="All">All Classrooms (Full School)</Option>
+                                    {classrooms.map(cls => (
+                                        <Option key={cls.id} value={cls.id}>{cls.name}</Option>
+                                    ))}
                                 </Select>
                             </div>
 

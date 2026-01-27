@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-nati
 import { ChevronLeft } from 'lucide-react-native';
 import { COLORS, FONTS, SIZES } from '../constants/theme';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
@@ -14,9 +15,17 @@ const CommonHeader = ({
     backgroundColor = 'transparent'
 }) => {
     const navigation = useNavigation();
+    const insets = useSafeAreaInsets();
 
     return (
-        <View style={[styles.header, { backgroundColor }]}>
+        <View style={[
+            styles.header,
+            {
+                backgroundColor,
+                paddingTop: insets.top,
+                height: 60 + insets.top
+            }
+        ]}>
             <View style={styles.leftContainer}>
                 {showBack && (
                     <TouchableOpacity
@@ -53,21 +62,23 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        height: 60,
-        width: width,
+        width: '100%',
         paddingHorizontal: SIZES.padding / 2,
     },
     leftContainer: {
-        width: 50,
+        width: 60,
         alignItems: 'flex-start',
     },
     titleContainer: {
-        flex: 1,
+        flex: 2,
         alignItems: 'center',
     },
     rightContainer: {
-        width: 50,
+        width: 'auto',
+        minWidth: 60,
         alignItems: 'flex-end',
+        justifyContent: 'center',
+        paddingRight: 8,
     },
     headerTitle: {
         ...FONTS.h3,

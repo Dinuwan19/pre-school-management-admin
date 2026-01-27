@@ -76,8 +76,7 @@ exports.createStaff = async (req, res, next) => {
         await logAction(req.user?.id || 1, `CREATE_STAFF: Created staff ${user.employeeId}`);
 
         res.status(201).json({
-            message: 'Staff created successfully',
-            credentials: { username, tempPassword },
+            message: 'Staff created successfully. Instructions sent to email.',
             user
         });
     } catch (error) {

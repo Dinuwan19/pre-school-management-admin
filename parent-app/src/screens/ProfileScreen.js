@@ -106,8 +106,11 @@ const ProfileScreen = ({ navigation }) => {
 
     return (
         <View style={styles.container}>
-            <CommonHeader title="Settings" />
-            <SafeAreaView edges={['top']} style={styles.safeArea}>
+            <CommonHeader
+                title="Settings"
+                backgroundColor={COLORS.white}
+            />
+            <View style={styles.safeArea}>
 
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                     {/* Profile Card */}
@@ -200,7 +203,7 @@ const ProfileScreen = ({ navigation }) => {
 
                     <View style={{ height: 100 }} />
                 </ScrollView>
-            </SafeAreaView>
+            </View>
 
             {/* Avatar Selection Modal */}
             <Modal
