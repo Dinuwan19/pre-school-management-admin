@@ -227,8 +227,8 @@ Instructions:
                                         return Promise.reject(new Error('Invalid NIC Format (10 chars ending in V/X or 12 digits)'));
                                     }
 
-                                    if (val.startsWith('19') || val.startsWith('20')) {
-                                        if (isNew) return Promise.reject(new Error('NIC cannot start with 19 or 20'));
+                                    if (isNew && !(val.startsWith('19') || val.startsWith('20'))) {
+                                        return Promise.reject(new Error('12-digit NIC must start with 19 or 20'));
                                     }
 
                                     return Promise.resolve();

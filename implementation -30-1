@@ -1,0 +1,472 @@
+1. Avatar Enhancement (User Profile Improvement)
+Current Situation
+
+The system currently provides a basic avatar template.
+
+Same avatar style is used for all users.
+
+Proposed Improvement
+
+Introduce two different avatar sets:
+
+Adult-style avatars → for Parents
+
+Cute / child-friendly avatars → for Students
+
+This improves user experience and better matches the preschool environment.
+
+Default Avatar Handling
+
+When creating a new Parent or Student account:
+
+A default avatar is automatically assigned.
+
+User can later change the avatar (if allowed by role).
+
+Error Handling
+
+If avatar upload fails → system assigns default avatar.
+
+Invalid image format → show error message
+“Invalid image type. Please upload JPG or PNG.”
+
+2. Fee Reminder System (Access-Controlled Notifications)
+Current Situation
+
+Fee reminders exist but need stronger access control.
+
+Proposed Improvement
+
+Fee reminders should be visible only to the relevant parent.
+
+Parents cannot view other parents’ fee reminders.
+
+System Rules
+
+Fee reminder is generated per student / per parent.
+
+Parent dashboard shows:
+
+Due month
+
+Due amount
+
+Payment status
+
+Error Handling
+
+If parent tries to access another parent’s reminder:
+
+System blocks access
+
+Displays:
+“Unauthorized access detected.”
+
+If no pending fees:
+
+Show message:
+“No pending payments.”
+
+3. Menu & Access Restrictions (UI + Security)
+Removal Actions
+
+The following UI actions will be removed to avoid misuse:
+
+❌ Remove Add Student option from sidebar
+
+❌ Remove Add Parent option from sidebar
+
+❌ Remove Edit button from Parent Details Dashboard
+
+Reason
+
+Student and Parent creation should be admin-only
+
+Prevent accidental or unauthorized data changes
+
+Error Handling
+
+If a user accesses restricted URL directly:
+
+Redirect to dashboard
+
+Show message:
+“You do not have permission to perform this action.”
+
+4. Auditing & Activity Logging System
+Purpose
+
+To ensure accountability, security, and traceability of all system actions.
+
+Activities to be Logged
+
+Adding new records (student, parent, teacher)
+
+Editing records
+
+Deleting records
+
+Payment verification
+
+Report generation
+
+Announcement and event creation
+
+Audit Log Fields
+
+User ID
+
+User role (Admin / Teacher)
+
+Action type
+
+Date & time
+
+Affected record ID
+
+Example
+
+Admin (ID: A102) updated Student Record (ID: S205) at 10:35 AM
+
+Error Handling
+
+If logging fails:
+
+System continues operation
+
+Error saved in system error log
+
+Audit logs are read-only (cannot be edited or deleted)
+
+5. Announcement System Enhancement
+Current Limitation
+
+Announcements can be sent to only one classroom.
+
+Proposed Improvement
+
+Allow announcements to be sent to:
+
+Multiple classrooms
+
+Entire preschool (global announcement)
+
+Permission Rules
+
+✅ Teachers → can create announcements
+
+❌ Teachers → cannot delete announcements
+
+✅ Only Super Admin can:
+
+Delete announcements
+
+Delete homework
+
+Error Handling
+
+If teacher attempts delete:
+
+Show message:
+“Only Super Admin can delete this content.”
+
+6. Billing System Enhancements
+6.1 Overdue & Pending Payment Handling
+
+Add two new billing buckets in Overview Page:
+
+🔴 Overdue Payments
+
+🟡 Pending Approval Payments (uploaded but not verified)
+
+Rules
+
+Payments uploaded but not verified → go to Pending Approval
+
+Past due date without payment → go to Overdue
+
+6.2 Billing UI Improvements
+
+Change button placement and colors:
+
+Student Billing → Primary color
+
+Expenses → Secondary color
+
+Remove billing actions from Quick Actions
+
+Dedicated Billing Page only
+
+6.3 Monthly Payment Locking
+
+If parent pays for January:
+
+January payment button becomes disabled
+
+Shows status: “Paid”
+
+Prevents:
+
+Duplicate payments
+
+Accidental double uploads
+
+Error Handling
+
+If parent tries to pay again:
+
+Show message:
+“Payment already completed for this month.”
+
+7. Event Management Enhancements
+7.1 Event Creation with Approval Flow
+
+Teachers can create events
+
+Events require Super Admin approval before publishing
+
+Status Flow
+
+Draft → Pending Approval → Approved → Published
+
+7.2 Event Data Improvements
+
+❌ Remove Attendees column
+
+✅ Add Event Media URL
+
+Photo links
+
+Video links (Google Drive / YouTube)
+
+7.3 Classroom-Based Event Participation
+
+New feature: Select which classrooms can attend
+
+Event visible only to:
+
+Assigned classrooms
+
+Relevant parents
+
+Error Handling
+
+If parent opens non-eligible event:
+
+Show message:
+“This event is not assigned to your child’s classroom.”
+
+
+1. Parent Dashboard – UI Simplification
+Current Problems
+
+Dashboard looks crowded and confusing
+
+Too many sections shown at once
+
+Users don’t know where to focus first
+
+Changes to Apply
+
+❌ Remove sections
+
+Quick Action section
+
+Monthly Overview section
+
+New Dashboard Purpose
+
+The dashboard should act as:
+
+A student switcher
+
+A notification summary
+
+A navigation entry point
+
+Recommended Dashboard Layout
+
+Top: Student name + avatar
+
+Middle:
+
+Recent notifications
+
+Upcoming events (short list)
+
+Bottom:
+
+Simple navigation icons (Progress, Attendance, Payments)
+
+✅ Result: Clean, calm, parent-friendly dashboard
+
+2. Student – View Profile Screen (Major Redesign)
+
+👉 Use your existing screenshot as the base, but modify layout + features.
+
+refer that photo as a base ![alt text](image.png)
+
+Profile screen only shows basic details
+
+Under-utilized space
+
+Missing important daily-life information
+
+2.1 New Feature ①: Attendance History
+
+Where to add
+
+Add a new tab or card inside Student Profile
+
+What to show
+
+Date
+
+Status (Present / Absent)
+
+Optional: Check-in time
+
+UI Suggestion
+
+Vertical list or calendar-style view
+
+Green = Present, Red = Absent
+
+Instruction (for implementation)
+
+Use the existing profile screen → add a new section titled “Attendance History” below Progress.
+
+2.2 New Feature ②: Meal Plan
+
+Purpose
+
+Parents want to know what the child eats daily
+
+Very suitable for preschool systems
+
+What to show
+
+Day
+
+Breakfast / Lunch / Snack
+
+Optional note (e.g., “No nuts”)
+
+UI Placement
+
+Same Student Profile screen
+
+Separate card: “Meal Plan”
+
+Instruction
+
+Reuse student profile UI → add a second information card named Meal Plan, read-only for parents.
+
+3. Payment UI – Visual & Functional Fixes
+3.1 UI Problems
+
+Colors are dull
+
+Payment status is not obvious
+
+Screen looks boring and unclear
+
+UI Improvements
+
+Use status colors:
+
+Green → Paid
+
+Yellow → Pending
+
+Red → Overdue
+
+Add month labels as buttons or cards
+
+Use icons (✔ ⏳ ❌)
+
+3.2 “Make Payment” – Functional Fixes
+Current Issues
+
+Payment sometimes fails
+
+Student is not clearly selected
+
+Year/month confusion
+
+Required Fixes
+① Student Selection
+
+Add Student dropdown
+(Only children linked to that parent)
+
+② Year Selection
+
+Add Year dropdown (e.g., 2024, 2025)
+
+③ Month Buttons
+
+Disable month button if already paid
+
+📌 Flow:
+
+Select Student → Select Year → Select Month → Upload Receipt
+
+4. Remove News Panel (Updates Section)
+Decision
+
+❌ Remove News Panel completely
+
+Reason
+
+Not necessary
+
+Announcements + Events already cover updates
+
+Reduces clutter
+
+5. Global Payment Updates & Avatar-Based Student Switch
+Top Right Corner – Global Change
+What to show
+
+Only Avatar icon (no text, no buttons)
+
+On Avatar Click
+
+Open a small popup:
+
+List of linked students
+
+“Switch Student” option
+
+📌 This allows:
+
+Changing student from any page
+
+Cleaner navigation
+
+No need for repeated dropdowns
+
+6. Where to Add Events Feature? (Best UX Choice)
+❌ Not Recommended
+
+Dashboard main section (already busy)
+
+Inside Payments or Progress
+
+✅ Best Options (Choose ONE)![alt text](image-1.png)
+Option 1: Separate “Events” Tab (Recommended ⭐)
+
+Bottom navigation item → Events
+
+Shows:
+
+Upcoming events
+
+Event details
+
+Media (photos/videos)
+
+✔ Clean
+✔ Easy to understand
+✔ Scales well later

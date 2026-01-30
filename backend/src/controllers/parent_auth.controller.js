@@ -125,6 +125,19 @@ exports.publicSignup = async (req, res, next) => {
             return res.status(400).json({ message: 'This NIC or Phone is already linked to an account.' });
         }
 
+        // SECURITY CHECK: If claiming a profile, Email MUST match
+        if (existingParent) {
+            const inputEmail = email.toLowerCase().trim();
+            const storedEmail = existingParent.email ? existingParent.email.toLowerCase().trim() : '';
+
+            // If stored email exists and doesn't match input -> BLOCK
+            if (storedEmail && storedEmail !== inputEmail) {
+                return res.status(400).json({
+                    message: 'Identity verification failed. The provided email does not match our records for this NIC.'
+                });
+            }
+        }
+
         const hashedPassword = await bcrypt.hash(password, 10);
         const otpCode = generateOTP();
         const otpHash = hashToken(otpCode);
@@ -149,7 +162,7 @@ exports.publicSignup = async (req, res, next) => {
             if (existingParent) {
                 parent = await tx.parent.update({
                     where: { id: existingParent.id },
-                    data: { userId: user.id, fullName, relationship, email, phone }
+                    data: { userId: user.id } // Only link UserID. Do NOT overwrite Name/Email/Phone from unauthorized input.
                 });
             } else {
                 // Generate a unique Parent ID

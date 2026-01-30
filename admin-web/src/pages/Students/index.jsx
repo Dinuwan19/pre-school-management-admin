@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, DatePicker, Select, Card, Typography, message, Avatar, Tag, Row, Col, Divider, Space } from 'antd';
-import { PlusOutlined, SearchOutlined, FilterOutlined } from '@ant-design/icons';
+import { Table, Button, Modal, Form, Input, DatePicker, Select, Card, Typography, message, Avatar, Tag, Row, Col, Divider, Space, Descriptions, Alert } from 'antd';
+import { PlusOutlined, SearchOutlined, FilterOutlined, CopyOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/client';
@@ -19,7 +19,11 @@ const Students = () => {
     const navigate = useNavigate();
 
     const [isModalVisible, setIsModalVisible] = useState(false);
+    const [isQuickParentVisible, setIsQuickParentVisible] = useState(false);
+    const [quickAddTarget, setQuickAddTarget] = useState('primary'); // 'primary' or 'secondary'
+    const [successModal, setSuccessModal] = useState({ visible: false, data: null });
     const [form] = Form.useForm();
+    const [parentForm] = Form.useForm();
 
     // Filters
     const [searchText, setSearchText] = useState('');
@@ -75,6 +79,63 @@ const Students = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleQuickAddParent = async () => {
+        try {
+            const values = await parentForm.validateFields();
+            setLoading(true);
+            const payload = { ...values, fullName: values.fullName.trim() };
+            const res = await api.post('/parents', payload);
+            message.success('Parent added successfully');
+
+            // Refresh parent list
+            const parentRes = await api.get('/parents');
+            setParents(parentRes.data);
+
+            // Auto-select new parent
+            if (quickAddTarget === 'secondary') {
+                form.setFieldsValue({ secondParentId: res.data.id });
+            } else {
+                form.setFieldsValue({ parentId: res.data.id });
+            }
+
+            setIsQuickParentVisible(false);
+            setSuccessModal({ visible: true, data: res.data });
+            parentForm.resetFields();
+        } catch (error) {
+            message.error(error.response?.data?.message || 'Failed to create parent');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const copyToClipboard = (text) => {
+        if (!text) return;
+        navigator.clipboard.writeText(text);
+        message.success('Copied to clipboard');
+    };
+
+    const downloadSlip = (data) => {
+        const content = `
+Malkakulu Future Mind - Parent Registration Slip
+------------------------------------------------
+Parent Name: ${data.fullName}
+Parent ID: ${data.parentUniqueId}
+
+Instructions:
+1. Download the Malkakulu Mobile App.
+2. Go to "Sign Up" and enter your NIC Number (${data.nationalId || 'N/A'}) to verify your account.
+3. Once verified, you can track your child's attendance and progress.
+------------------------------------------------
+        `;
+        const element = document.createElement("a");
+        const file = new Blob([content], { type: 'text/plain' });
+        element.href = URL.createObjectURL(file);
+        element.download = `registration_${data.parentUniqueId}.txt`;
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
     };
 
     // Filtering Logic
@@ -215,32 +276,60 @@ const Students = () => {
                     </Row>
                     <Row gutter={24}>
                         <Col span={12}>
-                            <Form.Item name="parentId" label="Primary Parent (Required)" rules={[{ required: true }]}>
-                                <Select placeholder="Assign Primary Parent" showSearch optionFilterProp="label">
-                                    {parents.map(p => (
-                                        <Option key={p.id} value={p.id} label={`${p.nationalId} - ${p.fullName}`}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                <span>{p.fullName}</span>
-                                                <span style={{ color: '#aaa', fontSize: '12px' }}>{p.nationalId}</span>
-                                            </div>
-                                        </Option>
-                                    ))}
-                                </Select>
-                            </Form.Item>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <Form.Item name="parentId" label="Primary Parent (Required)" rules={[{ required: true }]} style={{ flex: 1, marginBottom: 0 }}>
+                                    <Select placeholder="Assign Primary Parent" showSearch optionFilterProp="label">
+                                        {parents.map(p => (
+                                            <Option key={p.id} value={p.id} label={`${p.nationalId} - ${p.fullName}`}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span>{p.fullName}</span>
+                                                    <span style={{ color: '#aaa', fontSize: '12px' }}>{p.nationalId}</span>
+                                                </div>
+                                            </Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+                                <Button
+                                    type="dashed"
+                                    icon={<PlusOutlined />}
+                                    style={{ marginTop: 30, color: '#7B57E4', borderColor: '#7B57E4' }}
+                                    onClick={() => {
+                                        parentForm.resetFields();
+                                        setQuickAddTarget('primary');
+                                        setIsQuickParentVisible(true);
+                                    }}
+                                >
+                                    New
+                                </Button>
+                            </div>
                         </Col>
                         <Col span={12}>
-                            <Form.Item name="secondParentId" label="Secondary Parent (Optional)">
-                                <Select placeholder="Assign Secondary Parent" showSearch optionFilterProp="label" allowClear>
-                                    {parents.map(p => (
-                                        <Option key={p.id} value={p.id} label={`${p.nationalId} - ${p.fullName}`}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                <span>{p.fullName}</span>
-                                                <span style={{ color: '#aaa', fontSize: '12px' }}>{p.nationalId}</span>
-                                            </div>
-                                        </Option>
-                                    ))}
-                                </Select>
-                            </Form.Item>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <Form.Item name="secondParentId" label="Secondary Parent (Optional)" style={{ flex: 1, marginBottom: 0 }}>
+                                    <Select placeholder="Assign Secondary Parent" showSearch optionFilterProp="label" allowClear>
+                                        {parents.map(p => (
+                                            <Option key={p.id} value={p.id} label={`${p.nationalId} - ${p.fullName}`}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span>{p.fullName}</span>
+                                                    <span style={{ color: '#aaa', fontSize: '12px' }}>{p.nationalId}</span>
+                                                </div>
+                                            </Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+                                <Button
+                                    type="dashed"
+                                    icon={<PlusOutlined />}
+                                    style={{ marginTop: 30 }}
+                                    onClick={() => {
+                                        parentForm.resetFields();
+                                        setQuickAddTarget('secondary');
+                                        setIsQuickParentVisible(true);
+                                    }}
+                                >
+                                    New
+                                </Button>
+                            </div>
                         </Col>
                     </Row>
                     <Row gutter={24}>
@@ -295,6 +384,124 @@ const Students = () => {
                         <Input.TextArea placeholder="Enter any medical conditions or allergies..." rows={2} />
                     </Form.Item>
                 </Form>
+            </Modal>
+
+            {/* Quick Add Parent Modal */}
+            <Modal
+                title="Quick Add Parent"
+                open={isQuickParentVisible}
+                onCancel={() => setIsQuickParentVisible(false)}
+                onOk={handleQuickAddParent}
+                okText="Add & Select"
+                confirmLoading={loading}
+                okButtonProps={{ style: { background: '#7B57E4' } }}
+            >
+                <Form form={parentForm} layout="vertical" style={{ marginTop: 20 }}>
+                    <Form.Item name="fullName" label="Parent Name" rules={[{ required: true, message: 'Parent name is required' }]}>
+                        <Input placeholder="Enter full name" />
+                    </Form.Item>
+
+                    <Row gutter={16}>
+                        <Col span={12}>
+                            <Form.Item
+                                name="nationalId"
+                                label="NIC Number"
+                                rules={[
+                                    { required: true, message: 'NIC is required' },
+                                    {
+                                        validator: (_, value) => {
+                                            if (!value) return Promise.resolve();
+                                            const val = value.toUpperCase();
+                                            const isOld = /^[0-9]{9}[V|X]$/.test(val);
+                                            const isNew = /^[0-9]{12}$/.test(val);
+
+                                            if (!isOld && !isNew) {
+                                                return Promise.reject(new Error('Format: 99xxxxxxxV or 19xxxxxxxxxx'));
+                                            }
+
+                                            if (isNew && !(val.startsWith('19') || val.startsWith('20'))) {
+                                                return Promise.reject(new Error('12-digit NIC must start with 19 or 20'));
+                                            }
+
+                                            return Promise.resolve();
+                                        }
+                                    }
+                                ]}
+                            >
+                                <Input placeholder="991234567V" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item name="relationship" label="Relationship" rules={[{ required: true }]}>
+                                <Select>
+                                    <Option value="FATHER">Father</Option>
+                                    <Option value="MOTHER">Mother</Option>
+                                    <Option value="GUARDIAN">Guardian</Option>
+                                </Select>
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    <Row gutter={16}>
+                        <Col span={12}>
+                            <Form.Item
+                                name="phone"
+                                label="Phone Number"
+                                rules={[
+                                    { required: true, message: 'Phone is required' },
+                                    { pattern: /^(07|947)[0-9]{8}$/, message: 'Format: 07xxxxxxxx' }
+                                ]}
+                            >
+                                <Input placeholder="07XXXXXXXX" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item
+                                name="email"
+                                label="Email (Optional)"
+                                rules={[{ type: 'email' }]}
+                            >
+                                <Input placeholder="parent@example.com" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    <Form.Item name="address" label="Address" rules={[{ required: true }]}>
+                        <Input.TextArea rows={2} placeholder="Home address" />
+                    </Form.Item>
+                </Form>
+            </Modal>
+
+            {/* Registration Success Modal (Reused) */}
+            <Modal
+                title="Parent Registration Complete"
+                open={successModal.visible}
+                onCancel={() => setSuccessModal({ visible: false, data: null })}
+                footer={[
+                    <Button key="download" icon={<DownloadOutlined />} onClick={() => downloadSlip(successModal.data)}>
+                        Download Slip
+                    </Button>,
+                    <Button key="close" type="primary" onClick={() => setSuccessModal({ visible: false, data: null })} style={{ background: '#7B57E4' }}>
+                        Done
+                    </Button>
+                ]}
+            >
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                    <div style={{ background: '#F6FFED', border: '1px solid #B7EB8F', padding: 20, borderRadius: 12, marginBottom: 24 }}>
+                        <Title level={5} style={{ margin: 0, color: '#389E0D' }}>Parent Created & Selected</Title>
+                        <Text type="secondary">New parent has been auto-selected for this student</Text>
+                    </div>
+
+                    <Descriptions column={1} bordered size="small">
+                        <Descriptions.Item label="Parent ID">
+                            <Space>
+                                <Text strong>{successModal.data?.parentUniqueId}</Text>
+                                <Button size="small" type="text" icon={<CopyOutlined />} onClick={() => copyToClipboard(successModal.data?.parentUniqueId)} />
+                            </Space>
+                        </Descriptions.Item>
+                        <Descriptions.Item label="NIC Number">
+                            <Text strong>{successModal.data?.nationalId}</Text>
+                        </Descriptions.Item>
+                    </Descriptions>
+                </div>
             </Modal>
         </div>
     );

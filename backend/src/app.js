@@ -30,6 +30,12 @@ app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 
+// Debug Middleware: Log all requests
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} from ${req.ip}`);
+    next();
+});
+
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadsDir)) {

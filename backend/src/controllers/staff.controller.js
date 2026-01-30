@@ -77,7 +77,11 @@ exports.createStaff = async (req, res, next) => {
 
         res.status(201).json({
             message: 'Staff created successfully. Instructions sent to email.',
-            user
+            user,
+            credentials: {
+                username,
+                tempPassword
+            }
         });
     } catch (error) {
         next(error);
