@@ -15,7 +15,6 @@ import {
     Star,
     LayoutGrid,
     Clock,
-    Zap,
     BookOpen,
     MessageSquare,
     ChevronRight,
@@ -26,6 +25,7 @@ const { width } = Dimensions.get('window');
 
 import { getParentDashboardStats } from '../services/dashboard.service';
 import { COLORS } from '../constants/theme';
+import { AVATARS, getAvatarSource } from '../constants/avatars';
 import CommonHeader from '../components/CommonHeader';
 
 const DashboardScreen = ({ navigation }) => {
@@ -93,29 +93,14 @@ const DashboardScreen = ({ navigation }) => {
                     <View style={styles.headerContent}>
                         <View style={styles.topRow}>
                             <View style={styles.greetingContainer}>
-                                <View style={styles.greetingRow}>
-                                    <Zap size={18} color="#FFD700" fill="#FFD700" />
-                                    <Text style={styles.morningText}>Good Afternoon,</Text>
-                                </View>
                                 <Text style={styles.parentName}>{profile?.fullName || 'Parent'}</Text>
                             </View>
-                            <TouchableOpacity
-                                style={styles.profileSwitcher}
-                                onPress={() => navigation.navigate('Settings')}
-                            >
-                                <Image
-                                    source={profile?.photoUrl ? { uri: profile.photoUrl } : require('../../assets/icon.png')}
-                                    style={styles.parentAvatar}
-                                />
-                            </TouchableOpacity>
                         </View>
 
                         <View style={styles.welcomeRow}>
                             <View style={styles.statusDot} />
                             <Text style={styles.welcomeSubtext}>Welcome back to your dashboard</Text>
                         </View>
-
-                        {/* Removed headerDeco (white circle/stars) as requested */}
                     </View>
                 </LinearGradient>
 
@@ -130,7 +115,7 @@ const DashboardScreen = ({ navigation }) => {
                             <View style={styles.childCardHeader}>
                                 <View style={styles.mainAvatarContainer}>
                                     <Image
-                                        source={selectedChild?.photoUrl ? { uri: selectedChild.photoUrl } : { uri: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' }}
+                                        source={getAvatarSource(selectedChild?.photoUrl, 'CHILD')}
                                         style={styles.mainAvatar}
                                     />
                                 </View>
@@ -158,75 +143,12 @@ const DashboardScreen = ({ navigation }) => {
                     </TouchableOpacity>
                 )}
 
-                {/* Quick Actions Grid */}
-                <View style={styles.sectionContainer}>
-                    <View style={styles.sectionHeader}>
-                        <View style={styles.sectionIndicator} />
-                        <Text style={styles.sectionTitle}>Quick Actions</Text>
-                    </View>
-
-                    <View style={styles.grid}>
-                        <ActionItem
-                            icon={<LayoutGrid size={24} color="#6366F1" />}
-                            label="Progress"
-                            bgColor="#EEF2FF"
-                            onPress={() => navigation.navigate('StudentProfile', { student: selectedChild, initialTab: 'Details' })}
-                        />
-                        <ActionItem
-                            icon={<Calendar size={24} color="#22C55E" />}
-                            label="Attendance"
-                            bgColor="#F0FDF4"
-                            onPress={() => navigation.navigate('AttendanceHistory', { studentId: selectedChild.id, studentName: selectedChild.fullName })}
-                        />
-                        <ActionItem
-                            icon={<CreditCard size={24} color="#A855F7" />}
-                            label="Pay Fees"
-                            bgColor="#FAF5FF"
-                            onPress={() => navigation.navigate('PaymentHistory', { studentId: selectedChild.id, studentName: selectedChild.fullName })}
-                        />
-                    </View>
-                </View>
-
-                {/* Monthly Status Indicators */}
-                <View style={styles.sectionContainer}>
-                    <View style={styles.sectionHeader}>
-                        <View style={[styles.sectionIndicator, { backgroundColor: '#FFD700' }]} />
-                        <Text style={styles.sectionTitle}>Monthly Overview</Text>
-                    </View>
-                    <View style={styles.statusRow}>
-                        <TouchableOpacity
-                            style={styles.statusCard}
-                            onPress={() => navigation.navigate('AttendanceHistory', { studentId: selectedChild?.id, studentName: selectedChild?.fullName })}
-                        >
-                            <View style={styles.statusCardIcon}>
-                                <Calendar size={20} color="#9D5BF0" />
-                            </View>
-                            <View>
-                                <Text style={styles.statusCardLabel}>Attendance</Text>
-                                <Text style={styles.statusCardValue}>{selectedChild?.attendanceRate ?? '95'}%</Text>
-                            </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.statusCard}
-                            onPress={() => navigation.navigate('PaymentHistory', { studentId: selectedChild?.id, studentName: selectedChild?.fullName })}
-                        >
-                            <View style={[styles.statusCardIcon, { backgroundColor: '#F0F9FF' }]}>
-                                <CreditCard size={20} color="#0369A1" />
-                            </View>
-                            <View>
-                                <Text style={styles.statusCardLabel}>Balance</Text>
-                                <Text style={[styles.statusCardValue, { color: '#0369A1' }]}>LKR {selectedChild?.balance || '0.00'}</Text>
-                            </View>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
                 {/* Recent Updates */}
                 <View style={styles.sectionContainer}>
                     <View style={styles.sectionHeader}>
                         <View style={[styles.sectionIndicator, { backgroundColor: '#E11D48' }]} />
                         <Text style={styles.sectionTitle}>Recent Updates</Text>
-                        <TouchableOpacity style={styles.viewAll} onPress={() => navigation.navigate('Updates')}>
+                        <TouchableOpacity style={styles.viewAll} onPress={() => navigation.navigate('Updates', { tab: 'Announcements' })}>
                             <Text style={styles.viewAllText}>View All</Text>
                             <ChevronRight size={14} color="#A855F7" />
                         </TouchableOpacity>
@@ -253,6 +175,10 @@ const DashboardScreen = ({ navigation }) => {
                     <View style={styles.sectionHeader}>
                         <View style={[styles.sectionIndicator, { backgroundColor: '#6366F1' }]} />
                         <Text style={styles.sectionTitle}>Upcoming Events</Text>
+                        <TouchableOpacity style={styles.viewAll} onPress={() => navigation.navigate('Updates', { tab: 'Events' })}>
+                            <Text style={styles.viewAllText}>View All</Text>
+                            <ChevronRight size={14} color="#A855F7" />
+                        </TouchableOpacity>
                     </View>
 
                     {stats?.upcomingEvents && stats.upcomingEvents.length > 0 ? (
@@ -319,7 +245,7 @@ const DashboardScreen = ({ navigation }) => {
                                     }}
                                 >
                                     <Image
-                                        source={child.photoUrl ? { uri: child.photoUrl } : { uri: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' }}
+                                        source={getAvatarSource(child.photoUrl, 'CHILD')}
                                         style={styles.optionAvatar}
                                     />
                                     <View style={{ flex: 1 }}>
@@ -368,7 +294,7 @@ const styles = StyleSheet.create({
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     scrollContent: { flexGrow: 1 },
     headerGradient: {
-        paddingBottom: 80,
+        paddingBottom: 60,
         borderBottomLeftRadius: 32,
         borderBottomRightRadius: 32,
     },
@@ -377,7 +303,7 @@ const styles = StyleSheet.create({
     greetingContainer: { flex: 1 },
     greetingRow: { flexDirection: 'row', alignItems: 'center' },
     morningText: { color: 'rgba(255,255,255,0.8)', fontSize: 16, fontWeight: '500' },
-    parentName: { color: '#fff', fontSize: 28, fontWeight: 'bold', marginTop: 4 },
+    parentName: { color: '#fff', fontSize: 24, fontWeight: 'bold', marginTop: 2 },
     profileSwitcher: {
         width: 44,
         height: 44,

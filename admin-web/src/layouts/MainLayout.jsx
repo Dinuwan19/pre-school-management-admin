@@ -47,8 +47,7 @@ const MainLayout = () => {
             icon: <UserOutlined />,
             label: 'Students',
             children: [
-                { key: '/students', label: 'All Students' },
-                ...(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ key: '/students/add', label: 'Add Student' }] : [])
+                { key: '/students', label: 'All Students' }
             ]
         },
         ...(user?.role !== 'PARENT' ? [
@@ -57,8 +56,7 @@ const MainLayout = () => {
                 icon: <TeamOutlined />,
                 label: 'Parents',
                 children: [
-                    { key: '/parents', label: 'All Parents' },
-                    ...(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ key: '/parents/add', label: 'Add Parent' }] : [])
+                    { key: '/parents', label: 'All Parents' }
                 ]
             },
             {

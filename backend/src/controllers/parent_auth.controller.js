@@ -312,15 +312,41 @@ exports.getLinkedChildren = async (req, res, next) => {
             return res.status(404).json({ message: 'Parent profile not found' });
         }
 
-        const children = parentRecord.student_student_parentIdToparent.map(child => ({
-            id: child.id,
-            studentUniqueId: child.studentUniqueId,
-            fullName: child.fullName,
-            photoUrl: child.photoUrl,
-            classroom: child.classroom?.name,
-            teacherName: child.classroom?.teacherprofile?.[0]?.user?.fullName || 'N/A',
-            lastAttendance: child.attendance[0],
-            latestProgress: child.studentprogress[0]
+        const children = await Promise.all(parentRecord.student_student_parentIdToparent.map(async (child) => {
+            // Calculate Attendance Rate (Last 30 days)
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+            const totalDays = await prisma.attendance.count({
+                where: { studentId: child.id, attendanceDate: { gte: thirtyDaysAgo } }
+            });
+            const presentDays = await prisma.attendance.count({
+                where: { studentId: child.id, attendanceDate: { gte: thirtyDaysAgo }, status: 'PRESENT' }
+            });
+            const attendanceRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 100;
+
+            // Calculate Progress Average
+            const progress = child.studentprogress[0];
+            let progressAvg = 0;
+            if (progress) {
+                const subjects = ['reading', 'writing', 'speaking', 'listening', 'mathematics', 'social'];
+                const values = subjects.map(s => progress[s]).filter(v => v !== null);
+                progressAvg = values.length > 0 ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : 0;
+            }
+
+            return {
+                id: child.id,
+                studentUniqueId: child.studentUniqueId,
+                fullName: child.fullName,
+                photoUrl: child.photoUrl,
+                classroom: child.classroom?.name,
+                teacherName: child.classroom?.teacherprofile?.[0]?.user?.fullName || 'N/A',
+                attendance: child.attendance[0]?.status === 'PRESENT' ? 'Present' : 'Absent',
+                attendanceRate,
+                progress: progressAvg,
+                lastAttendance: child.attendance[0],
+                latestProgress: child.studentprogress[0]
+            };
         }));
 
         res.json(children);

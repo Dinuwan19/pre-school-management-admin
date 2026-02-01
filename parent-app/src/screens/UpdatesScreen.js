@@ -1,0 +1,503 @@
+import React, { useState, useEffect } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+    ActivityIndicator,
+    RefreshControl,
+    Modal,
+    Image,
+    Platform,
+    Alert,
+    Dimensions
+} from 'react-native';
+import { Bell, Info, Calendar, ChevronRight, ChevronLeft, ChevronDown, CheckCircle2, Camera } from 'lucide-react-native';
+import api from '../config/api';
+import { COLORS, SIZES, FONTS } from '../constants/theme';
+import dayjs from 'dayjs';
+import { getLinkedChildren } from '../services/child.service';
+import { getAvatarSource } from '../constants/avatars';
+
+const { width } = Dimensions.get('window');
+
+const UpdatesScreen = ({ navigation }) => {
+    // Data State
+    const [announcements, setAnnouncements] = useState([]);
+    const [events, setEvents] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+
+    // UI State
+    const [activeTab, setActiveTab] = useState('announcements'); // 'announcements' | 'events'
+    const [isStudentSwitcherVisible, setIsStudentSwitcherVisible] = useState(false);
+    const [detailModalVisible, setDetailModalVisible] = useState(false);
+    const [selectedItem, setSelectedItem] = useState(null);
+
+    // Student State
+    const [selectedStudent, setSelectedStudent] = useState(null);
+    const [availableStudents, setAvailableStudents] = useState([]);
+
+    const fetchUpdates = async () => {
+        setLoading(true);
+        try {
+            // Fetch Announcements
+            const announcementsRes = await api.get('/notifications');
+            setAnnouncements(announcementsRes.data);
+
+            // Fetch Events
+            const eventsRes = await api.get('/events'); // Standard Events endpoint
+            setEvents(eventsRes.data);
+
+        } catch (error) {
+            console.error('Fetch Updates Error:', error);
+            // Optionally handle error UI
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchStudents = async () => {
+        try {
+            const children = await getLinkedChildren();
+            setAvailableStudents(children);
+            if (children.length > 0 && !selectedStudent) {
+                setSelectedStudent(children[0]);
+            }
+        } catch (error) {
+            console.error('Fetch Students Error:', error);
+        }
+    };
+
+    const onRefresh = React.useCallback(() => {
+        setRefreshing(true);
+        Promise.all([fetchUpdates(), fetchStudents()]).then(() => setRefreshing(false));
+    }, []);
+
+    useEffect(() => {
+        fetchUpdates();
+        fetchStudents();
+    }, []);
+
+    // Filter Logic - For now, show all, but we can filter by student classroom if data linkage exists
+    // const displayedEvents = events.filter(e => ...); 
+
+    const openDetail = (item) => {
+        setSelectedItem(item);
+        setDetailModalVisible(true);
+    };
+
+    const handleViewMedia = () => {
+        if (selectedItem?.mediaUrl) {
+            // For MVP, just show alert/log. Real app would navigate to Gallery or open Image Modal
+            // If it's a URL, we can maybe show it in a separate modal or browser
+            Alert.alert('Event Media', 'Media gallery feature coming soon!');
+            // Ideally: navigation.navigate('MediaGallery', { url: selectedItem.mediaUrl })
+        }
+    };
+
+    const renderHeader = () => (
+        <View style={styles.customHeader}>
+            <Text style={styles.customHeaderTitle}>Updates & Events</Text>
+            <TouchableOpacity
+                style={styles.headerAvatarSwitcher}
+                onPress={() => setIsStudentSwitcherVisible(true)}
+            >
+                <Image
+                    source={getAvatarSource(selectedStudent?.photoUrl, 'CHILD')}
+                    style={styles.headerAvatar}
+                />
+                <View style={styles.headerAvatarBadge}>
+                    <ChevronDown size={8} color="#fff" />
+                </View>
+            </TouchableOpacity>
+        </View>
+    );
+
+    const renderTabs = () => (
+        <View style={styles.tabContainer}>
+            <TouchableOpacity
+                style={[styles.tab, activeTab === 'announcements' && styles.activeTab]}
+                onPress={() => setActiveTab('announcements')}
+            >
+                <Text style={[styles.tabText, activeTab === 'announcements' && styles.activeTabText]}>
+                    Announcements
+                </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+                style={[styles.tab, activeTab === 'events' && styles.activeTab]}
+                onPress={() => setActiveTab('events')}
+            >
+                <Text style={[styles.tabText, activeTab === 'events' && styles.activeTabText]}>
+                    Events
+                </Text>
+            </TouchableOpacity>
+        </View>
+    );
+
+    const renderAnnouncementItem = (item) => (
+        <TouchableOpacity key={item.id} style={styles.card} onPress={() => openDetail({ ...item, type: 'Announcement' })}>
+            <View style={styles.iconContainer}>
+                <Bell size={24} color="#9D5BF0" />
+            </View>
+            <View style={styles.content}>
+                <Text style={styles.title}>{item.title}</Text>
+                <Text style={styles.message} numberOfLines={2}>{item.message}</Text>
+                <Text style={styles.date}>{dayjs(item.createdAt).format('MMM DD, YYYY')}</Text>
+            </View>
+            <ChevronRight size={20} color="#CBD5E1" />
+        </TouchableOpacity>
+    );
+
+    const renderEventItem = (item) => (
+        <TouchableOpacity key={item.id} style={styles.card} onPress={() => openDetail({ ...item, type: 'Event' })}>
+            <View style={[styles.iconContainer, { backgroundColor: '#ECFDF5' }]}>
+                <Calendar size={24} color="#10B981" />
+            </View>
+            <View style={styles.content}>
+                <Text style={styles.title}>{item.title}</Text>
+                <Text style={styles.message} numberOfLines={2}>
+                    {dayjs(item.eventDate).format('MMM DD, YYYY')} • {item.startTime}
+                </Text>
+                <Text style={styles.date}>{item.location || 'School Campus'}</Text>
+            </View>
+            <ChevronRight size={20} color="#CBD5E1" />
+        </TouchableOpacity>
+    );
+
+    return (
+        <View style={styles.container}>
+            {renderHeader()}
+
+            <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
+                {renderTabs()}
+            </View>
+
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} color="#9D5BF0" />}
+            >
+                {loading ? (
+                    <ActivityIndicator size="large" color="#9D5BF0" style={{ marginTop: 40 }} />
+                ) : (
+                    activeTab === 'announcements' ? (
+                        announcements.length > 0 ? announcements.map(renderAnnouncementItem) : (
+                            <View style={styles.emptyContainer}>
+                                <Bell size={64} color="#E2E8F0" />
+                                <Text style={styles.emptyText}>No announcements</Text>
+                            </View>
+                        )
+                    ) : (
+                        events.length > 0 ? events.map(renderEventItem) : (
+                            <View style={styles.emptyContainer}>
+                                <Calendar size={64} color="#E2E8F0" />
+                                <Text style={styles.emptyText}>No upcoming events</Text>
+                            </View>
+                        )
+                    )
+                )}
+            </ScrollView>
+
+            {/* Student Switcher Overlay */}
+            {isStudentSwitcherVisible && (
+                <View style={[styles.dropdownOverlay, { zIndex: 3000 }]}>
+                    <TouchableOpacity
+                        style={styles.fullScreenTouch}
+                        activeOpacity={1}
+                        onPress={() => setIsStudentSwitcherVisible(false)}
+                    >
+                        {/* Touch catcher */}
+                    </TouchableOpacity>
+
+                    <View style={styles.dropdownContent}>
+                        <View style={styles.dropdownHeader}>
+                            <Text style={styles.dropdownTitle}>Switch Student</Text>
+                        </View>
+                        <View style={styles.dropdownList}>
+                            <ScrollView
+                                style={{ maxHeight: 300 }}
+                                showsVerticalScrollIndicator={true}
+                                contentContainerStyle={{ paddingBottom: 10 }}
+                            >
+                                {(availableStudents || []).map((child) => (
+                                    <TouchableOpacity
+                                        key={child.id}
+                                        style={[
+                                            styles.dropdownOption,
+                                            selectedStudent?.id === child.id && styles.selectedDropdownOption
+                                        ]}
+                                        onPress={() => {
+                                            setSelectedStudent(child);
+                                            setIsStudentSwitcherVisible(false);
+                                            // Optionally refetch/filter data here
+                                        }}
+                                    >
+                                        <View style={styles.optionAvatarContainer}>
+                                            <Image
+                                                source={getAvatarSource(child.photoUrl, 'CHILD')}
+                                                style={styles.optionAvatar}
+                                            />
+                                            {selectedStudent?.id === child.id && (
+                                                <View style={styles.avatarCheck}>
+                                                    <CheckCircle2 size={12} color="#fff" />
+                                                </View>
+                                            )}
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={[
+                                                styles.optionName,
+                                                selectedStudent?.id === child.id && styles.selectedOptionText
+                                            ]}>{child.fullName}</Text>
+                                            <Text style={styles.optionSub}>{child.classroom || 'Student'}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    </View>
+                </View>
+            )}
+
+            {/* Detail Modal */}
+            <Modal
+                visible={detailModalVisible}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setDetailModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalType}>{selectedItem?.type || 'Details'}</Text>
+                            <TouchableOpacity onPress={() => setDetailModalVisible(false)}>
+                                <Text style={styles.closeText}>Close</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            <Text style={styles.itemTitle}>{selectedItem?.title}</Text>
+                            <Text style={styles.itemDate}>
+                                {selectedItem?.eventDate
+                                    ? `${dayjs(selectedItem.eventDate).format('dddd, MMM DD, YYYY')} • ${selectedItem.startTime}`
+                                    : dayjs(selectedItem?.createdAt).format('MMM DD, YYYY')}
+                            </Text>
+
+                            <Text style={styles.itemBody}>
+                                {selectedItem?.description || selectedItem?.message || 'No details content.'}
+                            </Text>
+
+                            {/* View Media Button (Only for Events with mediaUrl) */}
+                            {selectedItem?.type === 'Event' && selectedItem?.mediaUrl && (
+                                <TouchableOpacity style={styles.mediaButton} onPress={handleViewMedia}>
+                                    <Camera size={20} color="#fff" />
+                                    <Text style={styles.mediaButtonText}>View Event Photos</Text>
+                                </TouchableOpacity>
+                            )}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
+        </View>
+    );
+};
+
+const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: '#F8FAFC' },
+    customHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'ios' ? 60 : 20,
+        paddingBottom: 15,
+        backgroundColor: '#fff',
+    },
+    customHeaderTitle: {
+        ...FONTS.h2,
+        color: '#1E293B',
+        fontWeight: 'bold'
+    },
+    headerAvatarSwitcher: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#F3EFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+        borderWidth: 1,
+        borderColor: '#9D5BF0'
+    },
+    headerAvatar: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+    },
+    headerAvatarBadge: {
+        position: 'absolute',
+        bottom: -2,
+        right: -2,
+        backgroundColor: '#9D5BF0',
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#fff'
+    },
+    tabContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 4,
+        marginBottom: 10
+    },
+    tab: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderRadius: 8,
+    },
+    activeTab: {
+        backgroundColor: '#F3EFFF',
+    },
+    tabText: {
+        color: '#64748B',
+        fontWeight: '600',
+        fontSize: 14
+    },
+    activeTabText: {
+        color: '#9D5BF0',
+        fontWeight: 'bold'
+    },
+    scrollContent: { padding: 20 },
+    card: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 16,
+        marginBottom: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 2,
+    },
+    iconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 14,
+        backgroundColor: '#F3EFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 16,
+    },
+    content: { flex: 1 },
+    title: { fontSize: 16, fontWeight: 'bold', color: '#1E293B', marginBottom: 4 },
+    message: { fontSize: 14, color: '#64748B', lineHeight: 20 },
+    date: { fontSize: 12, color: '#94A3B8', marginTop: 8 },
+    emptyContainer: { alignItems: 'center', marginTop: 100 },
+    emptyText: { marginTop: 16, fontSize: 16, color: '#94A3B8' },
+
+    // Switcher Overlay Styles
+    dropdownOverlay: {
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20
+    },
+    fullScreenTouch: {
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        width: '100%', height: '100%'
+    },
+    dropdownContent: {
+        width: '100%',
+        maxWidth: 340,
+        backgroundColor: '#fff',
+        borderRadius: 24,
+        padding: 20,
+        zIndex: 3001,
+        elevation: 5
+    },
+    dropdownHeader: { alignItems: 'center', marginBottom: 15 },
+    dropdownTitle: { fontSize: 18, fontWeight: 'bold', color: '#1E293B' },
+    dropdownList: { maxHeight: 300 },
+    dropdownOption: {
+        flexDirection: 'row', alignItems: 'center',
+        padding: 12, borderRadius: 16,
+        backgroundColor: '#F8FAFC', marginBottom: 10,
+        borderWidth: 1, borderColor: '#F1F5F9'
+    },
+    selectedDropdownOption: {
+        backgroundColor: '#F3EFFF', borderColor: '#9D5BF0'
+    },
+    optionAvatarContainer: {
+        width: 40, height: 40, marginRight: 12, position: 'relative'
+    },
+    optionAvatar: {
+        width: 40, height: 40, borderRadius: 20, backgroundColor: '#E2E8F0', resizeMode: 'cover'
+    },
+    avatarCheck: {
+        position: 'absolute', bottom: -2, right: -2,
+        width: 16, height: 16, borderRadius: 8,
+        backgroundColor: '#9D5BF0', borderWidth: 1.5, borderColor: '#fff',
+        justifyContent: 'center', alignItems: 'center'
+    },
+    optionName: { fontSize: 15, fontWeight: '600', color: '#1E293B' },
+    selectedOptionText: { color: '#9D5BF0' },
+    optionSub: { fontSize: 12, color: '#64748B' },
+
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end'
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 30,
+        borderTopRightRadius: 30,
+        padding: 24,
+        height: '80%',
+    },
+    modalHeader: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+        marginBottom: 20
+    },
+    modalType: {
+        fontSize: 14, fontWeight: 'bold', color: '#9D5BF0', textTransform: 'uppercase', letterSpacing: 1
+    },
+    closeText: {
+        fontSize: 16, color: '#64748B', fontWeight: '600'
+    },
+    itemTitle: {
+        fontSize: 24, fontWeight: 'bold', color: '#1E293B', marginBottom: 8
+    },
+    itemDate: {
+        fontSize: 14, color: '#64748B', marginBottom: 20
+    },
+    itemBody: {
+        fontSize: 16, color: '#334155', lineHeight: 26, marginBottom: 30
+    },
+    mediaButton: {
+        backgroundColor: '#9D5BF0',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+        borderRadius: 16,
+        gap: 10,
+        marginBottom: 30
+    },
+    mediaButtonText: {
+        color: '#fff', fontSize: 16, fontWeight: 'bold'
+    }
+});
+
+export default UpdatesScreen;

@@ -11,15 +11,17 @@ import {
     Modal,
     Image,
     Dimensions,
-    TextInput
+    TextInput,
+    KeyboardAvoidingView,
+    Platform
 } from 'react-native';
 import { ChevronLeft, ChevronRight, CreditCard, Calendar, Download, AlertCircle, CheckCircle2, Upload, Plus, X, User, ChevronDown } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { AVATARS, getAvatarSource } from '../constants/avatars';
 import { getChildBillings, getLinkedChildren } from '../services/child.service';
 import { uploadPaymentReceipt } from '../services/payment.service';
-import CommonHeader from '../components/CommonHeader';
-import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import dayjs from 'dayjs';
 
 
@@ -34,6 +36,7 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
     const [image, setImage] = useState(null);
     const [paymentAmount, setPaymentAmount] = useState('15000');
     const [paymentNote, setPaymentNote] = useState('');
+    const [paymentFor, setPaymentFor] = useState('Monthly Fee');
 
     const [paymentStep, setPaymentStep] = useState(1);
     const [selectedMonths, setSelectedMonths] = useState([]);
@@ -53,6 +56,17 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
     const [selectedBilling, setSelectedBilling] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [isStudentSwitcherVisible, setIsStudentSwitcherVisible] = useState(false);
+
+    useEffect(() => {
+        (async () => {
+            if (Platform.OS !== 'web') {
+                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (status !== 'granted') {
+                    Alert.alert('Permission Denied', 'We need access to your gallery to upload payment slips.');
+                }
+            }
+        })();
+    }, []);
 
     useEffect(() => {
         if (routeStudentId) {
@@ -97,14 +111,18 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
     };
 
     const pickImage = async () => {
-        let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaType.Images,
-            allowsEditing: true,
-            quality: 1,
-        });
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: ['image/*', 'application/pdf'],
+                copyToCacheDirectory: true,
+            });
 
-        if (!result.canceled) {
-            setImage(result.assets[0].uri);
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                const file = result.assets[0];
+                setImage(file);
+            }
+        } catch (err) {
+            console.log('Document picker error:', err);
         }
     };
 
@@ -118,24 +136,33 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
         if (selectedBilling) {
             billingIds = [selectedBilling.id];
         } else if (selectedMonths.length > 0) {
-            // Find billings matching selected months
-            // We'll use allBillings which should be fetched
             billingIds = allBillings
                 .filter(b => selectedMonths.includes(b.billingMonth))
                 .map(b => b.id);
 
             if (billingIds.length === 0) {
-                Alert.alert('Notice', 'No matching invoices found for selected months. Admin will reconcile manually.');
-                // We'll proceed if backend allows or handle differently
+                Alert.alert(
+                    'Notice',
+                    'No matching invoices found for selected months. This will be recorded as a generic payment on account. Admin will reconcile manually.',
+                    [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Proceed', onPress: () => processSubmission(billingIds) }
+                    ]
+                );
+                return;
             }
         }
 
+        processSubmission(billingIds);
+    };
+
+    const processSubmission = async (billingIds) => {
         setUploading(true);
         try {
             const file = {
-                uri: image,
-                type: 'image/jpeg',
-                name: 'payment_receipt.jpg'
+                uri: image.uri,
+                type: image.mimeType || 'image/jpeg',
+                name: image.name || 'payment_receipt.jpg'
             };
 
             await uploadPaymentReceipt(
@@ -143,7 +170,7 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                 paymentAmount,
                 'ONLINE_TRANSFER',
                 file,
-                paymentNote + (selectedMonths.length > 0 ? ` (Months: ${selectedMonths.join(', ')})` : '')
+                `[Student: ${selectedStudent?.fullName || 'Unknown'}] ` + (paymentFor ? `[${paymentFor}] ` : '') + paymentNote + (selectedMonths.length > 0 ? ` (Months: ${selectedMonths.join(', ')})` : '')
             );
 
             Alert.alert('Success', 'Payment slip submitted for approval');
@@ -152,7 +179,8 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
             setSelectedMonths([]);
             fetchData();
         } catch (error) {
-            Alert.alert('Error', error.message || 'Failed to submit payment');
+            console.log('Submission Error:', error);
+            Alert.alert('Error', JSON.stringify(error) || error.message || 'Failed to submit payment');
         } finally {
             setUploading(false);
         }
@@ -162,36 +190,51 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
     const prevMonth = () => setSelectedMonth(selectedMonth.subtract(1, 'month'));
 
     const renderHeader = () => (
-        <CommonHeader
-            title="Payments"
-            showBack={true}
-            backgroundColor={COLORS.white}
-            rightIcon={
-                <TouchableOpacity
-                    style={styles.childHeaderSwitcher}
-                    onPress={() => setIsStudentSwitcherVisible(true)}
-                >
-                    <Text style={styles.childHeaderSwitcherText}>
-                        {selectedStudent?.fullName ? selectedStudent.fullName.split(' ')[0] : 'Select'}
-                    </Text>
-                    <ChevronDown size={14} color="#9D5BF0" />
+        <View style={styles.customHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackBtn}>
+                    <ChevronLeft size={24} color="#1E293B" />
                 </TouchableOpacity>
-            }
-        />
+                <Text style={styles.customHeaderTitle}>Payments</Text>
+            </View>
+            <TouchableOpacity
+                style={styles.headerAvatarSwitcher}
+                onPress={() => {
+                    console.log('Opening switcher...');
+                    setIsStudentSwitcherVisible(true);
+                }}
+                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            >
+                <Image
+                    source={getAvatarSource(selectedStudent?.photoUrl, 'CHILD')}
+                    style={styles.headerAvatar}
+                />
+                <View style={styles.headerAvatarBadge}>
+                    <ChevronDown size={8} color="#fff" />
+                </View>
+            </TouchableOpacity>
+        </View>
     );
 
     const renderMonthSelector = () => (
-        <View style={styles.monthSelector}>
-            <TouchableOpacity onPress={prevMonth} style={styles.monthNavButton}>
-                <ChevronLeft color={COLORS.primary} size={24} />
-            </TouchableOpacity>
-            <View style={styles.monthDisplay}>
-                <Calendar color={COLORS.primary} size={20} style={{ marginRight: 8 }} />
-                <Text style={styles.monthText}>{selectedMonth.format('MMMM YYYY')}</Text>
-            </View>
-            <TouchableOpacity onPress={nextMonth} style={styles.monthNavButton}>
-                <ChevronRight color={COLORS.primary} size={24} />
-            </TouchableOpacity>
+        <View style={styles.modernMonthSelector}>
+            <LinearGradient
+                colors={['#F8FAFC', '#F1F5F9']}
+                style={styles.monthPill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+            >
+                <TouchableOpacity onPress={prevMonth} style={styles.modernMonthNav}>
+                    <ChevronLeft color="#64748B" size={20} />
+                </TouchableOpacity>
+                <View style={styles.modernMonthDisplay}>
+                    <Calendar color="#9D5BF0" size={18} />
+                    <Text style={styles.modernMonthText}>{selectedMonth.format('MMMM YYYY')}</Text>
+                </View>
+                <TouchableOpacity onPress={nextMonth} style={styles.modernMonthNav}>
+                    <ChevronRight color="#64748B" size={20} />
+                </TouchableOpacity>
+            </LinearGradient>
         </View>
     );
 
@@ -210,44 +253,65 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
 
     const renderInvoiceItem = (item, index) => {
         const isPaid = item.status === 'PAID' || item.status === 'SUCCESS';
+        const dueDate = dayjs(item.createdAt).add(7, 'day');
+        const isOverdue = !isPaid && dayjs().isAfter(dueDate);
+
+        // Determine Status Color & Text
+        let statusColor = COLORS.error; // Default Red for Overdue
+        let statusBg = COLORS.error + '20';
+        let statusText = 'Overdue';
+
+        if (isPaid) {
+            statusColor = '#059669'; // Emerald
+            statusBg = '#ECFDF5';
+            statusText = 'Paid';
+        } else if (item.status === 'PENDING') {
+            statusColor = '#D97706'; // Amber
+            statusBg = '#FFFBEB';
+            statusText = 'Pending Approval';
+        } else if (isOverdue) {
+            statusColor = '#DC2626'; // Red
+            statusBg = '#FEF2F2';
+            statusText = 'Overdue';
+        } else {
+            statusColor = '#2563EB'; // Blue
+            statusBg = '#EFF6FF';
+            statusText = 'Unpaid';
+        }
+
         return (
-            <View key={index} style={styles.invoiceCard}>
-                <View style={styles.invoiceHeader}>
-                    <View style={styles.invoiceInfo}>
-                        <Text style={styles.invoiceTitle}>{item.billingMonth}</Text>
-                        <Text style={styles.invoiceDate}>Due: {dayjs(item.createdAt).add(7, 'day').format('MMM DD, YYYY')}</Text>
-                    </View>
-                    <View style={[styles.statusBadge, { backgroundColor: isPaid ? COLORS.success + '20' : COLORS.error + '20' }]}>
-                        <Text style={[styles.statusBadgeText, { color: isPaid ? COLORS.success : COLORS.error }]}>
-                            {item.status}
+            <View key={index} style={styles.invoiceListItem}>
+                <View style={styles.invoiceListLeft}>
+                    <Text style={styles.invoiceListTitle}>{item.billingMonth} {item.billingYear}</Text>
+                    <Text style={styles.invoiceListDate}>{dayjs(item.createdAt).format('DD MMM YYYY')}</Text>
+                </View>
+                <View style={styles.invoiceListRight}>
+                    <Text style={styles.invoiceListAmount}>Rs. {parseFloat(item.amount).toLocaleString()}</Text>
+                    <View style={[styles.statusBadgeSmall, { backgroundColor: statusBg }]}>
+                        <Text style={[styles.statusBadgeTextSmall, { color: statusColor }]}>
+                            {statusText}
                         </Text>
                     </View>
-                </View>
-
-                <View style={styles.divider} />
-
-                <View style={styles.invoiceFooter}>
-                    <Text style={styles.amount}>LKR {parseFloat(item.amount).toLocaleString()}</Text>
-                    {!isPaid ? (
-                        <TouchableOpacity
-                            style={styles.payButton}
-                            onPress={() => {
-                                setSelectedBilling(item);
-                                setModalVisible(true);
-                            }}
-                        >
-                            <Text style={styles.payButtonText}>Pay Now</Text>
-                        </TouchableOpacity>
-                    ) : (
-                        <TouchableOpacity style={styles.downloadButton}>
-                            <Download size={18} color={COLORS.primary} />
-                            <Text style={styles.downloadText}>Receipt</Text>
-                        </TouchableOpacity>
-                    )}
                 </View>
             </View>
         );
     };
+
+    const renderPaymentInfo = () => (
+        <View style={styles.paymentInfoBox}>
+            <Text style={styles.paymentInfoTitle}>Payment Information</Text>
+
+            <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Monthly Fee</Text>
+                <Text style={styles.infoValue}>Rs. 15,000</Text>
+            </View>
+
+            <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Payment Due Date</Text>
+                <Text style={styles.infoValue}>5th of each month</Text>
+            </View>
+        </View>
+    );
 
     return (
         <View style={styles.container}>
@@ -261,8 +325,7 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                 {renderMonthSelector()}
                 {renderStats()}
 
-                <View style={styles.historySection}>
-                    <Text style={styles.sectionTitle}>Invoices</Text>
+                <View style={[styles.historySection, { backgroundColor: '#fff', borderRadius: 20, padding: 15, elevation: 2 }]}>
                     {loading ? (
                         <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 20 }} />
                     ) : billings.length > 0 ? (
@@ -274,232 +337,267 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                         </View>
                     )}
                 </View>
+
+                {renderPaymentInfo()}
+            </ScrollView>
+
+            {/* Floating Action Button - Hide when modal is open */}
+            {!modalVisible && (
                 <TouchableOpacity
-                    style={styles.makePaymentFab}
+                    style={styles.fab}
                     onPress={() => {
                         setPaymentStep(1);
                         setModalVisible(true);
                     }}
                 >
-                    <Plus size={24} color="#fff" />
-                    <Text style={styles.makePaymentFabText}>Make Payment</Text>
+                    <Text style={styles.fabText}>Make Payment</Text>
                 </TouchableOpacity>
-            </ScrollView>
+            )}
 
-            {/* Payment Modal */}
-            {/* Make Payment Modal (New Structured Layout) */}
-            <Modal visible={modalVisible} animationType="fade" transparent={true}>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <TouchableOpacity onPress={() => { setModalVisible(false); setPaymentStep(1); }}>
-                                <ChevronLeft size={24} color="#1E293B" />
+            {/* Payment Modal - Replaced with Absolute View for navigation availability */}
+            {modalVisible && (
+                <View style={[styles.modalOverlay, { zIndex: 2000 }]}>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                        style={styles.modalContentFull}
+                    >
+                        <View style={styles.modalHeaderBorder}>
+                            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalBackBtn}>
+                                <ChevronLeft size={24} color="#000" />
                             </TouchableOpacity>
-                            <Text style={styles.modalTitle}>Make Payment</Text>
+                            <Text style={styles.modalTitleBlack}>Make Payment</Text>
                             <View style={{ width: 24 }} />
                         </View>
 
-                        <ScrollView showsVerticalScrollIndicator={false}>
-                            <View style={styles.paymentCard}>
-                                <Text style={styles.modalLabel}>Select Student</Text>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
-                                    {availableStudents.map(s => (
-                                        <TouchableOpacity
-                                            key={s.id}
-                                            style={[styles.miniStudentOption, selectedStudent?.id === s.id && styles.selectedMiniOption]}
-                                            onPress={() => setSelectedStudent(s)}
-                                        >
-                                            <Text style={[styles.miniOptionText, selectedStudent?.id === s.id && styles.selectedMiniText]}>{s.fullName.split(' ')[0]}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </ScrollView>
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+                            keyboardShouldPersistTaps="always"
+                        >
+                            <Text style={styles.inputLabel}>Payment For</Text>
+                            <TextInput
+                                style={styles.styledInput}
+                                placeholder="e.g., Monthly Fee"
+                                value={paymentFor}
+                                onChangeText={setPaymentFor}
+                            />
 
-                                <View style={styles.yearSelectorRow}>
-                                    <Text style={styles.modalLabel}>Select Year</Text>
-                                    <View style={styles.yearControls}>
-                                        <TouchableOpacity onPress={() => { setSelectedPaymentYear(selectedPaymentYear - 1); setSelectedMonths([]); }}>
-                                            <ChevronLeft size={20} color="#9D5BF0" />
-                                        </TouchableOpacity>
-                                        <Text style={styles.yearValueText}>{selectedPaymentYear}</Text>
-                                        <TouchableOpacity onPress={() => { setSelectedPaymentYear(selectedPaymentYear + 1); setSelectedMonths([]); }}>
-                                            <ChevronRight size={20} color="#9D5BF0" />
-                                        </TouchableOpacity>
-                                    </View>
+                            <Text style={styles.inputLabel}>Description (Optional)</Text>
+                            <TextInput
+                                style={[styles.styledInput, { height: 80, textAlignVertical: 'top' }]}
+                                placeholder="Any additional details..."
+                                multiline
+                                value={paymentNote}
+                                onChangeText={setPaymentNote}
+                            />
+
+                            <View style={styles.yearSelectorRowRefined}>
+                                <Text style={styles.inputLabelNoMargin}>Select Year</Text>
+                                <View style={styles.yearControlsRefined}>
+                                    <TouchableOpacity onPress={() => { setSelectedPaymentYear(selectedPaymentYear - 1); setSelectedMonths([]); }}>
+                                        <ChevronLeft size={20} color="#9D5BF0" />
+                                    </TouchableOpacity>
+                                    <Text style={styles.yearValueTextRefined}>{selectedPaymentYear}</Text>
+                                    <TouchableOpacity onPress={() => { setSelectedPaymentYear(selectedPaymentYear + 1); setSelectedMonths([]); }}>
+                                        <ChevronRight size={20} color="#9D5BF0" />
+                                    </TouchableOpacity>
                                 </View>
+                            </View>
 
-                                <Text style={styles.modalLabel}>Select Months to Pay</Text>
-                                <View style={styles.monthsGrid}>
-                                    {months.map((m, idx) => {
-                                        const isPaid = allBillings.some(b =>
-                                            b.billingMonth === m &&
-                                            b.billingYear === selectedPaymentYear.toString() &&
-                                            (b.status === 'PAID' || b.status === 'SUCCESS' || b.status === 'PENDING')
-                                        );
-                                        const isSelected = selectedMonths.includes(m);
+                            <Text style={styles.inputLabel}>Select Months to Pay</Text>
+                            <View style={styles.monthsGridRefined}>
+                                {months.map((m, idx) => {
+                                    const isPaid = allBillings.some(b =>
+                                        b.billingMonth === m &&
+                                        b.billingYear === selectedPaymentYear.toString() &&
+                                        (b.status === 'PAID' || b.status === 'SUCCESS' || b.status === 'PENDING')
+                                    );
+                                    const isSelected = selectedMonths.includes(m);
 
-                                        return (
-                                            <TouchableOpacity
-                                                key={m}
-                                                disabled={isPaid}
-                                                style={[
-                                                    styles.monthOption,
-                                                    isSelected && styles.selectedMonthOption,
-                                                    isPaid && styles.disabledMonthOption
-                                                ]}
-                                                onPress={() => {
-                                                    let newSelection = [...selectedMonths];
-                                                    if (isSelected) {
-                                                        // Check if unselecting breaks continuity
-                                                        // Only allow unselecting from the start or end of the current selection
-                                                        const monthIndices = newSelection.map(name => months.indexOf(name)).sort((a, b) => a - b);
-                                                        const monthIdx = months.indexOf(m);
-                                                        if (monthIdx === monthIndices[0] || monthIdx === monthIndices[monthIndices.length - 1]) {
-                                                            newSelection = newSelection.filter(x => x !== m);
-                                                        } else {
-                                                            Alert.alert("Notice", "Please unselect months from the start or end of your range to maintain continuity.");
-                                                            return;
-                                                        }
+                                    return (
+                                        <TouchableOpacity
+                                            key={m}
+                                            disabled={isPaid}
+                                            style={[
+                                                styles.monthOptionRefined,
+                                                isSelected && styles.selectedMonthOptionRefined,
+                                                isPaid && styles.disabledMonthOptionRefined
+                                            ]}
+                                            onPress={() => {
+                                                let newSelection = [...selectedMonths];
+                                                if (isSelected) {
+                                                    const monthIndices = newSelection.map(name => months.indexOf(name)).sort((a, b) => a - b);
+                                                    const monthIdx = months.indexOf(m);
+                                                    if (monthIdx === monthIndices[0] || monthIdx === monthIndices[monthIndices.length - 1]) {
+                                                        newSelection = newSelection.filter(x => x !== m);
                                                     } else {
-                                                        // Check for continuity
-                                                        if (newSelection.length === 0) {
+                                                        Alert.alert("Notice", "Please unselect months from the start or end of your range to maintain continuity.");
+                                                        return;
+                                                    }
+                                                } else {
+                                                    if (newSelection.length === 0) {
+                                                        newSelection.push(m);
+                                                    } else {
+                                                        const monthIndices = newSelection.map(name => months.indexOf(name)).sort((a, b) => a - b);
+                                                        const minIdx = monthIndices[0];
+                                                        const maxIdx = monthIndices[monthIndices.length - 1];
+                                                        const currentIdx = idx;
+
+                                                        if (currentIdx === minIdx - 1 || currentIdx === maxIdx + 1) {
                                                             newSelection.push(m);
                                                         } else {
-                                                            const monthIndices = newSelection.map(name => months.indexOf(name)).sort((a, b) => a - b);
-                                                            const minIdx = monthIndices[0];
-                                                            const maxIdx = monthIndices[monthIndices.length - 1];
-                                                            const currentIdx = idx;
-
-                                                            if (currentIdx === minIdx - 1 || currentIdx === maxIdx + 1) {
-                                                                newSelection.push(m);
-                                                            } else {
-                                                                Alert.alert("Notice", "Please select months in sequence (e.g., January then February).");
-                                                                return;
-                                                            }
+                                                            Alert.alert("Notice", "Please select months in sequence (e.g., January then February).");
+                                                            return;
                                                         }
                                                     }
-                                                    setSelectedMonths(newSelection);
-                                                }}
-                                            >
-                                                <Text style={[
-                                                    styles.monthOptionText,
-                                                    isSelected && styles.selectedMonthText,
-                                                    isPaid && styles.disabledMonthText
-                                                ]}>{m.slice(0, 3)}</Text>
-                                                {isPaid && <CheckCircle2 size={10} color="#94A3B8" style={{ marginTop: 2 }} />}
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                </View>
+                                                }
+                                                setSelectedMonths(newSelection);
+                                            }}
+                                        >
+                                            <Text style={[
+                                                styles.monthOptionTextRefined,
+                                                isSelected && styles.selectedMonthTextRefined,
+                                                isPaid && styles.disabledMonthTextRefined
+                                            ]}>{m.slice(0, 3)}</Text>
+                                            {isPaid && <CheckCircle2 size={10} color="#94A3B8" style={{ marginTop: 2 }} />}
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
 
-                                <Text style={styles.modalLabel}>Amount (LKR)</Text>
-                                <TextInput
-                                    style={styles.paymentInput}
-                                    value={paymentAmount}
-                                    onChangeText={setPaymentAmount}
-                                    keyboardType="numeric"
-                                    placeholder="0.00"
-                                />
+                            <Text style={styles.inputLabel}>Amount (Rs.)</Text>
+                            <TextInput
+                                style={styles.styledInput}
+                                placeholder="e.g., 15000"
+                                keyboardType="numeric"
+                                value={paymentAmount}
+                                onChangeText={setPaymentAmount}
+                            />
 
-                                <Text style={styles.modalLabel}>Upload Payment Slip <Text style={{ color: '#EF4444' }}>*</Text></Text>
-                                <TouchableOpacity style={styles.uploadDashedBox} onPress={pickImage}>
-                                    {image ? (
-                                        <Image source={{ uri: image }} style={styles.previewImage} />
+                            <Text style={styles.inputLabel}>Upload Payment Slip</Text>
+                            <TouchableOpacity
+                                style={styles.uploadBoxRefined}
+                                onPress={() => {
+                                    console.log('Pick image pressed');
+                                    pickImage();
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                {image ? (
+                                    image.mimeType === 'application/pdf' ? (
+                                        <View style={[styles.uploadedImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#F1F5F9' }]}>
+                                            <Download size={32} color="#94A3B8" />
+                                            <Text style={{ marginTop: 8, color: '#64748B', fontWeight: 'bold' }}>{image.name}</Text>
+                                        </View>
                                     ) : (
-                                        <View style={styles.uploadPlaceholder}>
-                                            <View style={styles.cloudCircle}>
-                                                <Upload size={24} color="#9D5BF0" />
-                                            </View>
-                                            <Text style={styles.uploadMainText}>Tap to upload slip</Text>
-                                            <Text style={styles.uploadSubText}>JPG, PNG, PDF (max 5MB)</Text>
-                                        </View>
-                                    )}
-                                </TouchableOpacity>
-
-                                <Text style={styles.modalLabel}>Note (Optional)</Text>
-                                <TextInput
-                                    style={[styles.paymentInput, { height: 80, textAlignVertical: 'top' }]}
-                                    multiline
-                                    value={paymentNote}
-                                    onChangeText={setPaymentNote}
-                                    placeholder="Any additional details..."
-                                />
-
-                                {selectedMonths.length > 0 && (
-                                    <View style={styles.paymentSummaryCard}>
-                                        <Text style={styles.summaryCardTitle}>Payment Details</Text>
-                                        <View style={styles.summaryCardRow}>
-                                            <Text style={styles.summaryCardLabel}>Months</Text>
-                                            <Text style={styles.summaryCardValue}>{selectedMonths.join(', ')}</Text>
-                                        </View>
-                                        <View style={styles.summaryCardRow}>
-                                            <Text style={styles.summaryCardLabel}>Amount</Text>
-                                            <Text style={[styles.summaryCardValue, { color: '#9D5BF0' }]}>LKR {parseFloat(paymentAmount).toLocaleString()}</Text>
-                                        </View>
+                                        <Image source={{ uri: image.uri }} style={styles.uploadedImage} />
+                                    )
+                                ) : (
+                                    <View style={styles.uploadContent}>
+                                        <Upload size={32} color="#CBD5E1" />
+                                        <Text style={styles.uploadLink}>Click to upload or drag and drop</Text>
+                                        <Text style={styles.uploadHint}>PNG, JPG, PDF up to 5MB</Text>
                                     </View>
                                 )}
+                            </TouchableOpacity>
 
+                            <View style={styles.modalFooterBtns}>
                                 <TouchableOpacity
-                                    style={[styles.submitPaymentBtn, (!image || selectedMonths.length === 0) && { opacity: 0.5 }]}
-                                    onPress={handlePaymentSubmit}
-                                    disabled={!image || selectedMonths.length === 0 || uploading}
+                                    style={styles.cancelBtn}
+                                    onPress={() => setModalVisible(false)}
                                 >
-                                    {uploading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitPaymentBtnText}>Submit Payment</Text>}
+                                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.submitBtnRefined}
+                                    onPress={handlePaymentSubmit}
+                                    disabled={uploading || selectedMonths.length === 0}
+                                >
+                                    {uploading ? (
+                                        <ActivityIndicator color="#fff" />
+                                    ) : (
+                                        <Text style={styles.submitBtnTextRefined}>Submit Payment</Text>
+                                    )}
                                 </TouchableOpacity>
                             </View>
                         </ScrollView>
+                    </KeyboardAvoidingView>
+                </View>
+            )}
+
+            {/* Student Switcher - Replaced with Absolute View for navigation availability */}
+            {isStudentSwitcherVisible && (
+                <View style={[styles.dropdownOverlay, { zIndex: 3000 }]}>
+                    <TouchableOpacity
+                        style={styles.fullScreenTouch}
+                        activeOpacity={1}
+                        onPress={() => setIsStudentSwitcherVisible(false)}
+                    >
+                        {/* Empty container just to catch taps */}
+                    </TouchableOpacity>
+
+                    <View style={styles.dropdownContent}>
+                        <View style={styles.dropdownHeader}>
+                            <Text style={styles.dropdownTitle}>Switch Student</Text>
+                        </View>
+                        <View style={styles.dropdownList}>
+                            <ScrollView
+                                style={{ maxHeight: 300 }}
+                                showsVerticalScrollIndicator={true}
+                                contentContainerStyle={{ paddingBottom: 10 }}
+                            >
+                                {(availableStudents || []).length > 0 ? (
+                                    (availableStudents || []).map((child) => {
+                                        if (!child || !child.id) return null;
+                                        return (
+                                            <TouchableOpacity
+                                                key={child.id}
+                                                style={[
+                                                    styles.dropdownOption,
+                                                    selectedStudent?.id === child.id && styles.selectedDropdownOption
+                                                ]}
+                                                onPress={() => {
+                                                    setSelectedStudent(child);
+                                                    setIsStudentSwitcherVisible(false);
+                                                }}
+                                            >
+                                                <View style={styles.optionAvatarContainer}>
+                                                    <Image
+                                                        source={getAvatarSource(child.photoUrl, 'CHILD')}
+                                                        style={styles.optionAvatar}
+                                                    />
+                                                    {selectedStudent?.id === child.id && (
+                                                        <View style={styles.avatarCheck}>
+                                                            <CheckCircle2 size={12} color="#fff" />
+                                                        </View>
+                                                    )}
+                                                </View>
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={[
+                                                        styles.optionName,
+                                                        selectedStudent?.id === child.id && styles.selectedOptionText
+                                                    ]}>{child.fullName}</Text>
+                                                    <Text style={styles.optionSub}>{child.classroom || 'Nursery'}</Text>
+                                                </View>
+                                            </TouchableOpacity>
+                                        );
+                                    })
+                                ) : (
+                                    <View style={{ padding: 30, alignItems: 'center' }}>
+                                        <Text style={{ ...FONTS.body, color: '#64748B' }}>No other students found</Text>
+                                        <TouchableOpacity
+                                            onPress={() => setIsStudentSwitcherVisible(false)}
+                                            style={{ marginTop: 15, padding: 10 }}
+                                        >
+                                            <Text style={{ color: '#9D5BF0', fontWeight: 'bold' }}>Close</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                            </ScrollView>
+                        </View>
                     </View>
                 </View>
-            </Modal>
-
-            {/* Student Switcher Modal */}
-            <Modal
-                visible={isStudentSwitcherVisible}
-                transparent={true}
-                animationType="slide"
-                onRequestClose={() => setIsStudentSwitcherVisible(false)}
-            >
-                <TouchableOpacity
-                    style={styles.modalOverlay}
-                    activeOpacity={1}
-                    onPress={() => setIsStudentSwitcherVisible(false)}
-                >
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Select Child</Text>
-                            <TouchableOpacity onPress={() => setIsStudentSwitcherVisible(false)}>
-                                <Text style={styles.closeBtn}>Close</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <ScrollView showsVerticalScrollIndicator={false}>
-                            {availableStudents.map((child) => (
-                                <TouchableOpacity
-                                    key={child.id}
-                                    style={[
-                                        styles.childOption,
-                                        selectedStudent?.id === child.id && styles.selectedChildOption
-                                    ]}
-                                    onPress={() => {
-                                        setSelectedStudent(child);
-                                        setIsStudentSwitcherVisible(false);
-                                    }}
-                                >
-                                    <Image
-                                        source={child.photoUrl ? { uri: child.photoUrl } : { uri: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' }}
-                                        style={styles.optionAvatar}
-                                    />
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.optionName}>{child.fullName}</Text>
-                                        <Text style={styles.optionSub}>{child.classroom || 'Nursery'}</Text>
-                                    </View>
-                                    {selectedStudent?.id === child.id && (
-                                        <View style={styles.activeIndicator} />
-                                    )}
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </View>
-                </TouchableOpacity>
-            </Modal>
+            )}
         </View>
     );
 };
@@ -548,13 +646,11 @@ const styles = StyleSheet.create({
         borderRadius: SIZES.radius,
         padding: 15,
         marginBottom: 20,
-        ...StyleSheet.create({
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.05,
-            shadowRadius: 10,
-            elevation: 2,
-        }),
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 2,
     },
     monthDisplay: {
         flexDirection: 'row',
@@ -593,285 +689,529 @@ const styles = StyleSheet.create({
         ...FONTS.h3,
         fontSize: 18,
     },
+    customHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'ios' ? 50 : 40,
+        paddingBottom: 20,
+        backgroundColor: COLORS.white,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+    },
+    customHeaderTitle: {
+        ...FONTS.h2,
+        color: '#1E293B',
+    },
+    headerStudentSwitcher: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 4,
+    },
+    headerStudentName: {
+        ...FONTS.body,
+        fontSize: 14,
+        color: '#64748B',
+        marginHorizontal: 6,
+    },
+    headerMakePaymentBtn: {
+        backgroundColor: '#9D5BF0',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 12,
+        elevation: 2,
+        shadowColor: '#9D5BF0',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+    },
+    headerMakePaymentText: {
+        ...FONTS.h4,
+        color: COLORS.white,
+        marginLeft: 6,
+    },
     historySection: {
         marginTop: 10,
     },
-    sectionTitle: {
-        ...FONTS.h4,
-        color: COLORS.black,
-        marginBottom: 15,
-    },
-    invoiceCard: {
-        backgroundColor: COLORS.white,
-        borderRadius: SIZES.radius,
-        padding: 15,
-        marginBottom: 15,
-        ...StyleSheet.create({
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.05,
-            shadowRadius: 10,
-            elevation: 2,
-        }),
-    },
-    invoiceHeader: {
+    invoiceListItem: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 12,
+        alignItems: 'center',
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
     },
-    invoiceInfo: {
+    invoiceListLeft: {
         flex: 1,
     },
-    invoiceTitle: {
+    invoiceListTitle: {
         ...FONTS.h4,
         fontSize: 16,
-        color: COLORS.black,
+        color: '#1E293B',
     },
-    invoiceDate: {
-        ...FONTS.small,
-        color: COLORS.gray[500],
+    invoiceListDate: {
+        ...FONTS.body,
+        fontSize: 13,
+        color: '#94A3B8',
         marginTop: 2,
     },
-    statusBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
+    invoiceListRight: {
+        alignItems: 'flex-end',
     },
-    statusBadgeText: {
+    invoiceListAmount: {
+        ...FONTS.h3,
+        fontSize: 16,
+        color: '#1E293B',
+        marginBottom: 4,
+    },
+    statusBadgeSmall: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 8,
+    },
+    statusBadgeTextSmall: {
         ...FONTS.small,
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: 'bold',
     },
-    divider: {
-        height: 1,
-        backgroundColor: COLORS.gray[100],
-        marginVertical: 12,
+    paymentInfoBox: {
+        backgroundColor: COLORS.white,
+        borderRadius: 20,
+        padding: 24,
+        marginTop: 20,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
     },
-    invoiceFooter: {
+    paymentInfoTitle: {
+        ...FONTS.h3,
+        fontSize: 18,
+        color: '#475569',
+        marginBottom: 20,
+    },
+    infoRow: {
+        marginBottom: 16,
+    },
+    infoLabel: {
+        ...FONTS.body,
+        fontSize: 13,
+        color: '#94A3B8',
+        marginBottom: 4,
+    },
+    infoValue: {
+        ...FONTS.h4,
+        fontSize: 16,
+        color: '#1E293B',
+    },
+    modalOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContentFull: {
+        backgroundColor: COLORS.white,
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        height: '92%', // Cover more area
+        paddingBottom: Platform.OS === 'ios' ? 40 : 20, // Extra padding for bottom
+    },
+    dropdownOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24
+    },
+    fullScreenTouch: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100%',
+        height: '100%',
+    },
+    dropdownContent: {
+        backgroundColor: COLORS.white,
+        borderRadius: 24,
+        padding: 24,
+        width: '85%',
+        maxWidth: 400,
+        elevation: 20,
+        shadowColor: '#000',
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+        // Center the content in the overlay
+        position: 'relative',
+        zIndex: 3001,
+        alignSelf: 'center',
+    },
+    dropdownHeader: {
+        marginBottom: 20,
+        alignItems: 'center'
+    },
+    dropdownTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#1E293B'
+    },
+    dropdownList: {
+        gap: 12
+    },
+    dropdownOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderRadius: 16,
+        backgroundColor: '#F8FAFC',
+        borderWidth: 1,
+        borderColor: '#F1F5F9'
+    },
+    selectedDropdownOption: {
+        backgroundColor: '#F3EFFF',
+        borderColor: '#9D5BF0'
+    },
+    optionAvatarContainer: {
+        position: 'relative',
+        marginRight: 15,
+        width: 40,
+        height: 40
+    },
+    optionAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#E2E8F0',
+        resizeMode: 'cover'
+    },
+    avatarCheck: {
+        position: 'absolute',
+        bottom: -2,
+        right: -2,
+        backgroundColor: '#9D5BF0',
+        width: 16,
+        height: 16,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1.5,
+        borderColor: '#fff'
+    },
+    selectedOptionText: {
+        color: '#9D5BF0'
+    },
+    modalHeaderBorder: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        padding: 24,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
     },
-    amount: {
+    modalBackBtn: {
+        padding: 4,
+        marginLeft: -10
+    },
+    modalTitleBlack: {
         ...FONTS.h3,
-        fontSize: 18,
-        color: COLORS.black,
+        color: '#000',
     },
-    payButton: {
-        backgroundColor: COLORS.primary,
-        paddingHorizontal: 20,
-        paddingVertical: 8,
-        borderRadius: 20,
-    },
-    payButtonText: {
-        color: COLORS.white,
+    inputLabel: {
+        ...FONTS.h4,
         fontSize: 14,
-        fontWeight: '600',
+        color: '#475569',
+        marginBottom: 8,
+        marginTop: 16,
     },
-    downloadButton: {
+    inputLabelNoMargin: {
+        ...FONTS.h4,
+        fontSize: 14,
+        color: '#475569',
+    },
+    styledInput: {
+        ...FONTS.body,
+        backgroundColor: COLORS.white,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderRadius: 12,
+        padding: 16,
+        fontSize: 15,
+        color: '#1E293B',
+    },
+    yearSelectorRowRefined: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 20,
+        marginBottom: 8,
+    },
+    yearControlsRefined: {
         flexDirection: 'row',
         alignItems: 'center',
+        gap: 15,
+        backgroundColor: '#F8FAFC',
+        paddingHorizontal: 15,
+        paddingVertical: 8,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E2E8F0'
     },
-    downloadText: {
-        ...FONTS.small,
-        color: COLORS.primary,
-        marginLeft: 4,
-        fontWeight: '600',
+    yearValueTextRefined: {
+        ...FONTS.h4,
+        fontSize: 16,
+        color: '#1E293B'
     },
-    emptyState: {
+    monthsGridRefined: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+        justifyContent: 'space-between',
+        marginTop: 10
+    },
+    monthOptionRefined: {
+        width: '23%',
+        aspectRatio: 1.2,
+        backgroundColor: '#F8FAFC',
+        borderRadius: 12,
+        justifyContent: 'center',
         alignItems: 'center',
-        paddingVertical: 40,
+        borderWidth: 1,
+        borderColor: '#E2E8F0'
     },
-    emptyText: {
+    selectedMonthOptionRefined: {
+        backgroundColor: '#F3EFFF',
+        borderColor: '#9D5BF0'
+    },
+    disabledMonthOptionRefined: {
+        backgroundColor: '#F1F5F9',
+        opacity: 0.6
+    },
+    monthOptionTextRefined: {
         ...FONTS.body,
-        color: COLORS.gray[400],
-        marginTop: 10,
+        fontSize: 13,
+        color: '#64748B'
     },
-    // Floating Button (Bottom Right)
-    makePaymentFab: {
+    selectedMonthTextRefined: {
+        ...FONTS.h4,
+        color: '#9D5BF0'
+    },
+    disabledMonthTextRefined: {
+        color: '#94A3B8'
+    },
+    modernMonthSelector: {
+        marginBottom: 20,
+        paddingHorizontal: 5
+    },
+    monthPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 6,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#F1F5F9'
+    },
+    modernMonthNav: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#fff',
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+        shadowRadius: 5
+    },
+    modernMonthDisplay: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10
+    },
+    modernMonthText: {
+        ...FONTS.h4,
+        fontSize: 15,
+        color: '#1E293B',
+        fontWeight: 'bold'
+    },
+    headerAvatarSwitcher: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        borderWidth: 2,
+        borderColor: '#9D5BF0',
+        padding: 2,
+        backgroundColor: '#F3EFFF',
+        position: 'relative'
+    },
+    headerAvatar: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 20
+    },
+    headerAvatarBadge: {
+        position: 'absolute',
+        bottom: -2,
+        right: -2,
+        backgroundColor: '#9D5BF0',
+        width: 16,
+        height: 16,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1.5,
+        borderColor: '#fff'
+    },
+    bottomActions: {
+        padding: 20,
+        backgroundColor: '#fff',
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9'
+    },
+    mainMakePaymentBtn: {
+        width: '100%',
+        borderRadius: 16,
+        overflow: 'hidden',
+        elevation: 4,
+        shadowColor: '#9D5BF0',
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+    },
+    gradientBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 16,
+        gap: 10
+    },
+    mainMakePaymentText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold'
+    },
+    customHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingTop: Platform.OS === 'ios' ? 44 : 20,
+        height: Platform.OS === 'ios' ? 94 : 74,
+        backgroundColor: COLORS.white,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+    },
+    headerBackBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#F8FAFC',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    customHeaderTitle: {
+        ...FONTS.h3,
+        fontSize: 18,
+        color: '#1E293B',
+        fontWeight: 'bold'
+    },
+    fab: {
         position: 'absolute',
         bottom: 30,
         right: 24,
         backgroundColor: '#9D5BF0',
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+        borderRadius: 30,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 14,
-        borderRadius: 28,
-        elevation: 10,
+        gap: 8,
+        elevation: 8,
         shadowColor: '#9D5BF0',
         shadowOpacity: 0.4,
         shadowRadius: 10,
+        zIndex: 1000,
     },
-    makePaymentFabText: {
+    fabText: {
         color: '#fff',
         fontWeight: 'bold',
-        fontSize: 15,
-        marginLeft: 8,
+        fontSize: 16
     },
-
-    // Multi-month styles
-    miniStudentOption: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F1F5F9', marginRight: 8, borderWidth: 1, borderColor: '#E2E8F0' },
-    selectedMiniOption: { backgroundColor: '#F3EFFF', borderColor: '#9D5BF0' },
-    miniOptionText: { fontSize: 13, color: '#64748B', fontWeight: '600' },
-    selectedMiniText: { color: '#9D5BF0' },
-
-    monthsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-    monthOption: { width: '23%', aspectRatio: 1.2, backgroundColor: '#F8FAFC', borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
-    selectedMonthOption: { backgroundColor: '#F3EFFF', borderColor: '#9D5BF0' },
-    monthOptionText: { fontSize: 13, color: '#64748B', fontWeight: '500' },
-    selectedMonthText: { color: '#9D5BF0', fontWeight: 'bold' },
-
-    // Modal Styles
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-    modalContent: {
-        backgroundColor: '#F8F9FB',
-        borderTopLeftRadius: 32,
-        borderTopRightRadius: 32,
-        padding: 24,
-        paddingBottom: 40,
-        maxHeight: Dimensions.get('window').height * 0.85
-    },
-    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-    modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#9D5BF0' },
-
-    paymentCard: {
-        backgroundColor: '#fff',
-        borderRadius: 24,
-        padding: 20,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-    },
-    yearSelectorRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, marginBottom: 8 },
-    yearControls: { flexDirection: 'row', alignItems: 'center', gap: 15, backgroundColor: '#F8FAFC', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' },
-    yearValueText: { fontSize: 16, fontWeight: 'bold', color: '#1E293B' },
-    disabledMonthOption: { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0', opacity: 0.6 },
-    disabledMonthText: { color: '#94A3B8' },
-    modalLabel: { fontSize: 13, fontWeight: '600', color: '#64748B', marginBottom: 8 },
-
-    paymentInput: {
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        padding: 12,
-        borderRadius: 12,
-        fontSize: 15,
-        color: '#1E293B'
-    },
-
-    uploadDashedBox: {
+    uploadBoxRefined: {
         height: 120,
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        borderStyle: 'dashed',
         borderWidth: 1,
-        borderColor: '#CBD5E1',
+        borderColor: '#E2E8F0',
+        borderStyle: 'dashed',
+        borderRadius: 16,
         justifyContent: 'center',
         alignItems: 'center',
-        marginVertical: 10,
+        backgroundColor: '#F8FAFC',
+        marginTop: 4,
         overflow: 'hidden'
     },
-    uploadPlaceholder: { alignItems: 'center' },
-    cloudCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F5F3FF', justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
-    uploadMainText: { fontWeight: 'bold', color: '#1E293B', fontSize: 13 },
-    uploadSubText: { color: '#94A3B8', fontSize: 10, marginTop: 2 },
-    previewImage: { width: '100%', height: '100%' },
-
-    submitPaymentBtn: { backgroundColor: '#A594F9', borderRadius: 16, height: 56, justifyContent: 'center', alignItems: 'center', marginTop: 24 },
-    submitPaymentBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-
-    // Standard Switcher Styles
-    childHeaderSwitcher: {
-        flexDirection: 'row',
+    uploadContent: {
         alignItems: 'center',
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: 22,
-        backgroundColor: '#F3EFFF',
-        borderWidth: 1,
-        borderColor: '#9D5BF0',
-        minWidth: 80,
-        justifyContent: 'center'
     },
-    childHeaderSwitcherText: {
-        fontSize: 13,
-        fontWeight: 'bold',
-        color: '#9D5BF0',
-        marginRight: 4
+    uploadLink: {
+        ...FONTS.body,
+        fontSize: 14,
+        color: '#64748B',
+        marginTop: 8,
     },
-    childOption: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 16,
-        borderRadius: 16,
-        marginBottom: 12,
-        backgroundColor: '#F9FAFB',
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-    },
-    selectedChildOption: {
-        backgroundColor: '#F3EFFF',
-        borderColor: '#9D5BF0',
-    },
-    optionAvatar: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        marginRight: 16,
-    },
-    optionName: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#1F2937',
-    },
-    optionSub: {
-        fontSize: 13,
-        color: '#6B7280',
+    uploadHint: {
+        ...FONTS.body,
+        fontSize: 12,
+        color: '#94A3B8',
         marginTop: 2,
     },
-    activeIndicator: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: '#9D5BF0',
+    uploadedImage: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover'
     },
-    closeBtn: {
-        color: '#9D5BF0',
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    paymentSummaryCard: {
-        backgroundColor: '#F5F3FF',
-        borderRadius: 16,
-        padding: 15,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#DDD6FE',
-    },
-    summaryCardTitle: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: '#4B5563',
-        marginBottom: 10,
-    },
-    summaryCardRow: {
+    modalFooterBtns: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 5,
+        gap: 12,
+        marginTop: 32,
+        marginBottom: 80, // Increased for keyboard clearance
     },
-    summaryCardLabel: {
-        fontSize: 13,
-        color: '#6B7280',
-    },
-    summaryCardValue: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#1F2937',
+    cancelBtn: {
         flex: 1,
-        textAlign: 'right',
-        marginLeft: 10,
+        paddingVertical: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        alignItems: 'center',
     },
+    cancelBtnText: {
+        ...FONTS.h4,
+        fontSize: 16,
+        color: '#64748B',
+    },
+    submitBtnRefined: {
+        flex: 2,
+        backgroundColor: '#9D5BF0',
+        paddingVertical: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    submitBtnTextRefined: {
+        ...FONTS.h4,
+        fontSize: 16,
+        color: COLORS.white,
+    }
 });
 
 export default PaymentHistoryScreen;

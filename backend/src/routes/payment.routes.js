@@ -7,6 +7,7 @@ router.use(authenticateToken);
 
 const upload = require('../middlewares/upload.middleware');
 
+router.get('/history', authorizeRole(['SUPER_ADMIN', 'ADMIN']), paymentController.getPaymentHistory);
 router.get('/pending', authorizeRole(['SUPER_ADMIN', 'ADMIN']), paymentController.getPendingPayments);
 router.post('/submit', upload.single('receipt'), paymentController.submitPayment);
 router.post('/verify', authorizeRole(['SUPER_ADMIN', 'ADMIN']), paymentController.verifyPayment);

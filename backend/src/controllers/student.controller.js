@@ -172,7 +172,7 @@ exports.getStudentById = async (req, res, next) => {
                     include: {
                         teacherprofile: {
                             where: { designation: 'LEAD' },
-                            include: { user: { select: { fullName: true } } }
+                            include: { user: { select: { id: true, fullName: true, role: true } } }
                         }
                     }
                 },
@@ -187,6 +187,23 @@ exports.getStudentById = async (req, res, next) => {
             }
         });
         if (!student) return res.status(404).json({ message: 'Student not found' });
+
+        // Fetch all teachers in this classroom
+        const classroomTeachers = await prisma.teacherprofile.findMany({
+            where: { assignedClassroomId: student.classroomId },
+            include: { user: { select: { id: true, fullName: true, role: true } } }
+        });
+
+        // Fetch Super Admins
+        const superAdmins = await prisma.user.findMany({
+            where: { role: 'SUPER_ADMIN', status: 'ACTIVE' },
+            select: { id: true, fullName: true, role: true }
+        });
+
+        const availableStaff = [
+            ...classroomTeachers.map(t => ({ id: t.user.id, name: t.user.fullName, role: t.user.role, isLead: t.designation === 'LEAD' })),
+            ...superAdmins.map(a => ({ id: a.id, name: a.fullName, role: 'ADMIN', isLead: false }))
+        ];
 
         // Calculate Summary for the requested month (or current month if none)
         // Note: use Prisma aggregate for efficiency in real app, but filter here is fine for now
@@ -215,7 +232,8 @@ exports.getStudentById = async (req, res, next) => {
                 present: presentCount,
                 total: totalDays,
                 percentage: attendancePercentage
-            }
+            },
+            availableStaff // Added for teacher selection
         });
     } catch (error) {
         next(error);

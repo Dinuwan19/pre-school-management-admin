@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Table, Tag, Modal, Form, Input, DatePicker, TimePicker, Select, Typography, message, Space, Tabs, Row, Col } from 'antd';
-import { CalendarOutlined, PlusOutlined, EnvironmentOutlined, UserOutlined } from '@ant-design/icons';
+import { CalendarOutlined, PlusOutlined, EnvironmentOutlined, UserOutlined, FileTextOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import mockApi from '../api/client';
 import dayjs from 'dayjs';
 
@@ -74,6 +74,25 @@ const Events = () => {
         }
     };
 
+    // Verify user role for Approval permission
+    // Assuming we have access to user payload (need to import useAuth)
+    // But since this is inside the component, we can assume we might need to fetch user.
+    // However, MainLayout passed it? No.
+    // Let's import useAuth.
+
+    // TEMPORARY: Adding useAuth hook at top level.
+    // const { user } = useAuth(); // Need to add this to component body logic.
+
+    const handleApproveEvent = async (id) => {
+        try {
+            await mockApi.put(`/events/${id}/approve`); // New Endpoint
+            message.success('Event approved and published');
+            fetchEvents();
+        } catch (error) {
+            message.error('Failed to approve event');
+        }
+    };
+
     const eventColumns = [
         {
             title: 'Event',
@@ -106,17 +125,31 @@ const Events = () => {
             render: (status) => {
                 let color = 'default';
                 if (status === 'UPCOMING') color = 'blue';
+                if (status === 'PUBLISHED') color = 'blue';
                 if (status === 'COMPLETED') color = 'green';
                 if (status === 'CANCELLED') color = 'red';
+                if (status === 'PENDING') color = 'orange';
                 return <Tag color={color}>{status}</Tag>;
             },
         },
+
         {
-            title: 'Attendees',
-            dataIndex: 'attendees',
-            key: 'attendees',
-            render: (count) => <Space><UserOutlined /> {count || 0}</Space>,
-        },
+            title: 'Action',
+            key: 'action',
+            render: (_, record) => (
+                record.status === 'PENDING' && (
+                    <Button
+                        type="dashed"
+                        size="small"
+                        icon={<CheckCircleOutlined />}
+                        onClick={() => handleApproveEvent(record.id)}
+                        style={{ borderColor: '#52c41a', color: '#52c41a' }}
+                    >
+                        Approve
+                    </Button>
+                )
+            )
+        }
     ];
 
     const waitingListColumns = [
@@ -197,6 +230,9 @@ const Events = () => {
                     </Form.Item>
                     <Form.Item name="description" label="Description">
                         <TextArea rows={3} />
+                    </Form.Item>
+                    <Form.Item name="mediaUrl" label="Media URL (Optional)">
+                        <Input placeholder="https://example.com/image.jpg" prefix={<FileTextOutlined />} />
                     </Form.Item>
                     <Row gutter={16}>
                         <Col span={12}>

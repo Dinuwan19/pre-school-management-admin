@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Switch, Alert, ActivityIndicator, Modal, TextInput, TouchableWithoutFeedback, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Switch, Alert, ActivityIndicator, Modal, TextInput, TouchableWithoutFeedback, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,6 +19,7 @@ import {
 } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 import CommonHeader from '../components/CommonHeader';
+import { AVATARS, getAvatarSource } from '../constants/avatars';
 import { updateParentProfile } from '../services/child.service';
 
 const ProfileScreen = ({ navigation }) => {
@@ -32,14 +33,7 @@ const ProfileScreen = ({ navigation }) => {
     const [passwordData, setPasswordData] = useState({ current: '', new: '', confirm: '' });
     const [submitting, setSubmitting] = useState(false);
 
-    const avatars = [
-        'https://cdn-icons-png.flaticon.com/512/4140/4140048.png',
-        'https://cdn-icons-png.flaticon.com/512/4140/4140047.png',
-        'https://cdn-icons-png.flaticon.com/512/4140/4140051.png',
-        'https://cdn-icons-png.flaticon.com/512/4140/4140049.png',
-        'https://cdn-icons-png.flaticon.com/512/4140/4140052.png',
-        'https://cdn-icons-png.flaticon.com/512/4140/4140050.png',
-    ];
+    const avatarKeys = Object.keys(AVATARS.PARENT);
 
     useFocusEffect(
         useCallback(() => {
@@ -120,7 +114,7 @@ const ProfileScreen = ({ navigation }) => {
                             onPress={() => setIsAvatarModalVisible(true)}
                         >
                             <Image
-                                source={profile?.photoUrl ? { uri: profile.photoUrl } : { uri: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' }}
+                                source={getAvatarSource(profile?.photoUrl, 'PARENT')}
                                 style={styles.avatar}
                             />
                             <View style={styles.editBadge}>
@@ -227,16 +221,16 @@ const ProfileScreen = ({ navigation }) => {
                                 </View>
 
                                 <View style={styles.avatarGrid}>
-                                    {avatars.map((url, index) => (
+                                    {avatarKeys.map((key) => (
                                         <TouchableOpacity
-                                            key={index}
+                                            key={key}
                                             style={styles.avatarOption}
                                             onPress={() => {
-                                                handleUpdateProfile({ photoUrl: url });
+                                                handleUpdateProfile({ photoUrl: key });
                                                 setIsAvatarModalVisible(false);
                                             }}
                                         >
-                                            <Image source={{ uri: url }} style={styles.gridAvatar} />
+                                            <Image source={AVATARS.PARENT[key]} style={styles.gridAvatar} />
                                         </TouchableOpacity>
                                     ))}
                                 </View>
@@ -250,46 +244,52 @@ const ProfileScreen = ({ navigation }) => {
                 </TouchableWithoutFeedback>
             </Modal>
 
-            {/* Field Edit Modal */}
             <Modal
                 visible={isEditModalVisible}
                 transparent={true}
                 animationType="fade"
                 onRequestClose={() => setIsEditModalVisible(false)}
             >
-                <TouchableWithoutFeedback onPress={() => setIsEditModalVisible(false)}>
-                    <View style={styles.modalOverlay}>
-                        <TouchableWithoutFeedback>
-                            <View style={[styles.modalView, { paddingBottom: 40 }]}>
-                                <Text style={styles.modalTitle}>Edit {editField.label}</Text>
-                                <TextInput
-                                    style={styles.modalInput}
-                                    value={editField.value}
-                                    onChangeText={(text) => setEditField({ ...editField, value: text })}
-                                    placeholder={`Enter ${editField.label}`}
-                                    autoFocus={true}
-                                />
-                                <View style={styles.modalActions}>
-                                    <TouchableOpacity
-                                        style={[styles.modalBtn, styles.cancelBtn]}
-                                        onPress={() => setIsEditModalVisible(false)}
-                                    >
-                                        <Text style={styles.cancelBtnText}>Cancel</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={[styles.modalBtn, styles.saveBtn]}
-                                        onPress={() => {
-                                            handleUpdateProfile({ [editField.key]: editField.value });
-                                            setIsEditModalVisible(false);
-                                        }}
-                                    >
-                                        <Text style={styles.saveBtnText}>Save</Text>
-                                    </TouchableOpacity>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
+                >
+                    <TouchableWithoutFeedback onPress={() => setIsEditModalVisible(false)}>
+                        <View style={styles.modalOverlay}>
+                            <TouchableWithoutFeedback>
+                                <View style={[styles.modalView, { paddingBottom: 40 }]}>
+                                    <Text style={styles.modalTitle}>Edit {editField.label}</Text>
+
+                                    <TextInput
+                                        style={styles.modalInput}
+                                        value={editField.value}
+                                        onChangeText={(text) => setEditField({ ...editField, value: text })}
+                                        placeholder={`Enter ${editField.label}`}
+                                        autoFocus={true}
+                                        placeholderTextColor="#94A3B8"
+                                    />
+                                    <View style={styles.modalActions}>
+                                        <TouchableOpacity
+                                            style={[styles.modalBtn, styles.cancelBtn]}
+                                            onPress={() => setIsEditModalVisible(false)}
+                                        >
+                                            <Text style={styles.cancelBtnText}>Cancel</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.modalBtn, styles.saveBtn]}
+                                            onPress={() => {
+                                                handleUpdateProfile({ [editField.key]: editField.value });
+                                                setIsEditModalVisible(false);
+                                            }}
+                                        >
+                                            <Text style={styles.saveBtnText}>Save</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
-                            </View>
-                        </TouchableWithoutFeedback>
-                    </View>
-                </TouchableWithoutFeedback>
+                            </TouchableWithoutFeedback>
+                        </View>
+                    </TouchableWithoutFeedback>
+                </KeyboardAvoidingView>
             </Modal>
             {/* Change Password Modal */}
             <Modal

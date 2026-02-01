@@ -1,13 +1,14 @@
 import api from '../config/api';
 
-export const requestMeeting = async (studentId, title, description, requestDate, preferredTime) => {
+export const requestMeeting = async (studentId, title, description, requestDate, preferredTime, teacherId) => {
     try {
         const response = await api.post('/meetings/request', {
             studentId,
             title,
             description,
             requestDate,
-            preferredTime
+            preferredTime,
+            teacherId
         });
         return response.data;
     } catch (error) {

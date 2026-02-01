@@ -73,7 +73,9 @@ exports.getAllNotifications = async (req, res, next) => {
             where = {
                 OR: [
                     { targetRole: 'ALL' },
-                    { targetRole: 'PARENT' },
+                    // Fix: Only show PARENT notifications if they are Global (null target) OR targeted to this user
+                    { targetRole: 'PARENT', targetParentId: null },
+                    { targetParentId: id },
                     { targetClassroomId: { in: classroomIds } }
                 ]
             };

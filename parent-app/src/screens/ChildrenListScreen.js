@@ -5,7 +5,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getLinkedChildren } from '../services/child.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-    Zap,
     ChevronRight,
     CheckCircle2,
     Phone,
@@ -14,6 +13,7 @@ import {
 } from 'lucide-react-native';
 
 import { COLORS } from '../constants/theme';
+import { AVATARS, getAvatarSource } from '../constants/avatars';
 import CommonHeader from '../components/CommonHeader';
 
 const ChildrenListScreen = ({ navigation }) => {
@@ -64,10 +64,7 @@ const ChildrenListScreen = ({ navigation }) => {
                     end={{ x: 1, y: 1 }}
                 >
                     <View style={styles.headerContent}>
-                        <View style={styles.greetingRow}>
-                            <Zap size={24} color="#FFD700" fill="#FFD700" />
-                            <Text style={styles.headerSubtext}>Track progress and manage your children's education</Text>
-                        </View>
+                        <Text style={styles.headerSubtext}>Track progress and manage your children's education</Text>
                     </View>
                     <View style={styles.headerWave} />
                 </LinearGradient>
@@ -81,7 +78,7 @@ const ChildrenListScreen = ({ navigation }) => {
                                     <View style={styles.avatarColumn}>
                                         <View style={styles.avatarWrapper}>
                                             <Image
-                                                source={child?.photoUrl ? { uri: child.photoUrl } : { uri: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' }}
+                                                source={getAvatarSource(child?.photoUrl, 'CHILD')}
                                                 style={styles.avatar}
                                             />
                                         </View>
@@ -117,7 +114,7 @@ const ChildrenListScreen = ({ navigation }) => {
                 ) : (
                     <View style={styles.emptyContainer}>
                         <View style={styles.emptyIconBox}>
-                            <Zap size={48} color="#94A3B8" />
+                            <Users size={48} color="#94A3B8" />
                         </View>
                         <Text style={styles.emptyTitle}>No Children Enrolled</Text>
                         <Text style={styles.emptySubtext}>It looks like no students are linked to your account yet. Please contact the administration.</Text>

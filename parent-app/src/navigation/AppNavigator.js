@@ -1,11 +1,12 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Home, Users, CreditCard, Bell, Settings } from 'lucide-react-native';
+import { Home, Users, CreditCard, Bell, Settings, Calendar } from 'lucide-react-native';
 
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
 import DashboardScreen from '../screens/DashboardScreen';
+import EventsScreen from '../screens/EventsScreen';
 import MeetingsScreen from '../screens/MeetingsScreen';
 import StudentProfileScreen from '../screens/StudentProfileScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -19,6 +20,8 @@ import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
+import UpdatesScreen from '../screens/UpdatesScreen';
+
 const TabNavigator = () => {
     return (
         <Tab.Navigator
@@ -27,21 +30,22 @@ const TabNavigator = () => {
                 tabBarActiveTintColor: '#9D5BF0',
                 tabBarInactiveTintColor: '#9CA3AF',
                 tabBarStyle: {
-                    height: 65,
-                    paddingBottom: 10,
+                    height: 70,
+                    paddingBottom: 12,
                     paddingTop: 10,
                     backgroundColor: '#FFFFFF',
                     borderTopWidth: 1,
                     borderTopColor: '#F3F4F6',
-                    elevation: 5,
+                    elevation: 10,
                     shadowColor: '#000',
-                    shadowOffset: { width: 0, height: -2 },
+                    shadowOffset: { width: 0, height: -4 },
                     shadowOpacity: 0.05,
                     shadowRadius: 10,
                 },
                 tabBarLabelStyle: {
-                    fontSize: 12,
-                    fontWeight: '600',
+                    fontSize: 10,
+                    fontWeight: '700',
+                    marginTop: 4,
                 },
                 tabBarIcon: ({ color, size }) => {
                     if (route.name === 'Home') return <Home size={22} color={color} />;
@@ -55,7 +59,7 @@ const TabNavigator = () => {
             <Tab.Screen name="Home" component={DashboardScreen} />
             <Tab.Screen name="Students" component={ChildrenListScreen} />
             <Tab.Screen name="Payments" component={PaymentHistoryScreen} />
-            <Tab.Screen name="Updates" component={MeetingsScreen} />
+            <Tab.Screen name="Updates" component={UpdatesScreen} options={{ tabBarLabel: 'Updates' }} />
             <Tab.Screen name="Settings" component={ProfileScreen} />
         </Tab.Navigator>
     );

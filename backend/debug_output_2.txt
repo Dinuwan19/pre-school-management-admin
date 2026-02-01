@@ -1,0 +1,12 @@
+--- Checking Last 5 Notifications ---
+[ID: 11] Title: Fee Reminder, Role: PARENT, TargetParentID: 3, TargetClassRoomID: null
+[ID: 2] Title: holiday, Role: ALL, TargetParentID: null, TargetClassRoomID: null
+
+--- Checking ALL Parents ---
+Name: Parent_02, ParentID: 1, UserID: 1, Username: parent1
+Name: Pasindu dinuwan, ParentID: 2, UserID: 3, Username: pasindu
+Name: Parent_03, ParentID: 3, UserID: null, Username: undefined
+Name: parent_04, ParentID: 5, UserID: null, Username: undefined
+Name: parent_05, ParentID: 6, UserID: null, Username: undefined
+Name: parent_06, ParentID: 7, UserID: null, Username: undefined
+Name: nadeesha, ParentID: 8, UserID: 8, Username: nadeesha

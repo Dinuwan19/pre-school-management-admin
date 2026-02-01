@@ -12,6 +12,7 @@ router.get('/:id', checkClassroomScope, eventController.getEventById);
 
 // Manage events
 router.post('/', checkClassroomScope, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'TEACHER']), eventController.createEvent);
+router.put('/:id/approve', authorizeRole(['SUPER_ADMIN', 'ADMIN']), eventController.approveEvent);
 router.put('/:id/status', authorizeRole(['SUPER_ADMIN', 'ADMIN']), eventController.updateEventStatus);
 
 // Waiting List

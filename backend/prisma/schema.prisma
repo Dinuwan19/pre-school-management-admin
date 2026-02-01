@@ -145,6 +145,7 @@ model parent {
   phone                                  String?             @unique(map: "Parent_phone_key")
   email                                  String?             @unique(map: "Parent_email_key")
   photoUrl                               String?
+  avatarType                             avatar_type         @default(ADULT)
   verificationCode                       String?             @unique
   status                                 parent_status       @default(ACTIVE)
   createdAt                              DateTime            @default(now())
@@ -182,6 +183,7 @@ model student {
   medicalInfo                           String?           @db.Text
   emergencyContact                      String?
   photoUrl                              String?
+  avatarType                            avatar_type       @default(CHILD)
   birthCertPdf                          String?
   parentId                              Int
   secondParentId                        Int?
@@ -380,6 +382,7 @@ model event {
   startTime          String?
   endTime            String?
   location           String?
+  mediaUrl           String?
   status             event_status         @default(UPCOMING)
   createdById        Int
   createdAt          DateTime             @default(now())
@@ -417,10 +420,13 @@ model event_waiting_list {
 }
 
 enum event_status {
+  DRAFT
+  PENDING
+  APPROVED
+  PUBLISHED
   UPCOMING
   COMPLETED
   CANCELLED
-  PENDING
 }
 
 model otp {
@@ -452,4 +458,9 @@ model tempPasswordLog {
   user         user     @relation(fields: [userId], references: [id])
 
   @@index([userId], map: "TempPasswordLog_userId_fkey")
+}
+
+enum avatar_type {
+  ADULT
+  CHILD
 }

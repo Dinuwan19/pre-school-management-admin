@@ -2,8 +2,11 @@ const prisma = require('../config/prisma');
 
 exports.createEvent = async (req, res, next) => {
     try {
-        const { title, description, eventDate, startTime, endTime, location } = req.body;
+        const { title, description, eventDate, startTime, endTime, location, mediaUrl } = req.body;
         const isTeacher = req.user.role === 'TEACHER' || req.user.role === 'STAFF';
+
+        // If Teacher, status is PENDING. If Admin, status is UPCOMING (Published).
+        const status = isTeacher ? 'PENDING' : 'UPCOMING';
 
         const event = await prisma.event.create({
             data: {
@@ -13,12 +16,40 @@ exports.createEvent = async (req, res, next) => {
                 startTime,
                 endTime,
                 location,
-                status: isTeacher ? 'PENDING' : 'UPCOMING',
+                mediaUrl,
+                status,
                 createdById: req.user.id
             }
         });
 
+        // Log action
+        const auditService = require('../services/audit.service');
+        auditService.logAction(req.user.id, 'CREATE_EVENT', `EventID: ${event.id}, Status: ${status}`);
+
         res.status(201).json(event);
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.approveEvent = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        // Only Super Admin or Admin can approve
+        if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+            return res.status(403).json({ message: 'Only Admins can approve events.' });
+        }
+
+        const event = await prisma.event.update({
+            where: { id: parseInt(id) },
+            data: { status: 'UPCOMING' } // UPCOMING = Published/Approved
+        });
+
+        const auditService = require('../services/audit.service');
+        auditService.logAction(req.user.id, 'APPROVE_EVENT', `EventID: ${event.id}`);
+
+        res.json(event);
     } catch (error) {
         next(error);
     }
@@ -39,6 +70,10 @@ exports.getAllEvents = async (req, res, next) => {
 
         if (status && status !== 'All Events') {
             where.status = status.toUpperCase();
+        } else if (req.user.role === 'TEACHER') {
+            // Teachers should see their own Pending/Draft events? 
+            // Or maybe just show UPCOMING/COMPLETED by default?
+            // For now, keep existing logic but allow filtering.
         }
 
         const events = await prisma.event.findMany({

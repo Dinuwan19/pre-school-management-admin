@@ -233,34 +233,49 @@ exports.getParentStats = async (req, res, next) => {
         }));
 
         // 4. Upcoming Events (Meetings + School Events)
-        const meetings = await prisma.meeting_request.findMany({
-            where: { parentId: parent.id, status: 'APPROVED', requestDate: { gte: new Date() } },
-            take: 3,
-            orderBy: { requestDate: 'asc' }
-        });
-
         // 5. Recent Updates (Notifications tailored to children's classrooms)
         const classroomIds = children.map(c => c.classroomId);
-        const updates = await prisma.notification.findMany({
-            where: {
-                OR: [
-                    { targetRole: 'ALL' },
-                    { targetRole: 'PARENT' },
-                    { targetClassroomId: { in: classroomIds } }
-                ]
-            },
-            take: 5,
-            orderBy: { createdAt: 'desc' }
-        });
+
+        const [meetings, schoolEvents, updates] = await Promise.all([
+            prisma.meeting_request.findMany({
+                where: { parentId: parent.id, status: 'APPROVED', requestDate: { gte: new Date() } },
+                take: 3,
+                orderBy: { requestDate: 'asc' }
+            }),
+            prisma.event.findMany({
+                where: { status: { in: ['UPCOMING', 'PUBLISHED'] }, eventDate: { gte: new Date() } },
+                take: 5,
+                orderBy: { eventDate: 'asc' }
+            }),
+            prisma.notification.findMany({
+                where: {
+                    OR: [
+                        { targetRole: 'ALL' },
+                        // Fix for dashboard leak:
+                        { targetRole: 'PARENT', targetParentId: null }, // Only global parent alerts
+                        { targetParentId: parent.userId }, // Personal alerts
+                        { targetClassroomId: { in: classroomIds } }
+                    ]
+                },
+                take: 5,
+                orderBy: { createdAt: 'desc' }
+            })
+        ]);
+
+        // Better sorting: sort before mapping
+        const sortedCombined = [
+            ...meetings.map(m => ({ ...m, sortDate: m.requestDate, uiType: 'MEETING' })),
+            ...schoolEvents.map(e => ({ ...e, sortDate: e.eventDate, uiType: 'EVENT' }))
+        ].sort((a, b) => new Date(a.sortDate) - new Date(b.sortDate)).slice(0, 5);
 
         res.json({
             children: childrenStats,
-            upcomingEvents: meetings.map(m => ({
-                id: m.id,
-                title: m.title,
-                date: dayjs(m.requestDate).format('MMM DD'),
-                time: m.preferredTime || 'TBD',
-                type: 'MEETING'
+            upcomingEvents: sortedCombined.map(ev => ({
+                id: ev.id,
+                title: ev.title,
+                date: dayjs(ev.sortDate).format('MMM DD'),
+                time: ev.uiType === 'MEETING' ? (ev.preferredTime || 'TBD') : (ev.startTime || 'All Day'),
+                type: ev.uiType
             })),
             updates: updates.map(u => ({
                 id: u.id,

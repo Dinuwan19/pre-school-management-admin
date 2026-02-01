@@ -100,6 +100,13 @@ exports.getAllBillings = async (req, res, next) => {
             include: {
                 student: {
                     select: { fullName: true, studentUniqueId: true }
+                },
+                billingpayment: {
+                    include: {
+                        payment: {
+                            include: { user: true }
+                        }
+                    }
                 }
             },
             orderBy: { billingMonth: 'desc' }
@@ -124,17 +131,23 @@ exports.notifyUnpaid = async (req, res, next) => {
         // In a real app, this would send an SMS/Email. 
         // For this project, we create a Notification record for the Parent.
 
+        const parentUser = billing.student.parent_student_parentIdToparent;
+        if (!parentUser || !parentUser.userId) {
+            return res.status(400).json({ message: 'Parent user account not found for this student' });
+        }
+
         const notification = await prisma.notification.create({
             data: {
                 title: 'Fee Reminder',
                 message: `Please complete the school fee payment for ${billing.billingMonth} for ${billing.student.fullName}.`,
-                targetRole: 'PARENT',
+                targetRole: 'PERSONAL', // Changed from PARENT to prevent broadcast overlap
+                targetParentId: parentUser.userId, // Targeted notification
                 billingMonth: billing.billingMonth,
                 createdById: req.user.id
             }
         });
 
-        res.json({ message: 'Notification sent', notification });
+        res.json({ message: 'Notification sent to parent', notification });
     } catch (error) {
         next(error);
     }
@@ -142,11 +155,6 @@ exports.notifyUnpaid = async (req, res, next) => {
 
 exports.getOverdueBillings = async (req, res, next) => {
     try {
-        // Find UNPAID billings.
-        // In a real system, we'd check if currentDate > billingMonth + 1 month or something.
-        // For now, any UNPAID is considered potentially overdue or just pending.
-        // Let's assume we want all UNPAID billings to track them.
-
         const billings = await prisma.billing.findMany({
             where: { status: 'UNPAID' },
             include: {
@@ -161,7 +169,31 @@ exports.getOverdueBillings = async (req, res, next) => {
             orderBy: { billingMonth: 'desc' }
         });
 
-        res.json(billings);
+        // Business Rule: "Overdue" means unpaid after the 5th of the month.
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonthIndex = now.getMonth(); // 0-11
+        const currentDay = now.getDate();
+
+        const overdueBillings = billings.filter(bill => {
+            // Heuristic: Check createdAt or billingMonth string
+            // Assuming billingMonth strings (e.g. "January" or "2024-01")
+
+            // 1. If bill is old (created before this month), it's definitely overdue
+            const billDate = new Date(bill.createdAt);
+            if (billDate.getMonth() < currentMonthIndex || billDate.getFullYear() < currentYear) {
+                return true;
+            }
+
+            // 2. If bill is current month, check if today > 5th
+            if (billDate.getMonth() === currentMonthIndex && billDate.getFullYear() === currentYear) {
+                return currentDay > 5;
+            }
+
+            return false;
+        });
+
+        res.json(overdueBillings);
     } catch (error) {
         next(error);
     }
@@ -233,7 +265,16 @@ exports.getDashboardStats = async (req, res, next) => {
                 id: `PAY-${p.id}`,
                 date: p.createdAt,
                 amount: parseFloat(p.amountPaid),
-                details: p.billingpayment?.[0]?.billing?.student?.fullName || 'Unknown Student',
+                details: (() => {
+                    const linkedName = p.billingpayment?.[0]?.billing?.student?.fullName;
+                    if (linkedName) return linkedName;
+
+                    if (p.transactionRef) {
+                        const match = p.transactionRef.match(/\[Student:\s(.*?)]/);
+                        if (match) return match[1];
+                    }
+                    return 'Unknown Student';
+                })(),
                 method: p.paymentMethod,
                 ref: p.transactionRef
             })),

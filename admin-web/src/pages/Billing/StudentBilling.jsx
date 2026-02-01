@@ -12,6 +12,7 @@ const StudentBilling = () => {
     const { user } = useAuth();
     const [billings, setBillings] = useState([]);
     const [overdueBillings, setOverdueBillings] = useState([]);
+    const [historyPayments, setHistoryPayments] = useState([]);
     const [pendingPayments, setPendingPayments] = useState([]);
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -22,6 +23,7 @@ const StudentBilling = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
+            // Critical Data
             const [billRes, payRes, stuRes, overdueRes] = await Promise.all([
                 api.get('/billing'),
                 api.get('/payments/pending'),
@@ -32,6 +34,19 @@ const StudentBilling = () => {
             setPendingPayments(payRes.data);
             setStudents(stuRes.data);
             setOverdueBillings(overdueRes.data);
+
+            // Non-Critical Data (History) - Fetch separately to avoid blocking
+            try {
+                const historyRes = await api.get('/payments/history');
+                if (Array.isArray(historyRes.data)) {
+                    setHistoryPayments(historyRes.data);
+                } else {
+                    console.warn('History data is not an array:', historyRes.data);
+                    setHistoryPayments([]);
+                }
+            } catch (histError) {
+                console.warn('Failed to fetch payment history:', histError);
+            }
         } catch (error) {
             console.error(error);
             message.error('Failed to load billing data');
@@ -39,6 +54,58 @@ const StudentBilling = () => {
             setLoading(false);
         }
     };
+
+    const historyColumns = [
+        {
+            title: 'Student',
+            key: 'student',
+            render: (_, item) => {
+                try {
+                    let name = item?.billingpayment?.[0]?.billing?.student?.fullName;
+                    if (!name && item?.transactionRef) {
+                        const match = item.transactionRef.match(/\[Student:\s(.*?)]/);
+                        if (match) name = match[1];
+                    }
+                    return <Text strong>{name || 'Unallocated'}</Text>;
+                } catch (e) {
+                    return <Text type="danger">Error</Text>;
+                }
+            }
+        },
+        {
+            title: 'Amount',
+            dataIndex: 'amountPaid',
+            key: 'amount',
+            render: (val) => `Rs. ${parseFloat(val || 0).toLocaleString()}`
+        },
+        {
+            title: 'Date',
+            dataIndex: 'createdAt',
+            key: 'date',
+            render: (val) => val ? new Date(val).toLocaleDateString() : '-'
+        },
+        {
+            title: 'Status',
+            dataIndex: 'status',
+            key: 'status',
+            render: (status) => (
+                <Tag color={status === 'APPROVED' ? 'green' : 'red'}>{status || 'UNKNOWN'}</Tag>
+            )
+        },
+        {
+            title: 'Verified By',
+            dataIndex: ['user', 'fullName'],
+            key: 'verifier',
+            render: (text) => text || 'System'
+        },
+        {
+            title: 'Receipt',
+            key: 'receipt',
+            render: (_, item) => item?.receiptUrl ? (
+                <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => window.open(`http://127.0.0.1:5000${item.receiptUrl}`, '_blank')}>View</Button>
+            ) : '-'
+        }
+    ];
 
     useEffect(() => {
         fetchData();
@@ -87,23 +154,79 @@ const StudentBilling = () => {
         }
     };
 
+    const mergedData = [
+        ...billings.map(b => ({
+            key: `bill-${b.id}`,
+            type: 'BILLING',
+            ...b,
+            // Check if there's an associated payment
+            paymentInfo: b.billingpayment?.[0]?.payment
+        })),
+        ...historyPayments
+            .filter(p => !p.billingpayment || p.billingpayment.length === 0) // Only unallocated
+            .map(p => ({
+                key: `pay-${p.id}`,
+                type: 'PAYMENT',
+                amount: p.amountPaid,
+                status: p.status,
+                createdAt: p.createdAt,
+                transactionRef: p.transactionRef,
+                receiptUrl: p.receiptUrl,
+                user: p.user, // Verifier
+                student: null // Must parse
+            }))
+    ].sort((a, b) => new Date(b.createdAt || b.updatedAt) - new Date(a.createdAt || a.updatedAt));
+
     const columns = [
         {
             title: 'Student',
-            dataIndex: ['student', 'fullName'],
             key: 'student',
-            render: (text, record) => (
-                <Space direction="vertical" size={0}>
-                    <Text strong>{text}</Text>
-                    <Text type="secondary" style={{ fontSize: 12 }}>{record.student?.studentUniqueId}</Text>
-                </Space>
-            )
+            render: (_, record) => {
+                let name, id;
+                if (record.type === 'BILLING') {
+                    name = record.student?.fullName;
+                    id = record.student?.studentUniqueId;
+                } else {
+                    // Parse from ref for unallocated
+                    if (record.transactionRef) {
+                        const match = record.transactionRef.match(/\[Student:\s(.*?)]/);
+                        if (match) name = match[1];
+                    }
+                    name = name || 'Unallocated';
+                    id = 'N/A';
+                }
+
+                return (
+                    <Space direction="vertical" size={0}>
+                        <Text strong>{name}</Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>{id}</Text>
+                    </Space>
+                );
+            }
         },
         {
-            title: 'Billing Month',
-            dataIndex: 'billingMonth',
-            key: 'month',
-            render: (text) => <Tag color="blue">{text}</Tag>
+            title: 'Description',
+            key: 'desc',
+            render: (_, record) => {
+                if (record.type === 'BILLING') {
+                    return <Tag color="blue">{record.billingMonth}</Tag>;
+                } else {
+                    // Force unified format YYYY-MM to match billing records
+                    const displayMonth = dayjs(record.createdAt).format('YYYY-MM');
+
+                    return (
+                        <Space direction="vertical" size={0}>
+                            <Tag color="blue">{displayMonth}</Tag>
+                            {record.transactionRef && (
+                                <Text type="secondary" style={{ fontSize: 12, fontStyle: 'italic' }}>
+                                    {record.transactionRef.replace(/\[.*?\]/g, '').trim()}
+                                </Text>
+                            )}
+                            <Text type="secondary" style={{ fontSize: 10 }}>{new Date(record.createdAt).toLocaleDateString()}</Text>
+                        </Space>
+                    );
+                }
+            }
         },
         {
             title: 'Amount',
@@ -117,9 +240,24 @@ const StudentBilling = () => {
             key: 'status',
             render: (status) => {
                 let color = 'gold';
-                if (status === 'PAID') color = 'green';
-                if (status === 'UNPAID') color = 'red';
+                if (status === 'PAID' || status === 'APPROVED') color = 'green';
+                if (status === 'UNPAID' || status === 'REJECTED') color = 'red';
                 return <Tag color={color} style={{ borderRadius: 10, padding: '0 12px' }}>{status}</Tag>
+            }
+        },
+        {
+            title: 'Payment Info',
+            key: 'paymentInfo',
+            render: (_, record) => {
+                const payment = record.type === 'BILLING' ? record.paymentInfo : record;
+                if (!payment) return '-';
+
+                return (
+                    <Space direction="vertical" size={0}>
+                        {payment.user && <Text type="secondary" style={{ fontSize: 10 }}>Verified by: {payment.user.fullName}</Text>}
+                        {payment.paymentMethod && <Tag style={{ fontSize: 10 }}>{payment.paymentMethod}</Tag>}
+                    </Space>
+                );
             }
         },
         {
@@ -127,7 +265,7 @@ const StudentBilling = () => {
             key: 'actions',
             render: (_, record) => (
                 <Space>
-                    {record.status === 'UNPAID' && (
+                    {record.type === 'BILLING' && record.status === 'UNPAID' && (
                         <>
                             <Button
                                 icon={<BellOutlined />}
@@ -162,17 +300,30 @@ const StudentBilling = () => {
                             </Button>
                         </>
                     )}
-                    {record.status === 'PAID' && (
+
+                    {/* Invoice Download for ANY Paid Billing OR Approved Payment */}
+                    {((record.type === 'BILLING' && record.status === 'PAID') || (record.type === 'PAYMENT' && record.status === 'APPROVED')) && (
                         <Button
                             icon={<EyeOutlined />}
                             size="small"
                             onClick={() => {
-                                // Simulate invoice download
                                 message.loading('Generating invoice...', 1);
                                 setTimeout(() => window.print(), 1000);
                             }}
                         >
                             Download Invoice
+                        </Button>
+                    )}
+
+                    {/* View Receipt if available (for both Billing-linked and Unallocated) */}
+                    {((record.type === 'BILLING' && record.paymentInfo?.receiptUrl) || (record.type === 'PAYMENT' && record.receiptUrl)) && (
+                        <Button
+                            type="link"
+                            size="small"
+                            icon={<EyeOutlined />}
+                            onClick={() => window.open(`http://127.0.0.1:5000${(record.paymentInfo || record).receiptUrl}`, '_blank')}
+                        >
+                            View Receipt
                         </Button>
                     )}
                 </Space>
@@ -213,8 +364,8 @@ const StudentBilling = () => {
                 <Tabs items={[
                     {
                         key: '1',
-                        label: 'All Billings',
-                        children: <Table columns={columns} dataSource={billings} loading={loading} rowKey="id" />
+                        label: 'All Billings & Transactions',
+                        children: <Table columns={columns} dataSource={mergedData} loading={loading} pagination={{ pageSize: 10 }} />
                     },
                     {
                         key: '2',
@@ -228,9 +379,9 @@ const StudentBilling = () => {
                                 </div>
                                 <Table
                                     columns={columns}
-                                    dataSource={overdueBillings}
+                                    dataSource={overdueBillings.map(b => ({ ...b, type: 'BILLING', key: `overdue-${b.id}` }))}
                                     loading={loading}
-                                    rowKey="id"
+                                    rowKey="key"
                                 />
                             </div>
                         )
@@ -290,32 +441,79 @@ const StudentBilling = () => {
             >
                 <List
                     dataSource={pendingPayments}
-                    renderItem={(item) => (
-                        <Card style={{ marginBottom: 16, borderRadius: 12 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                <Descriptions column={2} size="small" title={`Payment from ${item.billingpayment?.[0]?.billing?.student?.fullName}`}>
-                                    <Descriptions.Item label="Amount">Rs. {item.amountPaid}</Descriptions.Item>
-                                    <Descriptions.Item label="Method">{item.paymentMethod}</Descriptions.Item>
-                                    <Descriptions.Item label="Ref">{item.transactionRef || 'N/A'}</Descriptions.Item>
-                                    <Descriptions.Item label="Date">{new Date(item.createdAt).toLocaleDateString()}</Descriptions.Item>
-                                    <Descriptions.Item label="Months" span={2}>
-                                        {(item.billingpayment || []).map(bp => (
-                                            <Tag key={bp.billing.id}>{bp.billing.billingMonth}</Tag>
-                                        ))}
-                                    </Descriptions.Item>
-                                </Descriptions>
-                                <Space direction="vertical">
-                                    <Button type="primary" style={{ background: '#52c41a', borderColor: '#52c41a' }} icon={<CheckCircleOutlined />} onClick={() => handleVerify(item.id, 'APPROVED')}>Approve</Button>
-                                    <Button danger icon={<CloseCircleOutlined />} onClick={() => handleVerify(item.id, 'REJECTED')}>Reject</Button>
-                                </Space>
-                            </div>
-                            {item.receiptUrl && (
-                                <div style={{ marginTop: 12 }}>
-                                    <Button type="link" onClick={() => window.open(item.receiptUrl)}>View Receipt Image</Button>
+                    renderItem={(item) => {
+                        // Safe extraction of student details from Ref string if not linked
+                        // Format: [Student: Name] [Months: X, Y] ...
+                        let studentName = item.billingpayment?.[0]?.billing?.student?.fullName;
+                        let months = item.billingpayment?.map(bp => bp.billing.billingMonth) || [];
+                        let displayRef = item.transactionRef || '';
+
+                        if (!studentName && item.transactionRef) {
+                            const nameMatch = item.transactionRef.match(/\[Student:\s(.*?)]/);
+                            if (nameMatch) {
+                                studentName = nameMatch[1];
+                                // Clean the tag from display ref
+                                displayRef = displayRef.replace(nameMatch[0], '').trim();
+                            }
+                        }
+
+                        if (months.length === 0 && item.transactionRef) {
+                            const monthMatch = item.transactionRef.match(/\(Months:\s(.*?)\)/);
+                            if (monthMatch) {
+                                months = monthMatch[1].split(',').map(m => m.trim());
+                                // We keep months in ref mostly, or strip it? converting to tags looks better
+                                // Let's strip the specific (Months: ...) part for cleaner ref
+                                displayRef = displayRef.replace(monthMatch[0], '').trim();
+                            }
+                        }
+
+                        // Clean other tags like [Monthly Fee]
+                        displayRef = displayRef.replace(/\[(.*?)\]/g, '').trim();
+
+                        // Fix Receipt URL
+                        const receiptUrl = item.receiptUrl ? `http://127.0.0.1:5000${item.receiptUrl}` : null;
+
+                        return (
+                            <Card style={{ marginBottom: 16, borderRadius: 12, borderLeft: '4px solid #7B57E4' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <Descriptions column={2} size="small" title={
+                                        <Space>
+                                            <Text style={{ fontSize: 16 }}>Payment from</Text>
+                                            <Tag color={studentName ? "purple" : "red"} style={{ fontSize: 14, padding: '4px 10px' }}>
+                                                {studentName || 'Unallocated Student'}
+                                            </Tag>
+                                        </Space>
+                                    }>
+                                        <Descriptions.Item label="Amount"><Text strong>Rs. {parseFloat(item.amountPaid).toLocaleString()}</Text></Descriptions.Item>
+                                        <Descriptions.Item label="Method"><Tag>{item.paymentMethod}</Tag></Descriptions.Item>
+
+                                        <Descriptions.Item label="Months" span={2}>
+                                            {months.length > 0 ? (
+                                                months.map((m, idx) => (
+                                                    <Tag color="cyan" key={idx}>{m}</Tag>
+                                                ))
+                                            ) : (
+                                                <Tag color="orange">Unallocated</Tag>
+                                            )}
+                                        </Descriptions.Item>
+
+                                        <Descriptions.Item label="Date">{new Date(item.createdAt).toLocaleDateString()}</Descriptions.Item>
+                                        <Descriptions.Item label="Note" span={2}>
+                                            <Text type="secondary" style={{ fontStyle: 'italic' }}>{displayRef || 'No Reference'}</Text>
+                                        </Descriptions.Item>
+                                    </Descriptions>
+
+                                    <Space direction="vertical">
+                                        <Button type="primary" style={{ background: '#52c41a', borderColor: '#52c41a', width: 100 }} icon={<CheckCircleOutlined />} onClick={() => handleVerify(item.id, 'APPROVED')}>Approve</Button>
+                                        <Button danger style={{ width: 100 }} icon={<CloseCircleOutlined />} onClick={() => handleVerify(item.id, 'REJECTED')}>Reject</Button>
+                                        {receiptUrl && (
+                                            <Button type="dashed" icon={<EyeOutlined />} onClick={() => window.open(receiptUrl, '_blank')}>View Receipt</Button>
+                                        )}
+                                    </Space>
                                 </div>
-                            )}
-                        </Card>
-                    )}
+                            </Card>
+                        );
+                    }}
                     locale={{ emptyText: 'No pending payments to verify' }}
                 />
             </Modal>

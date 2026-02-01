@@ -12,8 +12,19 @@ const Announcements = () => {
     const { user } = useAuth();
     const [announcements, setAnnouncements] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [classrooms, setClassrooms] = useState([]);
+    const [targetType, setTargetType] = useState('ALL');
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [form] = Form.useForm();
+
+    const fetchClassrooms = async () => {
+        try {
+            const res = await api.get('/classrooms');
+            setClassrooms(res.data);
+        } catch (error) {
+            console.error('Failed to load classrooms');
+        }
+    };
 
     const fetchAnnouncements = async () => {
         setLoading(true);
@@ -29,16 +40,28 @@ const Announcements = () => {
 
     useEffect(() => {
         fetchAnnouncements();
+        fetchClassrooms();
     }, []);
 
     const handleCreate = async () => {
         try {
             const values = await form.validateFields();
+            // If target is specific class, set role to PARENT (usually) or STUDENT? 
+            // Backend expects targetRole AND/OR targetClassroomId.
+            // If class is selected, usually it implies parents of that class.
+
+            const payload = {
+                ...values,
+                targetRole: values.targetType === 'CLASS' ? 'PARENT' : values.targetType,
+                targetClassroomId: values.targetType === 'CLASS' ? values.targetClassroomId : null
+            };
+
             setLoading(true);
-            await api.post('/notifications', values);
+            await api.post('/notifications', payload);
             message.success('Announcement published');
             setIsModalVisible(false);
             form.resetFields();
+            setTargetType('ALL');
             fetchAnnouncements();
         } catch (error) {
             message.error('Failed to publish announcement');
@@ -46,6 +69,30 @@ const Announcements = () => {
             setLoading(false);
         }
     };
+
+    // ... delete logic ...
+
+    // ... render ...
+    <Form.Item name="targetType" label="Recipient Group" rules={[{ required: true }]} initialValue="ALL">
+        <Select size="large" onChange={val => setTargetType(val)}>
+            <Option value="ALL">All Users</Option>
+            <Option value="TEACHER">Staff & Teachers</Option>
+            <Option value="PARENT">Parents Only</Option>
+            <Option value="CLASS">Specific Classroom</Option>
+        </Select>
+    </Form.Item>
+
+    {
+        targetType === 'CLASS' && (
+            <Form.Item name="targetClassroomId" label="Select Classroom" rules={[{ required: true, message: 'Please select a classroom' }]}>
+                <Select size="large" placeholder="Choose a class">
+                    {classrooms.map(cls => (
+                        <Option key={cls.id} value={cls.id}>{cls.name}</Option>
+                    ))}
+                </Select>
+            </Form.Item>
+        )
+    }
 
     const handleDelete = async (id) => {
         try {
@@ -57,33 +104,33 @@ const Announcements = () => {
         }
     };
 
-    const getTargetTag = (target) => {
-        switch (target) {
+    const getTargetTag = (item) => {
+        if (item.targetClassroomId && item.classroom) {
+            return <Tag color="orange" icon={<TeamOutlined />}>Class: {item.classroom.name}</Tag>;
+        }
+        switch (item.targetRole) {
             case 'ALL': return <Tag color="blue" icon={<GlobalOutlined />}>Everyone</Tag>;
             case 'TEACHER': return <Tag color="purple" icon={<UserOutlined />}>Teachers Only</Tag>;
             case 'PARENT': return <Tag color="cyan" icon={<TeamOutlined />}>Parents Only</Tag>;
-            default: return <Tag>{target}</Tag>;
+            default: return <Tag>{item.targetRole}</Tag>;
         }
     };
 
     return (
         <div style={{ maxWidth: 1000, margin: '0 auto', paddingBottom: 40 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40, marginTop: 24 }}>
                 <div>
-                    <Title level={3} style={{ margin: 0 }}>Announcements</Title>
-                    <Text type="secondary">Broadcast important updates to school community</Text>
+                    <Title level={2} style={{ margin: 0, color: '#1E293B' }}>Announcements</Title>
+                    <Text type="secondary">Broadcast important updates to parents and staff</Text>
                 </div>
-                {user?.role !== 'TEACHER' && (
-                    <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        size="large"
-                        onClick={() => setIsModalVisible(true)}
-                        style={{ background: '#7B57E4', borderRadius: 8, height: 44 }}
-                    >
-                        New Announcement
-                    </Button>
-                )}
+                <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={() => setIsModalVisible(true)}
+                    style={{ background: '#7B57E4', height: 44, borderRadius: 10, padding: '0 24px' }}
+                >
+                    Create Announcement
+                </Button>
             </div>
 
             <List
@@ -104,7 +151,7 @@ const Announcements = () => {
                                 <div>
                                     <Title level={4} style={{ margin: 0, marginBottom: 4 }}>{item.title}</Title>
                                     <div style={{ marginBottom: 12 }}>
-                                        {getTargetTag(item.targetRole)}
+                                        {getTargetTag(item)}
                                         <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
                                             {dayjs(item.createdAt).format('MMMM D, YYYY')} by {item.createdBy?.fullName}
                                         </Text>
@@ -114,7 +161,7 @@ const Announcements = () => {
                                     </Paragraph>
                                 </div>
                             </div>
-                            {user?.role !== 'TEACHER' && (
+                            {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || item.createdById === user?.id) && (
                                 <Button
                                     type="text"
                                     danger
@@ -139,16 +186,29 @@ const Announcements = () => {
                 okButtonProps={{ style: { background: '#7B57E4' } }}
             >
                 <Form form={form} layout="vertical" style={{ marginTop: 24 }}>
-                    <Form.Item name="targetRole" label="Recipient Group" rules={[{ required: true }]} initialValue="ALL">
-                        <Select size="large">
-                            <Option value="ALL">All Users</Option>
-                            <Option value="TEACHER">Staff & Teachers</Option>
-                            <Option value="PARENT">Parents Only</Option>
-                        </Select>
-                    </Form.Item>
                     <Form.Item name="title" label="Announcement Title" rules={[{ required: true }]}>
                         <Input placeholder="Enter a clear, descriptive title" size="large" />
                     </Form.Item>
+
+                    <Form.Item name="targetType" label="Recipient Group" rules={[{ required: true }]} initialValue="ALL">
+                        <Select size="large" onChange={val => setTargetType(val)}>
+                            <Option value="ALL">All Users</Option>
+                            <Option value="TEACHER">Staff & Teachers</Option>
+                            <Option value="PARENT">Parents Only</Option>
+                            <Option value="CLASS">Specific Classroom</Option>
+                        </Select>
+                    </Form.Item>
+
+                    {targetType === 'CLASS' && (
+                        <Form.Item name="targetClassroomId" label="Select Classroom" rules={[{ required: true, message: 'Please select a classroom' }]}>
+                            <Select size="large" placeholder="Choose a class">
+                                {classrooms.map(cls => (
+                                    <Option key={cls.id} value={cls.id}>{cls.name}</Option>
+                                ))}
+                            </Select>
+                        </Form.Item>
+                    )}
+
                     <Form.Item name="message" label="Message Content" rules={[{ required: true }]}>
                         <Input.TextArea rows={5} placeholder="Type your announcement details here..." />
                     </Form.Item>

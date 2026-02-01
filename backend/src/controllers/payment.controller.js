@@ -4,22 +4,59 @@ exports.submitPayment = async (req, res, next) => {
     try {
         let { billingIds, amountPaid, paymentMethod, transactionRef } = req.body;
 
-        // Handle billingIds if sent as string (common with multipart/form-data)
-        if (typeof billingIds === 'string') {
-            try {
-                billingIds = JSON.parse(billingIds);
-            } catch (e) {
-                // If it's just a single ID or comma separated
-                billingIds = billingIds.split(',').map(id => id.trim());
+        console.log('Payment Submit Payload:', JSON.stringify(req.body, null, 2));
+        console.log('Payment File:', req.file);
+
+        let parsedBillingIds = [];
+
+        // 1. Try direct array or string from billingIds
+        if (billingIds) {
+            if (Array.isArray(billingIds)) {
+                parsedBillingIds = billingIds;
+            } else if (typeof billingIds === 'string') {
+                try {
+                    const parsed = JSON.parse(billingIds);
+                    parsedBillingIds = Array.isArray(parsed) ? parsed : [billingIds];
+                } catch (e) {
+                    parsedBillingIds = billingIds.split(',').map(id => id.trim()).filter(id => id);
+                }
             }
-        } else if (!Array.isArray(billingIds)) {
-            // Check for billingIds[] from multipart
-            billingIds = req.body['billingIds[]'] || [billingIds];
         }
+        // 2. Try billingIds[] from multipart standard
+        else if (req.body['billingIds[]']) {
+            const raw = req.body['billingIds[]'];
+            parsedBillingIds = Array.isArray(raw) ? raw : [raw];
+        }
+
+        billingIds = parsedBillingIds;
+        console.log('Resolved Billing IDs:', billingIds);
 
         const receiptUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
-        // Create the Payment
+        // Verify Locking: Check if any billingId is already PAID or PENDING (waiting approval)
+        // Actually, PENDING is okay to re-upload if rejected? 
+        // But plan says "If parent pays... Payment button disabled".
+        // Backend key check: If status is PAID, reject.
+        // We need to fetch billings first.
+        const idList = billingIds.map(id => parseInt(id));
+        const existingBillings = await prisma.billing.findMany({
+            where: { id: { in: idList } }
+        });
+
+        const alreadyPaid = existingBillings.find(b => b.status === 'PAID');
+        if (alreadyPaid) {
+            return res.status(400).json({ message: `Payment already completed for ${alreadyPaid.billingMonth}` });
+        }
+
+        // Also check if PENDING? Requirement "Payment button becomes disabled".
+        // Usually we lock PENDING too to prevent double submission until rejected.
+        const alreadyPending = existingBillings.find(b => b.status === 'PENDING' && paymentMethod !== 'CASH');
+        // CAUTION: Cash payments set status to PAID immediately in logic, handled by admin.
+        // If parent uploads receipt, it goes to PENDING.
+        // If there is already a PENDING billing (meaning previous upload), prevent new upload?
+        if (alreadyPending) {
+            return res.status(400).json({ message: `Payment verification is pending for ${alreadyPending.billingMonth}` });
+        }
         const payment = await prisma.payment.create({
             data: {
                 amountPaid: parseFloat(amountPaid),
@@ -36,7 +73,7 @@ exports.submitPayment = async (req, res, next) => {
             paymentId: payment.id
         }));
 
-        await prisma.billingPayment.createMany({
+        await prisma.billingpayment.createMany({
             data: billingPaymentData
         });
 
@@ -100,6 +137,30 @@ exports.verifyPayment = async (req, res, next) => {
         });
 
         res.json({ message: `Payment ${status}`, payment });
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.getPaymentHistory = async (req, res, next) => {
+    try {
+        const payments = await prisma.payment.findMany({
+            where: { status: { in: ['APPROVED', 'REJECTED'] } },
+            include: {
+                billingpayment: {
+                    include: {
+                        billing: {
+                            include: {
+                                student: true
+                            }
+                        }
+                    }
+                },
+                user: true // verifier
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(payments);
     } catch (error) {
         next(error);
     }

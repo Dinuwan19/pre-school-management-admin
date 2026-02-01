@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator, Modal, TouchableWithoutFeedback, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator, Modal, TouchableWithoutFeedback, TextInput, Alert, KeyboardAvoidingView, Platform, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,13 +12,18 @@ import {
     Phone,
     X,
     User as UserIcon,
-    Pencil
+    Pencil,
+    Utensils,
+    Clock,
+    Info
 } from 'lucide-react-native';
 import { requestMeeting } from '../services/meeting.service';
+import api from '../config/api';
 import { getStudentDetails as fetchStudentDetails, updateStudentDetails } from '../services/child.service';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { COLORS } from '../constants/theme';
+import { AVATARS, getAvatarSource } from '../constants/avatars';
 import CommonHeader from '../components/CommonHeader';
 
 dayjs.extend(relativeTime);
@@ -32,6 +37,7 @@ const StudentProfileScreen = ({ route, navigation }) => {
     const [activeTab, setActiveTab] = useState(initialTab || 'Details');
     const [loading, setLoading] = useState(true);
     const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
+    const [attendanceSummary, setAttendanceSummary] = useState(null);
 
     // Meeting State
     const [modalVisible, setModalVisible] = useState(false);
@@ -40,19 +46,13 @@ const StudentProfileScreen = ({ route, navigation }) => {
     const [preferredTime, setPreferredTime] = useState('');
     const [preferredDate, setPreferredDate] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [selectedTeacherId, setSelectedTeacherId] = useState(null);
 
     // Edit State
     const [isEditModalVisible, setIsEditModalVisible] = useState(false);
     const [editField, setEditField] = useState({ label: '', value: '', key: '' });
 
-    const avatars = [
-        'https://cdn-icons-png.flaticon.com/512/4140/4140048.png',
-        'https://cdn-icons-png.flaticon.com/512/4140/4140047.png',
-        'https://cdn-icons-png.flaticon.com/512/4140/4140051.png',
-        'https://cdn-icons-png.flaticon.com/512/4140/4140049.png',
-        'https://cdn-icons-png.flaticon.com/512/4140/4140052.png',
-        'https://cdn-icons-png.flaticon.com/512/4140/4140050.png',
-    ];
+    const avatarKeys = Object.keys(AVATARS.CHILD);
 
     useFocusEffect(
         useCallback(() => {
@@ -65,13 +65,22 @@ const StudentProfileScreen = ({ route, navigation }) => {
     const fetchDetails = async () => {
         setLoading(true);
         try {
-            const data = await fetchStudentDetails(initialStudent.id);
-            const mergedStudent = { ...initialStudent, ...data };
+            const [studentData, attendanceData] = await Promise.all([
+                fetchStudentDetails(initialStudent.id),
+                api.get(`/attendance/student/${initialStudent.id}`).then(res => res.data).catch(() => null)
+            ]);
+            const mergedStudent = { ...initialStudent, ...studentData };
             setStudent(mergedStudent);
             setDetails(mergedStudent);
+            setAttendanceSummary(attendanceData);
+
+            // Set initial selected teacher
+            if (mergedStudent.availableStaff && mergedStudent.availableStaff.length > 0) {
+                const lead = mergedStudent.availableStaff.find(s => s.isLead);
+                setSelectedTeacherId(lead ? lead.id : mergedStudent.availableStaff[0].id);
+            }
         } catch (error) {
             console.error("Fetch Student Details Error:", error);
-            // Fallback to initial student data
             setDetails(initialStudent);
         } finally {
             setLoading(false);
@@ -108,16 +117,18 @@ const StudentProfileScreen = ({ route, navigation }) => {
         try {
             const [day, month, year] = preferredDate.split('/');
             const formattedDate = `${year}-${month}-${day}`;
-            await requestMeeting({
-                studentId: student.id,
-                title: meetingTitle,
-                description: meetingDesc,
-                requestDate: formattedDate,
-                preferredTime: preferredTime
-            });
+            await requestMeeting(
+                student.id,
+                meetingTitle,
+                meetingDesc,
+                formattedDate,
+                preferredTime,
+                selectedTeacherId
+            );
             Alert.alert('Success', 'Request sent successfully!');
             setModalVisible(false);
             setMeetingTitle(''); setMeetingDesc(''); setPreferredTime(''); setPreferredDate('');
+            setSelectedTeacherId(null);
         } catch (error) {
             Alert.alert('Error', 'Failed to send request');
         } finally {
@@ -197,6 +208,107 @@ const StudentProfileScreen = ({ route, navigation }) => {
         </View>
     );
 
+    const renderAttendance = () => (
+        <View style={styles.tabContent}>
+            <View style={styles.infoSection}>
+                <Text style={styles.sectionHeading}>ATTENDANCE SUMMARY</Text>
+                <View style={styles.statsRow}>
+                    <View style={styles.statItem}>
+                        <Text style={styles.statLabel}>Present</Text>
+                        <Text style={[styles.statValue, { color: '#22C55E' }]}>{attendanceSummary?.presentDays || 0}</Text>
+                    </View>
+                    <View style={styles.statItem}>
+                        <Text style={styles.statLabel}>Total Days</Text>
+                        <Text style={styles.statValue}>{attendanceSummary?.totalDays || 0}</Text>
+                    </View>
+                    <View style={styles.statItem}>
+                        <Text style={styles.statLabel}>Rate</Text>
+                        <Text style={[styles.statValue, { color: '#9D5BF0' }]}>{attendanceSummary?.attendanceRate || 0}%</Text>
+                    </View>
+                </View>
+            </View>
+
+            <View style={styles.infoSection}>
+                <Text style={styles.sectionHeading}>RECENT HISTORY</Text>
+                {attendanceSummary?.history?.length > 0 ? (
+                    attendanceSummary.history.map((record, index) => (
+                        <View key={index} style={[styles.historyRow, index !== attendanceSummary.history.length - 1 && styles.borderBottom]}>
+                            <View>
+                                <Text style={styles.historyDate}>{dayjs(record.attendanceDate).format('ddd, MMM DD')}</Text>
+                                <Text style={styles.historyTime}>
+                                    {record.checkInTime ? dayjs(record.checkInTime).format('hh:mm A') : 'N/A'} - {record.checkOutTime ? dayjs(record.checkOutTime).format('hh:mm A') : 'N/A'}
+                                </Text>
+                            </View>
+                            <View style={[styles.statusTag, { backgroundColor: record.status === 'PRESENT' || record.status === 'COMPLETED' ? '#F0FDF4' : '#FFF1F2' }]}>
+                                <Text style={[styles.statusTagText, { color: record.status === 'PRESENT' || record.status === 'COMPLETED' ? '#16A34A' : '#E11D48' }]}>
+                                    {record.status}
+                                </Text>
+                            </View>
+                        </View>
+                    ))
+                ) : (
+                    <Text style={styles.emptyText}>No recent attendance records.</Text>
+                )}
+            </View>
+        </View>
+    );
+
+    const renderMealPlan = () => {
+        let mealData = null;
+        try {
+            if (student?.classroom?.mealPlan) {
+                // If it looks like JSON, try to parse it
+                if (student.classroom.mealPlan.trim().startsWith('{')) {
+                    mealData = JSON.parse(student.classroom.mealPlan);
+                }
+            }
+        } catch (e) {
+            console.log('Error parsing meal plan:', e);
+        }
+
+        return (
+            <View style={styles.tabContent}>
+                <View style={styles.infoSection}>
+                    <Text style={styles.sectionHeading}>WEEKLY MENU</Text>
+                    {mealData ? (
+                        Object.entries(mealData).map(([day, meal], index) => (
+                            <View key={index} style={styles.mealItem}>
+                                <Text style={styles.mealDay}>{day}</Text>
+                                <Text style={styles.mealValue}>{meal}</Text>
+                            </View>
+                        ))
+                    ) : (
+                        <View style={styles.mealCard}>
+                            <View style={styles.mealIconBox}>
+                                <Utensils size={32} color="#9D5BF0" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.mealTitle}>Classroom Menu</Text>
+                                <Text style={styles.mealContent}>
+                                    {student?.classroom?.mealPlan || 'Meal plan not assigned yet for this classroom.'}
+                                </Text>
+                            </View>
+                        </View>
+                    )}
+                </View>
+
+                {mealData && (
+                    <View style={[styles.infoSection, { backgroundColor: '#F3EFFF' }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <Info size={20} color="#9D5BF0" />
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Note</Text>
+                                <Text style={{ fontSize: 13, color: '#64748B', marginTop: 2 }}>
+                                    Meals are subject to availability and may change slightly.
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+                )}
+            </View>
+        );
+    };
+
     const renderProgress = () => {
         const progressHistory = details?.progress || [];
         const latestProgress = (details?.progress && details.progress.length > 0)
@@ -267,14 +379,14 @@ const StudentProfileScreen = ({ route, navigation }) => {
             />
             <ScrollView showsVerticalScrollIndicator={false}>
                 <LinearGradient colors={['#9D5BF0', '#7C3AED']} style={styles.headerBackground}>
-                    <SafeAreaView edges={['top']} style={{ paddingBottom: 20 }}>
+                    <SafeAreaView edges={['top']} style={{ paddingBottom: 60 }}>
                         <View style={styles.profileContainer}>
                             <TouchableOpacity
                                 style={styles.profileImgContainer}
                                 onPress={() => setIsAvatarModalVisible(true)}
                             >
                                 <Image
-                                    source={student?.photoUrl ? { uri: student.photoUrl } : { uri: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' }}
+                                    source={getAvatarSource(student?.photoUrl, 'CHILD')}
                                     style={styles.profileImg}
                                 />
                                 <View style={styles.editBadge}>
@@ -285,27 +397,76 @@ const StudentProfileScreen = ({ route, navigation }) => {
                                 <Text style={styles.studentName}>{student?.fullName}</Text>
                                 <Text style={styles.studentSub}>ID: {student?.studentUniqueId}</Text>
                                 <View style={styles.statusBadge}>
-                                    <Text style={styles.statusText}>{student?.classroom?.name || 'Nursery'}</Text>
+                                    <View style={styles.activeDot} />
+                                    <Text style={styles.statusText}>Active Student</Text>
                                 </View>
                             </View>
                         </View>
                     </SafeAreaView>
                 </LinearGradient>
 
-                <View style={styles.tabBar}>
-                    {['Details', 'Progress'].map((tab) => (
+                <View style={styles.gridContainer}>
+                    <View style={styles.gridRow}>
                         <TouchableOpacity
-                            key={tab}
-                            style={styles.tabItem}
-                            onPress={() => setActiveTab(tab)}
+                            style={[styles.menuCard, activeTab === 'Details' && styles.activeMenuCard]}
+                            onPress={() => setActiveTab('Details')}
                         >
-                            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
-                            {activeTab === tab && <View style={styles.tabIndicator} />}
+                            <View style={[styles.menuIconContainer, activeTab === 'Details' && styles.activeMenuIconContainer]}>
+                                <BookOpen size={24} color={activeTab === 'Details' ? '#fff' : '#9D5BF0'} />
+                            </View>
+                            <View>
+                                <Text style={[styles.menuLabel, activeTab === 'Details' && styles.activeMenuLabel]}>Details</Text>
+                                <Text style={[styles.menuSubLabel, activeTab === 'Details' && styles.activeMenuSubLabel]}>Bio & Info</Text>
+                            </View>
                         </TouchableOpacity>
-                    ))}
+
+                        <TouchableOpacity
+                            style={[styles.menuCard, activeTab === 'Progress' && styles.activeMenuCard]}
+                            onPress={() => setActiveTab('Progress')}
+                        >
+                            <View style={[styles.menuIconContainer, activeTab === 'Progress' && styles.activeMenuIconContainer]}>
+                                <Activity size={24} color={activeTab === 'Progress' ? '#fff' : '#9D5BF0'} />
+                            </View>
+                            <View>
+                                <Text style={[styles.menuLabel, activeTab === 'Progress' && styles.activeMenuLabel]}>Progress</Text>
+                                <Text style={[styles.menuSubLabel, activeTab === 'Progress' && styles.activeMenuSubLabel]}>Performance</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.gridRow}>
+                        <TouchableOpacity
+                            style={[styles.menuCard, activeTab === 'Attendance' && styles.activeMenuCard]}
+                            onPress={() => setActiveTab('Attendance')}
+                        >
+                            <View style={[styles.menuIconContainer, activeTab === 'Attendance' && styles.activeMenuIconContainer]}>
+                                <Calendar size={24} color={activeTab === 'Attendance' ? '#fff' : '#9D5BF0'} />
+                            </View>
+                            <View>
+                                <Text style={[styles.menuLabel, activeTab === 'Attendance' && styles.activeMenuLabel]}>Attendance</Text>
+                                <Text style={[styles.menuSubLabel, activeTab === 'Attendance' && styles.activeMenuSubLabel]}>{attendanceSummary ? `${attendanceSummary.attendanceRate}% Rate` : 'History'}</Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.menuCard, activeTab === 'Meal Plan' && styles.activeMenuCard]}
+                            onPress={() => setActiveTab('Meal Plan')}
+                        >
+                            <View style={[styles.menuIconContainer, activeTab === 'Meal Plan' && styles.activeMenuIconContainer]}>
+                                <Utensils size={24} color={activeTab === 'Meal Plan' ? '#fff' : '#9D5BF0'} />
+                            </View>
+                            <View>
+                                <Text style={[styles.menuLabel, activeTab === 'Meal Plan' && styles.activeMenuLabel]}>Meal Plan</Text>
+                                <Text style={[styles.menuSubLabel, activeTab === 'Meal Plan' && styles.activeMenuSubLabel]}>Today's Menu</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
-                {activeTab === 'Details' ? renderDetails() : renderProgress()}
+                {activeTab === 'Details' && renderDetails()}
+                {activeTab === 'Progress' && renderProgress()}
+                {activeTab === 'Attendance' && renderAttendance()}
+                {activeTab === 'Meal Plan' && renderMealPlan()}
             </ScrollView>
 
             <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
@@ -328,16 +489,16 @@ const StudentProfileScreen = ({ route, navigation }) => {
                                     <Text style={styles.modalTitle}>Choose Avatar</Text>
                                 </View>
                                 <View style={styles.avatarGrid}>
-                                    {avatars.map((url, index) => (
+                                    {avatarKeys.map((key) => (
                                         <TouchableOpacity
-                                            key={index}
+                                            key={key}
                                             style={styles.avatarOption}
                                             onPress={() => {
-                                                handleUpdateStudent('photoUrl', url);
+                                                handleUpdateStudent('photoUrl', key);
                                                 setIsAvatarModalVisible(false);
                                             }}
                                         >
-                                            <Image source={{ uri: url }} style={styles.gridAvatar} />
+                                            <Image source={AVATARS.CHILD[key]} style={styles.gridAvatar} />
                                         </TouchableOpacity>
                                     ))}
                                 </View>
@@ -358,11 +519,49 @@ const StudentProfileScreen = ({ route, navigation }) => {
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView showsVerticalScrollIndicator={false}>
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
                             <Text style={styles.label}>Student</Text>
                             <View style={styles.staticInput}>
                                 <UserIcon size={18} color="#64748B" />
                                 <Text style={styles.staticText}>{student?.fullName}</Text>
+                            </View>
+
+                            <Text style={styles.label}>Select Teacher / Admin</Text>
+                            <View style={styles.teacherList}>
+                                {details?.availableStaff?.map((staff) => (
+                                    <TouchableOpacity
+                                        key={staff.id}
+                                        style={[
+                                            styles.teacherChip,
+                                            selectedTeacherId === staff.id && styles.selectedTeacherChip
+                                        ]}
+                                        onPress={() => setSelectedTeacherId(staff.id)}
+                                    >
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={[
+                                                styles.teacherChipName,
+                                                selectedTeacherId === staff.id && styles.selectedTeacherChipText
+                                            ]}>
+                                                {staff.name}
+                                            </Text>
+                                            <Text style={[
+                                                styles.teacherChipRole,
+                                                selectedTeacherId === staff.id && styles.selectedTeacherChipText
+                                            ]}>
+                                                {staff.role} {staff.isLead ? '(Lead)' : ''}
+                                            </Text>
+                                        </View>
+                                        <View style={[
+                                            styles.radioOuter,
+                                            selectedTeacherId === staff.id && styles.radioActiveOuter
+                                        ]}>
+                                            {selectedTeacherId === staff.id && <View style={styles.radioInner} />}
+                                        </View>
+                                    </TouchableOpacity>
+                                ))}
+                                {(!details?.availableStaff || details.availableStaff.length === 0) && (
+                                    <Text style={styles.emptyTextSmall}>No teachers found for this classroom.</Text>
+                                )}
                             </View>
 
                             <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -399,36 +598,41 @@ const StudentProfileScreen = ({ route, navigation }) => {
                 animationType="fade"
                 onRequestClose={() => setIsEditModalVisible(false)}
             >
-                <TouchableWithoutFeedback onPress={() => setIsEditModalVisible(false)}>
-                    <View style={styles.modalOverlay}>
-                        <TouchableWithoutFeedback>
-                            <View style={[styles.modalView, { paddingBottom: 40 }]}>
-                                <Text style={styles.modalTitle}>Edit {editField.label}</Text>
-                                <TextInput
-                                    style={styles.modalInput}
-                                    value={editField.value}
-                                    onChangeText={(text) => setEditField({ ...editField, value: text })}
-                                    placeholder={`Enter ${editField.label}`}
-                                    autoFocus={true}
-                                />
-                                <View style={styles.modalActions}>
-                                    <TouchableOpacity
-                                        style={[styles.modalBtn, styles.cancelBtn]}
-                                        onPress={() => setIsEditModalVisible(false)}
-                                    >
-                                        <Text style={styles.cancelBtnText}>Cancel</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={[styles.modalBtn, styles.saveBtn]}
-                                        onPress={() => handleUpdateStudent(editField.key, editField.value)}
-                                    >
-                                        {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save</Text>}
-                                    </TouchableOpacity>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
+                >
+                    <TouchableWithoutFeedback onPress={() => setIsEditModalVisible(false)}>
+                        <View style={styles.modalOverlay}>
+                            <TouchableWithoutFeedback>
+                                <View style={[styles.modalView, { paddingBottom: 40 }]}>
+                                    <Text style={styles.modalTitle}>Edit {editField.label}</Text>
+                                    <TextInput
+                                        style={styles.modalInput}
+                                        value={editField.value}
+                                        onChangeText={(text) => setEditField({ ...editField, value: text })}
+                                        placeholder={`Enter ${editField.label}`}
+                                        autoFocus={true}
+                                    />
+                                    <View style={styles.modalActions}>
+                                        <TouchableOpacity
+                                            style={[styles.modalBtn, styles.cancelBtn]}
+                                            onPress={() => setIsEditModalVisible(false)}
+                                        >
+                                            <Text style={styles.cancelBtnText}>Cancel</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.modalBtn, styles.saveBtn]}
+                                            onPress={() => handleUpdateStudent(editField.key, editField.value)}
+                                        >
+                                            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save</Text>}
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
-                            </View>
-                        </TouchableWithoutFeedback>
-                    </View>
-                </TouchableWithoutFeedback>
+                            </TouchableWithoutFeedback>
+                        </View>
+                    </TouchableWithoutFeedback>
+                </KeyboardAvoidingView>
             </Modal>
         </View>
     );
@@ -489,23 +693,45 @@ const styles = StyleSheet.create({
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     headerBackground: { paddingBottom: 10, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
     profileContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, marginTop: 10 },
-    profileImgContainer: { width: 90, height: 90, borderRadius: 45, backgroundColor: 'rgba(255,255,255,0.2)', padding: 4, position: 'relative' },
+    profileImgContainer: { width: 90, height: 90, borderRadius: 45, backgroundColor: 'rgba(255,255,255,0.25)', padding: 3, position: 'relative', overflow: 'visible' },
     profileImg: { width: '100%', height: '100%', borderRadius: 45 },
-    editBadge: { position: 'absolute', bottom: 5, right: 5, backgroundColor: '#9D5BF0', width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#fff' },
+    editBadge: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#9D5BF0', width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#fff', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3 },
 
-    profileInfo: { marginLeft: 20 },
-    studentName: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
-    studentSub: { fontSize: 15, color: 'rgba(255,255,255,0.8)', marginTop: 4 },
-    statusBadge: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, alignSelf: 'flex-start', marginTop: 10 },
+    profileInfo: { marginLeft: 20, flex: 1 },
+    studentName: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 2 },
+    studentSub: { fontSize: 16, color: 'rgba(255,255,255,0.9)', marginBottom: 8 },
+    statusBadge: { backgroundColor: 'rgba(0,0,0,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start' },
+    activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#4ADE80', marginRight: 8 },
     statusText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
 
-    tabBar: { flexDirection: 'row', backgroundColor: '#fff', paddingHorizontal: 24, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-    tabItem: { flex: 1, alignItems: 'center', paddingVertical: 16, position: 'relative' },
-    tabText: { fontSize: 15, fontWeight: '600', color: '#94A3B8' },
-    activeTabText: { color: '#9D5BF0' },
-    tabIndicator: { position: 'absolute', bottom: 0, width: '60%', height: 3, backgroundColor: '#9D5BF0', borderTopLeftRadius: 3, borderTopRightRadius: 3 },
+    gridContainer: { paddingHorizontal: 20, marginTop: -30, marginBottom: 10 },
+    gridRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
+    menuCard: { width: '48%', height: 130, backgroundColor: '#fff', borderRadius: 28, padding: 20, justifyContent: 'space-between', elevation: 4, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
+    activeMenuCard: { backgroundColor: '#9D5BF0' },
+    menuIconContainer: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F3EFFF', justifyContent: 'center', alignItems: 'center' },
+    activeMenuIconContainer: { backgroundColor: 'rgba(255,255,255,0.2)' },
+    menuLabel: { fontSize: 16, fontWeight: 'bold', color: '#1E293B' },
+    activeMenuLabel: { color: '#fff' },
+    menuSubLabel: { fontSize: 11, color: '#94A3B8', marginTop: 2 },
+    activeMenuSubLabel: { color: 'rgba(255,255,255,0.7)' },
 
-    tabContent: { padding: 20 },
+    statsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 },
+    statItem: { alignItems: 'center', flex: 1 },
+    statLabel: { fontSize: 12, color: '#64748B', marginBottom: 4 },
+    statValue: { fontSize: 20, fontWeight: 'bold', color: '#1E293B' },
+
+    historyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
+    historyDate: { fontSize: 15, fontWeight: '600', color: '#1E293B' },
+    historyTime: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
+    statusTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+    statusTagText: { fontSize: 11, fontWeight: 'bold' },
+
+    mealCard: { flexDirection: 'row', gap: 16, marginTop: 5 },
+    mealIconBox: { width: 60, height: 60, borderRadius: 16, backgroundColor: '#F3EFFF', justifyContent: 'center', alignItems: 'center' },
+    mealTitle: { fontSize: 16, fontWeight: 'bold', color: '#1E293B', marginBottom: 4 },
+    mealContent: { fontSize: 14, color: '#64748B', lineHeight: 22 },
+
+    tabContent: { padding: 20, paddingTop: 10 },
     infoSection: { backgroundColor: '#fff', borderRadius: 24, padding: 20, marginBottom: 20, elevation: 1, shadowColor: '#000', shadowOpacity: 0.02 },
     sectionHeading: { fontSize: 16, fontWeight: 'bold', color: '#1E293B', marginBottom: 15 },
 
@@ -575,7 +801,38 @@ const styles = StyleSheet.create({
     cancelBtn: { backgroundColor: '#F1F5F9' },
     saveBtn: { backgroundColor: '#9D5BF0' },
     cancelBtnText: { color: '#64748B', fontWeight: 'bold' },
-    saveBtnText: { color: '#fff', fontWeight: 'bold' }
+    saveBtnText: { color: '#fff', fontWeight: 'bold' },
+
+    overviewRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+    overviewCard: { width: '48%', backgroundColor: '#fff', borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.05, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
+    overviewIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+    overviewLabel: { fontSize: 11, color: '#64748B', fontWeight: '600', marginBottom: 2 },
+    overviewValue: { fontSize: 14, fontWeight: 'bold', color: '#1E293B' },
+    overviewSub: { fontSize: 10, color: '#94A3B8' },
+
+    teacherList: { marginVertical: 10, gap: 10 },
+    teacherChip: {
+        flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC',
+        padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9'
+    },
+    selectedTeacherChip: { backgroundColor: '#F3EFFF', borderColor: '#9D5BF0' },
+    teacherChipName: { fontSize: 16, fontWeight: 'bold', color: '#1E293B' },
+    teacherChipRole: { fontSize: 13, color: '#64748B', marginTop: 2 },
+    selectedTeacherChipText: { color: '#9D5BF0' },
+    radioOuter: {
+        width: 20, height: 20, borderRadius: 10, borderWidth: 2,
+        borderColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginLeft: 10
+    },
+    radioActiveOuter: { borderColor: '#9D5BF0' },
+    radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#9D5BF0' },
+    emptyTextSmall: { fontSize: 13, color: '#94A3B8', fontStyle: 'italic', paddingLeft: 5 },
+
+    mealItem: {
+        flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12,
+        borderBottomWidth: 1, borderBottomColor: '#F1F5F9'
+    },
+    mealDay: { fontSize: 14, fontWeight: 'bold', color: '#1E293B', width: 100 },
+    mealValue: { fontSize: 14, color: '#64748B', flex: 1, textAlign: 'right' }
 });
 
 export default StudentProfileScreen;

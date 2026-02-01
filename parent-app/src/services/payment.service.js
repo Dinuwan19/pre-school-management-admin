@@ -21,12 +21,12 @@ export const uploadPaymentReceipt = async (billingIds, amount, paymentMethod, re
         if (receiptFile) {
             formData.append('receipt', {
                 uri: receiptFile.uri,
-                type: 'image/jpeg',
-                name: 'receipt.jpg'
+                type: receiptFile.type || 'image/jpeg',
+                name: receiptFile.name || 'receipt.jpg'
             });
         }
 
-        const response = await api.post('/payment/submit', formData, {
+        const response = await api.post('/payments/submit', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
         return response.data;

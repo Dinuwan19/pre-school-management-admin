@@ -18,14 +18,7 @@ const CommonHeader = ({
     const insets = useSafeAreaInsets();
 
     return (
-        <View style={[
-            styles.header,
-            {
-                backgroundColor,
-                paddingTop: insets.top,
-                height: 60 + insets.top
-            }
-        ]}>
+        <View style={[styles.header, { paddingTop: insets.top, height: 45 + insets.top, backgroundColor }]}>
             <View style={styles.leftContainer}>
                 {showBack && (
                     <TouchableOpacity
@@ -53,7 +46,7 @@ const CommonHeader = ({
                     </TouchableOpacity>
                 )}
             </View>
-        </View>
+        </View >
     );
 };
 

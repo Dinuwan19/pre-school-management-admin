@@ -4,7 +4,7 @@ const { logAction } = require('../services/audit.service');
 exports.requestMeeting = async (req, res, next) => {
     try {
         const userId = req.user.id;
-        const { studentId, title, description, requestDate, preferredTime } = req.body;
+        const { studentId, title, description, requestDate, preferredTime, teacherId } = req.body;
 
         const parentRecord = await prisma.parent.findUnique({
             where: { userId: userId }
@@ -14,7 +14,7 @@ exports.requestMeeting = async (req, res, next) => {
             return res.status(404).json({ message: 'Parent profile not found' });
         }
 
-        // Find the teacher for the child's classroom
+        // Find the student and verify classroom
         const student = await prisma.student.findUnique({
             where: { id: studentId },
             include: {
@@ -32,12 +32,17 @@ exports.requestMeeting = async (req, res, next) => {
             return res.status(404).json({ message: 'Student not found' });
         }
 
-        const teacherId = student.classroom?.teacherprofile[0]?.teacherId;
+        // Use provided teacherId or fallback to Lead Teacher
+        const finalTeacherId = teacherId ? parseInt(teacherId) : student.classroom?.teacherprofile[0]?.teacherId;
+
+        if (!finalTeacherId) {
+            return res.status(400).json({ message: 'No teacher found for this request. Please select a teacher manually.' });
+        }
 
         const meeting = await prisma.meeting_request.create({
             data: {
                 parentId: parentRecord.id,
-                teacherId: teacherId,
+                teacherId: finalTeacherId,
                 studentId: studentId,
                 title,
                 description,
