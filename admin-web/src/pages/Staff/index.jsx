@@ -128,13 +128,18 @@ Instructions:
             )
         },
         {
-            title: 'Classroom',
+            title: 'Classrooms',
             key: 'classroom',
-            render: (_, record) => (
-                record.role === 'TEACHER' ?
-                    <Text>{record.teacherprofile?.classroom?.name || 'Not assigned'}</Text> :
-                    <Text type="secondary">-</Text>
-            )
+            render: (_, record) => {
+                if (record.role !== 'TEACHER') return <Text type="secondary">-</Text>;
+                const classes = record.teacherprofile?.classrooms || [];
+                if (classes.length === 0) return <Text type="secondary">Not assigned</Text>;
+                return (
+                    <Space direction="vertical" size={0}>
+                        {classes.map(c => <Tag key={c.id} color="blue">{c.name}</Tag>)}
+                    </Space>
+                );
+            }
         },
         {
             title: 'Contact',
@@ -156,7 +161,8 @@ Instructions:
 
     const filteredStaff = staffList.filter(s =>
         s.fullName.toLowerCase().includes(searchText.toLowerCase()) ||
-        s.employeeId?.toLowerCase().includes(searchText.toLowerCase())
+        s.employeeId?.toLowerCase().includes(searchText.toLowerCase()) ||
+        s.nationalId?.toLowerCase().includes(searchText.toLowerCase())
     );
 
     if (view === 'add') {
@@ -177,14 +183,11 @@ Instructions:
                                 </Form.Item>
                             </Col>
                             <Col xs={24} md={12}>
-                                <Form.Item name="role" label="Role" rules={[{ required: true }]}>
-                                    <Select placeholder="Select role">
-                                        <Option value="ADMIN">Administrative Staff</Option>
-                                        <Option value="TEACHER">Teacher</Option>
-                                    </Select>
+                                {/* Hidden Role Field - Default to TEACHER */}
+                                <Form.Item name="role" hidden initialValue="TEACHER">
+                                    <Input />
                                 </Form.Item>
-                            </Col>
-                            <Col xs={24} md={12}>
+
                                 <Form.Item name="email" label="Email Address">
                                     <Input prefix={<MailOutlined />} placeholder="email@example.com" />
                                 </Form.Item>
@@ -216,27 +219,39 @@ Instructions:
                             </Col>
                         </Row>
 
-                        <Form.Item noStyle shouldUpdate={(prev, curr) => prev.role !== curr.role}>
-                            {({ getFieldValue }) => getFieldValue('role') === 'TEACHER' && (
-                                <>
-                                    <Divider orientation="left">Teacher Details</Divider>
-                                    <Row gutter={24}>
-                                        <Col xs={24} md={12}>
-                                            <Form.Item name="classroomId" label="Assigned Classroom">
-                                                <Select placeholder="Select a classroom">
-                                                    {classrooms.map(c => <Option key={c.id} value={c.id}>{c.name}</Option>)}
-                                                </Select>
-                                            </Form.Item>
-                                        </Col>
-                                        <Col xs={24} md={12}>
-                                            <Form.Item name="qualification" label="Qualifications">
-                                                <Input placeholder="e.g. B.Ed in Early Childhood Education" />
-                                            </Form.Item>
-                                        </Col>
-                                    </Row>
-                                </>
-                            )}
-                        </Form.Item>
+                        <Divider orientation="left">Role & Assignment</Divider>
+                        <Row gutter={24}>
+                            <Col xs={24} md={12}>
+                                <Form.Item
+                                    name="classroomIds"
+                                    label="Assigned Classrooms (Max 3)"
+                                    rules={[
+                                        {
+                                            validator: (_, value) => {
+                                                if (value && value.length > 3) {
+                                                    return Promise.reject(new Error('Max 3 classrooms allowed'));
+                                                }
+                                                return Promise.resolve();
+                                            }
+                                        }
+                                    ]}
+                                >
+                                    <Select
+                                        mode="multiple"
+                                        placeholder="Select classrooms"
+                                        maxTagCount={3}
+                                        optionFilterProp="children"
+                                    >
+                                        {classrooms.map(c => <Option key={c.id} value={c.id}>{c.name}</Option>)}
+                                    </Select>
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} md={12}>
+                                <Form.Item name="qualification" label="Qualifications">
+                                    <Input placeholder="e.g. B.Ed in Early Childhood Education" />
+                                </Form.Item>
+                            </Col>
+                        </Row>
 
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
                             <Button onClick={() => setView('list')}>Cancel</Button>
@@ -250,11 +265,8 @@ Instructions:
 
     return (
         <div style={{ paddingBottom: 40 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
-                <div>
-                    <Title level={3} style={{ margin: 0 }}>Staff & Teachers</Title>
-                    <Text type="secondary">Manage your school team and assignments</Text>
-                </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <Title level={3} style={{ margin: 0 }}>Staff Management</Title>
                 <Button
                     type="primary"
                     icon={<PlusOutlined />}

@@ -20,9 +20,17 @@ export const getStudentDetails = async (studentId, params = {}) => {
 
 export const getChildBillings = async (studentId) => {
     try {
-        const response = await api.get('/parent-auth/billings');
-        // Filter by specific studentId in frontend or backend
-        return response.data.filter(b => b.studentId === studentId);
+        const response = await api.get('/parent-auth/billings', { params: { studentId } });
+
+        if (Array.isArray(response.data)) {
+            return response.data.filter(b => b.studentId === studentId);
+        }
+        // If it's the new unified object { billings, payments, stats }
+        return {
+            ...response.data,
+            billings: response.data.billings?.filter(b => b.studentId === studentId) || [],
+            payments: response.data.payments?.filter(p => true) // All payments for this student context
+        };
     } catch (error) {
         throw error.response?.data || { message: 'Failed to fetch billings' };
     }

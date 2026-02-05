@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Typography, Row, Col, Avatar, Button, Tabs, Progress, List, Tag, Spin, message, Form, Slider, Divider, Statistic, Alert, Modal, Input, Select, DatePicker, Upload, Descriptions, Breadcrumb, Space, Empty } from 'antd';
+import { Card, Typography, Row, Col, Avatar, Button, Tabs, Progress, List, Tag, Spin, message, Form, Slider, Divider, Statistic, Alert, Modal, Input, Select, DatePicker, Upload, Descriptions, Breadcrumb, Space, Empty, Image } from 'antd';
 import {
     UserOutlined, ArrowLeftOutlined, EditOutlined, PhoneOutlined,
     EnvironmentOutlined, CalendarOutlined, SafetyCertificateOutlined,
@@ -100,15 +100,23 @@ const StudentProfile = () => {
                 if (values[key] !== undefined && values[key] !== null) {
                     if (key === 'dob' || key === 'enrollmentDate') {
                         formData.append(key, values[key].format('YYYY-MM-DD'));
-                    } else if (key === 'photo' || key === 'birthCert') {
-                        if (values[key]?.file) {
-                            formData.append(key, values[key].file.originFileObj);
+                    } else if (key === 'photo' || key === 'birthCert' || key === 'vaccineCard') {
+                        // Handle Ant Design Upload structure
+                        const fileObj = values[key]?.file || values[key]?.fileList?.[0] || (values[key] instanceof File ? values[key] : null);
+                        if (fileObj && (fileObj.originFileObj || fileObj instanceof File)) {
+                            formData.append(key, fileObj.originFileObj || fileObj);
                         }
                     } else {
                         formData.append(key, values[key]);
                     }
                 }
             });
+
+            console.log('Form Values:', values);
+            console.log('FormData Content:');
+            for (let pair of formData.entries()) {
+                console.log(pair[0] + ': ', pair[1]);
+            }
 
             await api.put(`/students/${id}`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
@@ -220,12 +228,28 @@ const StudentProfile = () => {
                                 <div style={{ fontWeight: 500 }}>{student.address || 'N/A'}</div>
                             </Col>
                         </Row>
-                        <Button block style={{ marginTop: 24, borderRadius: 8 }} icon={<DownloadOutlined />}>Birth Certificate & Vaccine Card</Button>
+                        <Button
+                            block
+                            style={{ marginTop: 24, borderRadius: 8 }}
+                            icon={<DownloadOutlined />}
+                            onClick={() => {
+                                if (student.birthCertPdf || student.vaccineCardPdf) {
+                                    if (student.birthCertPdf) window.open(getMediaUrl(student.birthCertPdf), '_blank');
+                                    if (student.vaccineCardPdf) window.open(getMediaUrl(student.vaccineCardPdf), '_blank');
+                                } else {
+                                    message.info('No documents uploaded yet');
+                                }
+                            }}
+                        >
+                            View Birth Certificate & Vaccine Card
+                        </Button>
                     </Card>
 
                     <Card size="small" title={<Text strong>Contact Information</Text>} bordered={false} style={{ marginBottom: 16, background: '#fff' }}>
                         <Descriptions column={1} size="small">
                             <Descriptions.Item label="Primary Contact">{student.parent_student_parentIdToparent?.phone || 'N/A'}</Descriptions.Item>
+
+
                             <Descriptions.Item label={<span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>Emergency Contact</span>}>
                                 <div style={{
                                     border: '1px solid #ff4d4f',
@@ -247,12 +271,20 @@ const StudentProfile = () => {
                             renderItem={(p, idx) => (
                                 <List.Item style={{ padding: '8px 0', border: 0 }}>
                                     <Space size={12}>
-                                        <Avatar src={p.photoUrl}>{p.fullName[0]}</Avatar>
+                                        <Avatar src={getMediaUrl(p.photoUrl)}>{p.fullName[0]}</Avatar>
                                         <div>
                                             <div style={{ fontWeight: 500 }}>{p.fullName}</div>
                                             <Text type="secondary" style={{ fontSize: 12 }}>{idx === 0 ? 'father' : 'mother'}</Text>
                                         </div>
                                     </Space>
+                                    <div style={{ textAlign: 'right', fontSize: 12 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', color: '#555' }}>
+                                            <PhoneOutlined /> {p.phone || 'N/A'}
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', color: '#888', marginTop: 2 }}>
+                                            <EnvironmentOutlined /> {p.address || 'N/A'}
+                                        </div>
+                                    </div>
                                 </List.Item>
                             )}
                         />
@@ -376,6 +408,13 @@ const StudentProfile = () => {
         }
     ];
 
+    const getMediaUrl = (path) => {
+        if (!path) return null;
+        if (path.startsWith('http') || path.startsWith('data:')) return path;
+        // Fallback to local API URL if path is relative
+        return `http://localhost:5000${path}`;
+    };
+
     return (
         <div style={{ background: '#f5f7fb', minHeight: '100vh', padding: '0 24px 24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0' }}>
@@ -399,7 +438,7 @@ const StudentProfile = () => {
                 <Col xs={24} md={6}>
                     <Card bordered={false} style={{ borderRadius: 16, textAlign: 'center', height: '100%' }}>
                         <div style={{ padding: '24px 0' }}>
-                            <Avatar size={120} src={student.photoUrl} icon={<UserOutlined />} style={{ background: '#f0f0f0' }} />
+                            <Avatar size={120} src={getMediaUrl(student.photoUrl)} icon={<UserOutlined />} style={{ background: '#f0f0f0' }} />
                             <Title level={4} style={{ marginTop: 16, marginBottom: 4 }}>{student.fullName}</Title>
                             <Text type="secondary">{student.studentUniqueId}</Text>
                         </div>
@@ -431,18 +470,48 @@ const StudentProfile = () => {
                                 </div>
                             </Space>
                         </div>
-                        <Button block style={{ marginTop: 40, borderRadius: 8, height: 40 }} icon={<DownloadOutlined />} onClick={() => {
-                            if (student.qrCode) {
-                                const link = document.createElement('a');
-                                link.href = student.qrCode;
-                                link.download = `${student.fullName}_QR.png`;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                            } else {
-                                message.error('No QR code available');
-                            }
-                        }}>Download QR Code</Button>
+                        <div style={{ marginTop: 24, padding: 16, background: '#f9f9f9', borderRadius: 12, border: '1px dashed #d9d9d9' }}>
+                            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>Student QR Code</Text>
+                            {student.qrCode ? (
+                                <div style={{ textAlign: 'center' }}>
+                                    <Image
+                                        src={getMediaUrl(student.qrCode)}
+                                        width={140}
+                                        style={{ borderRadius: 8 }}
+                                        placeholder={<Spin />}
+                                    />
+                                    <Button
+                                        block
+                                        type="primary"
+                                        ghost
+                                        style={{ marginTop: 16, borderRadius: 8 }}
+                                        icon={<DownloadOutlined />}
+                                        onClick={async () => {
+                                            try {
+                                                const url = getMediaUrl(student.qrCode);
+                                                const response = await fetch(url);
+                                                const blob = await response.blob();
+                                                const blobUrl = window.URL.createObjectURL(blob);
+                                                const link = document.createElement('a');
+                                                link.href = blobUrl;
+                                                link.download = `${student.fullName}_QR.png`;
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                document.body.removeChild(link);
+                                                window.URL.revokeObjectURL(blobUrl);
+                                            } catch (error) {
+                                                console.error('Download failed', error);
+                                                message.error('Failed to download QR code. Please try right-clicking the image and saving it.');
+                                            }
+                                        }}
+                                    >
+                                        Download QR
+                                    </Button>
+                                </div>
+                            ) : (
+                                <Text type="danger">No QR code generated</Text>
+                            )}
+                        </div>
                     </Card>
                 </Col>
 
@@ -475,10 +544,40 @@ const StudentProfile = () => {
                         <Col span={12}><Form.Item name="gender" label="Gender"><Select><Option value="MALE">Male</Option><Option value="FEMALE">Female</Option></Select></Form.Item></Col>
                         <Col span={12}><Form.Item name="dob" label="Date of Birth"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
                         <Col span={12}><Form.Item name="classroomId" label="Classroom"><Select>{classrooms.map(c => <Option key={c.id} value={c.id}>{c.name}</Option>)}</Select></Form.Item></Col>
-                        <Col span={12}><Form.Item name="parentId" label="Primary Parent"><Select>{parents.map(p => <Option key={p.id} value={p.id}>{p.fullName}</Option>)}</Select></Form.Item></Col>
-                        <Col span={12}><Form.Item name="secondParentId" label="Secondary Parent"><Select allowClear>{parents.map(p => <Option key={p.id} value={p.id}>{p.fullName}</Option>)}</Select></Form.Item></Col>
-                        <Col span={12}><Form.Item name="photo" label="Update Photo"><Upload beforeUpload={() => false} maxCount={1}><Button icon={<UploadOutlined />}>Select Image</Button></Upload></Form.Item></Col>
-                        <Col span={12}><Form.Item name="birthCert" label="Update Birth Certificate (PDF)"><Upload beforeUpload={() => false} maxCount={1} accept=".pdf"><Button icon={<UploadOutlined />}>Select PDF</Button></Upload></Form.Item></Col>
+                        <Col span={12}>
+                            <Form.Item name="parentId" label="Primary Parent">
+                                <Select>{parents.map(p => <Option key={p.id} value={p.id}>{p.fullName}</Option>)}</Select>
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item name="secondParentId" label="Secondary Parent">
+                                <Select allowClear>{parents.map(p => <Option key={p.id} value={p.id}>{p.fullName}</Option>)}</Select>
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item name="photo" label="Update Photo">
+                                <Upload beforeUpload={() => false} maxCount={1} listType="picture" accept="image/*">
+                                    <Button icon={<UploadOutlined />}>Select Image</Button>
+                                </Upload>
+                                {student.photoUrl && <div style={{ fontSize: 10, color: '#999', marginTop: 4 }}>Current: {student.photoUrl.split('/').pop()}</div>}
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item name="birthCert" label="Birth Certificate (PDF)">
+                                <Upload beforeUpload={() => false} maxCount={1} accept=".pdf">
+                                    <Button icon={<UploadOutlined />}>Select PDF</Button>
+                                </Upload>
+                                {student.birthCertPdf && <div style={{ fontSize: 10, color: '#999', marginTop: 4 }}>Current: {student.birthCertPdf.split('/').pop()}</div>}
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item name="vaccineCard" label="Vaccine Card (PDF)">
+                                <Upload beforeUpload={() => false} maxCount={1} accept=".pdf">
+                                    <Button icon={<UploadOutlined />}>Select PDF</Button>
+                                </Upload>
+                                {student.vaccineCardPdf && <div style={{ fontSize: 10, color: '#999', marginTop: 4 }}>Current: {student.vaccineCardPdf.split('/').pop()}</div>}
+                            </Form.Item>
+                        </Col>
                     </Row>
                 </Form>
             </Modal>

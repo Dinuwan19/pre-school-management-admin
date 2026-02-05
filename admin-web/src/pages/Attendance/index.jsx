@@ -135,17 +135,28 @@ const Attendance = () => {
 
     const onFormSubmit = async (values) => {
         try {
+            let finalStatus = values.status;
+
+            // Auto-Late Logic: If marked as PRESENT but time is after 8:30 AM
+            if (values.status === 'PRESENT' && values.checkInTime) {
+                const checkInTime = dayjs(values.checkInTime);
+                const lateThreshold = dayjs(values.checkInTime).hour(8).minute(30);
+                if (checkInTime.isAfter(lateThreshold)) {
+                    finalStatus = 'LATE';
+                }
+            }
+
             const payload = {
                 studentId: selectedRecord.studentId,
-                status: values.status,
+                status: finalStatus,
                 date: selectedDate.format('YYYY-MM-DD'),
                 // Only send times if not ABSENT
                 checkInTime: values.status !== 'ABSENT' && values.checkInTime ? values.checkInTime.toISOString() : null,
-                checkOutTime: values.status !== 'ABSENT' && values.checkOutTime ? values.checkOutTime.toISOString() : null,
+                checkOutTime: (values.status === 'COMPLETED' || values.status === 'EXCUSED') && values.checkOutTime ? values.checkOutTime.toISOString() : null,
                 reason: values.reason
             };
             await api.post('/attendance/manual', payload);
-            message.success('Attendance updated');
+            message.success(finalStatus === 'LATE' ? 'Attendance updated (Marked LATE)' : 'Attendance updated');
             setIsModalOpen(false);
             fetchAttendance(selectedDate);
         } catch (error) {
@@ -320,22 +331,30 @@ const Attendance = () => {
                     </Form.Item>
 
                     <Form.Item noStyle shouldUpdate={(prev, curr) => prev.status !== curr.status}>
-                        {({ getFieldValue }) => (
-                            getFieldValue('status') !== 'ABSENT' && (
-                                <Row gutter={16}>
-                                    <Col span={12}>
-                                        <Form.Item name="checkInTime" label="Check-In Time">
-                                            <TimePicker format="hh:mm A" style={{ width: '100%' }} />
-                                        </Form.Item>
-                                    </Col>
-                                    <Col span={12}>
-                                        <Form.Item name="checkOutTime" label="Check-Out Time">
-                                            <TimePicker format="hh:mm A" style={{ width: '100%' }} />
-                                        </Form.Item>
-                                    </Col>
-                                </Row>
-                            )
-                        )}
+                        {({ getFieldValue }) => {
+                            const status = getFieldValue('status');
+                            const showCheckIn = status !== 'ABSENT';
+                            const showCheckOut = status === 'COMPLETED' || status === 'EXCUSED';
+
+                            return (
+                                showCheckIn && (
+                                    <Row gutter={16}>
+                                        <Col span={showCheckOut ? 12 : 24}>
+                                            <Form.Item name="checkInTime" label="Check-In Time">
+                                                <TimePicker format="hh:mm A" style={{ width: '100%' }} />
+                                            </Form.Item>
+                                        </Col>
+                                        {showCheckOut && (
+                                            <Col span={12}>
+                                                <Form.Item name="checkOutTime" label="Check-Out Time">
+                                                    <TimePicker format="hh:mm A" style={{ width: '100%' }} />
+                                                </Form.Item>
+                                            </Col>
+                                        )}
+                                    </Row>
+                                )
+                            );
+                        }}
                     </Form.Item>
 
                     <Form.Item name="reason" label="Reason for Override" rules={[{ required: true, message: 'Please provide a reason for manual change' }]}>

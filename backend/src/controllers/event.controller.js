@@ -1,12 +1,38 @@
 const prisma = require('../config/prisma');
+const { uploadFile } = require('../services/storage.service');
+const auditService = require('../services/audit.service');
 
 exports.createEvent = async (req, res, next) => {
     try {
-        const { title, description, eventDate, startTime, endTime, location, mediaUrl } = req.body;
+        const { title, description, eventDate, startTime, endTime, location, targetClassroomIds } = req.body;
         const isTeacher = req.user.role === 'TEACHER' || req.user.role === 'STAFF';
 
         // If Teacher, status is PENDING. If Admin, status is UPCOMING (Published).
         const status = isTeacher ? 'PENDING' : 'UPCOMING';
+
+        let mediaUrl = req.body.mediaUrl;
+        if (req.file) {
+            mediaUrl = await uploadFile(req.file, 'events');
+        } else if (req.files && req.files.length > 0) {
+            // Handle array if configured as array (usually single 'media')
+            mediaUrl = await uploadFile(req.files[0], 'events');
+        } else if (req.files && req.files['media']) {
+            mediaUrl = await uploadFile(req.files['media'][0], 'events');
+        }
+
+        let classroomConnect = {};
+        if (targetClassroomIds) {
+            let ids = Array.isArray(targetClassroomIds) ? targetClassroomIds : [targetClassroomIds];
+            // Filter out 'all' or empty
+            ids = ids.filter(id => id !== 'all' && id !== '');
+            if (ids.length > 0) {
+                classroomConnect = {
+                    classrooms: {
+                        connect: ids.map(id => ({ id: parseInt(id) }))
+                    }
+                };
+            }
+        }
 
         const event = await prisma.event.create({
             data: {
@@ -18,7 +44,8 @@ exports.createEvent = async (req, res, next) => {
                 location,
                 mediaUrl,
                 status,
-                createdById: req.user.id
+                createdById: req.user.id,
+                ...classroomConnect
             }
         });
 
@@ -81,7 +108,11 @@ exports.getAllEvents = async (req, res, next) => {
             include: {
                 _count: {
                     select: { event_attendance: true }
-                }
+                },
+                user: {
+                    select: { fullName: true }
+                },
+                event_media: true
             },
             orderBy: { eventDate: 'desc' }
         });
@@ -105,7 +136,8 @@ exports.getEventById = async (req, res, next) => {
             include: {
                 event_attendance: {
                     include: { student: { select: { fullName: true, studentUniqueId: true } } }
-                }
+                },
+                event_media: true
             }
         });
         if (!event) return res.status(404).json({ message: 'Event not found' });
@@ -118,11 +150,28 @@ exports.getEventById = async (req, res, next) => {
 exports.updateEventStatus = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { status } = req.body;
+        const { title, description, eventDate, startTime, endTime, location, status } = req.body;
+
+        const updateData = {};
+        if (title) updateData.title = title;
+        if (description) updateData.description = description;
+        if (eventDate) updateData.eventDate = new Date(eventDate);
+        if (startTime) updateData.startTime = startTime;
+        if (endTime) updateData.endTime = endTime;
+        if (location) updateData.location = location;
+        if (status) updateData.status = status;
+
         const event = await prisma.event.update({
             where: { id: parseInt(id) },
-            data: { status }
+            data: updateData
         });
+
+        // Log action if status changed
+        if (status) {
+            const auditService = require('../services/audit.service');
+            auditService.logAction(req.user.id, 'UPDATE_EVENT_STATUS', `EventID: ${id}, Status: ${status}`);
+        }
+
         res.json(event);
     } catch (error) {
         next(error);
@@ -177,6 +226,59 @@ exports.approveWaitingList = async (req, res, next) => {
         });
 
         res.json(item);
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.uploadEventMedia = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const eventId = parseInt(id);
+
+        if (!req.files || !req.files['media']) {
+            return res.status(400).json({ message: 'No media files uploaded' });
+        }
+
+        const files = req.files['media'];
+        const uploadPromises = files.map(async (file) => {
+            const url = await uploadFile(file, 'events');
+            // Determine type based on mimetype
+            const type = file.mimetype.startsWith('image/') ? 'IMAGE' : 'FILE';
+
+            return prisma.event_media.create({
+                data: {
+                    eventId,
+                    url,
+                    type
+                }
+            });
+        });
+
+        const uploadedMedia = await Promise.all(uploadPromises);
+
+        // Update event status to COMPLETED if not already
+        await prisma.event.update({
+            where: { id: eventId },
+            data: { status: 'COMPLETED' }
+        });
+
+        res.status(201).json({
+            message: `${uploadedMedia.length} files uploaded successfully`,
+            media: uploadedMedia
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.deleteEventMedia = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        await prisma.event_media.delete({
+            where: { id: parseInt(id) }
+        });
+        res.json({ message: 'Media deleted successfully' });
     } catch (error) {
         next(error);
     }

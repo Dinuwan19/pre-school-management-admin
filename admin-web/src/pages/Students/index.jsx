@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, DatePicker, Select, Card, Typography, message, Avatar, Tag, Row, Col, Divider, Space, Descriptions, Alert } from 'antd';
-import { PlusOutlined, SearchOutlined, FilterOutlined, CopyOutlined, DownloadOutlined } from '@ant-design/icons';
+import { Table, Button, Modal, Form, Input, DatePicker, Select, Card, Typography, message, Avatar, Tag, Row, Col, Divider, Space, Descriptions, Alert, Upload } from 'antd';
+import { PlusOutlined, SearchOutlined, FilterOutlined, CopyOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/client';
@@ -64,17 +64,38 @@ const Students = () => {
             const values = await form.validateFields();
             setLoading(true);
 
-            const payload = {
-                ...values,
-                dob: values.dob ? values.dob.format('YYYY-MM-DD') : null,
-                enrollmentDate: values.enrollmentDate ? values.enrollmentDate.format('YYYY-MM-DD') : new Date(),
+            const formData = new FormData();
+            formData.append('fullName', values.fullName);
+            formData.append('gender', values.gender);
+            formData.append('parentId', values.parentId);
+            if (values.secondParentId) formData.append('secondParentId', values.secondParentId);
+            formData.append('classroomId', values.classroomId);
+            formData.append('dob', values.dob ? values.dob.format('YYYY-MM-DD') : '');
+            formData.append('enrollmentDate', values.enrollmentDate ? values.enrollmentDate.format('YYYY-MM-DD') : new Date().toISOString().split('T')[0]);
+            formData.append('emergencyContact', values.emergencyContact);
+            if (values.medicalInfo) formData.append('medicalInfo', values.medicalInfo);
+
+            // Append Files
+            const appendFileIfExist = (name, value) => {
+                const fileObj = value?.file || value?.fileList?.[0] || (value instanceof File ? value : null);
+                if (fileObj && (fileObj.originFileObj || fileObj instanceof File)) {
+                    formData.append(name, fileObj.originFileObj || fileObj);
+                }
             };
 
-            await api.post('/students', payload);
+            appendFileIfExist('photo', values.photo);
+            appendFileIfExist('birthCert', values.birthCert);
+            appendFileIfExist('vaccineCard', values.vaccineCard);
+
+            await api.post('/students', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
             message.success('Student added successfully');
             setIsModalVisible(false);
             fetchData();
         } catch (error) {
+            console.error(error);
             message.error(error.response?.data?.message || 'Failed to add student');
         } finally {
             setLoading(false);
@@ -376,6 +397,29 @@ Instructions:
                                 ]}
                             >
                                 <Input placeholder="e.g. Aunt - 0712345678" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    <Row gutter={24}>
+                        <Col span={8}>
+                            <Form.Item name="photo" label="Student Photo">
+                                <Upload maxCount={1} beforeUpload={() => false} listType="picture" accept="image/*">
+                                    <Button icon={<UploadOutlined />}>Upload Photo</Button>
+                                </Upload>
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item name="birthCert" label="Birth Certificate (PDF)">
+                                <Upload maxCount={1} beforeUpload={() => false} accept=".pdf,.jpg,.jpeg,.png">
+                                    <Button icon={<UploadOutlined />}>Upload Cert</Button>
+                                </Upload>
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item name="vaccineCard" label="Vaccine Card (PDF)">
+                                <Upload maxCount={1} beforeUpload={() => false} accept=".pdf,.jpg,.jpeg,.png">
+                                    <Button icon={<UploadOutlined />}>Upload Card</Button>
+                                </Upload>
                             </Form.Item>
                         </Col>
                     </Row>

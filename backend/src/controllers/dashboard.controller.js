@@ -15,13 +15,13 @@ exports.getStats = async (req, res, next) => {
         if (req.classroomScope) {
             // Teacher Scope
             const [sCount, pCount] = await Promise.all([
-                prisma.student.count({ where: { status: 'ACTIVE', classroomId: req.classroomScope } }),
+                prisma.student.count({ where: { status: 'ACTIVE', classroomId: { in: req.classroomScope } } }),
                 prisma.parent.count({
                     where: {
                         status: 'ACTIVE',
                         OR: [
-                            { student_student_parentIdToparent: { some: { classroomId: req.classroomScope } } },
-                            { student_student_secondParentIdToparent: { some: { classroomId: req.classroomScope } } }
+                            { student_student_parentIdToparent: { some: { classroomId: { in: req.classroomScope } } } },
+                            { student_student_secondParentIdToparent: { some: { classroomId: { in: req.classroomScope } } } }
                         ]
                     }
                 })
@@ -29,7 +29,7 @@ exports.getStats = async (req, res, next) => {
             studentCount = sCount;
             parentCount = pCount;
             staffCount = null; // Hide staff count from teachers
-            classroomCount = 1; // Only their own
+            classroomCount = req.classroomScope.length;
         } else {
             // Admin Scope
             const [sCount, sCCount, cCount, pCount] = await Promise.all([
@@ -50,7 +50,7 @@ exports.getStats = async (req, res, next) => {
             status: { in: ['PRESENT', 'LATE', 'COMPLETED'] }
         };
         if (req.classroomScope) {
-            attendanceWhere.student = { classroomId: req.classroomScope };
+            attendanceWhere.student = { classroomId: { in: req.classroomScope } };
         }
 
         const presentToday = await prisma.attendance.count({ where: attendanceWhere });
@@ -87,7 +87,7 @@ exports.getStats = async (req, res, next) => {
         };
         if (req.classroomScope) {
             notificationWhere.OR = [
-                { targetClassroomId: req.classroomScope },
+                { targetClassroomId: { in: req.classroomScope } },
                 { targetRole: 'ALL' },
                 { targetRole: 'TEACHER' }
             ];
@@ -99,18 +99,42 @@ exports.getStats = async (req, res, next) => {
             orderBy: { createdAt: 'desc' }
         });
 
+        // 5. Pending Meeting Count (New)
+        let meetingWhere = { status: 'PENDING' };
+        if (req.classroomScope) {
+            meetingWhere.teacherId = req.user.id;
+        }
+        const pendingMeetingsCount = await prisma.meeting_request.count({ where: meetingWhere });
+
+        // 6. Upcoming Meetings for Dashboard Feed (New)
+        let dashboardMeetingWhere = { status: 'APPROVED' };
+        if (req.classroomScope) {
+            dashboardMeetingWhere.teacherId = req.user.id;
+        }
+        const upcomingMeetings = await prisma.meeting_request.findMany({
+            where: dashboardMeetingWhere,
+            take: 5,
+            include: {
+                student: { select: { fullName: true } },
+                parent: { select: { fullName: true } }
+            },
+            orderBy: { requestDate: 'asc' }
+        });
+
         res.json({
             counts: {
                 students: studentCount,
                 staff: staffCount,
                 classrooms: classroomCount,
-                parents: parentCount
+                parents: parentCount,
+                pendingMeetings: pendingMeetingsCount
             },
             analytics: {
                 attendance: attendanceAnalytics,
                 payments: billingStats
             },
-            events
+            events,
+            upcomingMeetings
         });
     } catch (error) {
         next(error);
@@ -132,7 +156,7 @@ exports.getParentStats = async (req, res, next) => {
                     include: {
                         classroom: {
                             include: {
-                                teacherprofile: {
+                                teacherprofiles: {
                                     where: { designation: 'LEAD' },
                                     include: { user: true }
                                 }
@@ -144,7 +168,7 @@ exports.getParentStats = async (req, res, next) => {
                     include: {
                         classroom: {
                             include: {
-                                teacherprofile: {
+                                teacherprofiles: {
                                     where: { designation: 'LEAD' },
                                     include: { user: true }
                                 }
@@ -222,7 +246,7 @@ exports.getParentStats = async (req, res, next) => {
                 photoUrl: child.photoUrl,
                 classroomId: child.classroomId,
                 classroom: child.classroom?.name,
-                teacherName: child.classroom?.teacherprofile?.[0]?.user?.fullName || 'Ms. Dilani',
+                teacherName: child.classroom?.teacherprofiles?.[0]?.user?.fullName || 'Ms. Dilani',
                 attendance: attendance ? 'Present' : 'Absent',
                 attendanceRate,
                 feeStatus,
@@ -236,7 +260,7 @@ exports.getParentStats = async (req, res, next) => {
         // 5. Recent Updates (Notifications tailored to children's classrooms)
         const classroomIds = children.map(c => c.classroomId);
 
-        const [meetings, schoolEvents, updates] = await Promise.all([
+        const [meetings, schoolEvents, notifications, homeworkItems] = await Promise.all([
             prisma.meeting_request.findMany({
                 where: { parentId: parent.id, status: 'APPROVED', requestDate: { gte: new Date() } },
                 take: 3,
@@ -244,6 +268,7 @@ exports.getParentStats = async (req, res, next) => {
             }),
             prisma.event.findMany({
                 where: { status: { in: ['UPCOMING', 'PUBLISHED'] }, eventDate: { gte: new Date() } },
+                include: { event_media: true },
                 take: 5,
                 orderBy: { eventDate: 'asc' }
             }),
@@ -251,38 +276,74 @@ exports.getParentStats = async (req, res, next) => {
                 where: {
                     OR: [
                         { targetRole: 'ALL' },
-                        // Fix for dashboard leak:
-                        { targetRole: 'PARENT', targetParentId: null }, // Only global parent alerts
-                        { targetParentId: parent.userId }, // Personal alerts
+                        { targetRole: 'PARENT', targetParentId: null },
+                        { targetParentId: parent.userId },
                         { targetClassroomId: { in: classroomIds } }
                     ]
                 },
                 take: 5,
                 orderBy: { createdAt: 'desc' }
+            }),
+            prisma.homework.findMany({
+                where: { classroomId: { in: classroomIds } },
+                take: 5,
+                orderBy: { createdAt: 'desc' },
+                include: { user: { select: { fullName: true } } }
             })
         ]);
 
+        // Combine and Sort Updates (Notifications + Homework)
+        const combinedUpdates = [
+            ...notifications.map(u => {
+                const isFee = u.title?.toLowerCase().includes('fee') ||
+                    u.message?.toLowerCase().includes('fee') ||
+                    u.title?.toLowerCase().includes('payment') ||
+                    u.message?.toLowerCase().includes('payment');
+
+                return {
+                    id: `notice-${u.id}`,
+                    title: u.title,
+                    message: u.message,
+                    createdAt: u.createdAt,
+                    type: isFee ? 'ALERT' : 'NOTICE' // ALERT for fees (Red), NOTICE for general (Purple)
+                };
+            }),
+            ...homeworkItems.map(h => ({
+                id: `hw-${h.id}`,
+                title: `New Homework: ${h.title}`,
+                message: `${h.description || 'New assignment posted.'}\nDue: ${h.dueDate ? dayjs(h.dueDate).format('MMM DD') : 'No date'}`,
+                createdAt: h.createdAt,
+                type: 'HOMEWORK' // Blue color
+            }))
+        ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
+
         // Better sorting: sort before mapping
         const sortedCombined = [
-            ...meetings.map(m => ({ ...m, sortDate: m.requestDate, uiType: 'MEETING' })),
             ...schoolEvents.map(e => ({ ...e, sortDate: e.eventDate, uiType: 'EVENT' }))
         ].sort((a, b) => new Date(a.sortDate) - new Date(b.sortDate)).slice(0, 5);
 
         res.json({
             children: childrenStats,
             upcomingEvents: sortedCombined.map(ev => ({
-                id: ev.id,
+                id: ev.uiType === 'MEETING' ? `meeting-${ev.id}` : `event-${ev.id}`,
                 title: ev.title,
                 date: dayjs(ev.sortDate).format('MMM DD'),
                 time: ev.uiType === 'MEETING' ? (ev.preferredTime || 'TBD') : (ev.startTime || 'All Day'),
-                type: ev.uiType
+                type: ev.uiType,
+                description: ev.description,
+                location: ev.location,
+                mediaUrl: ev.mediaUrl,
+                event_media: ev.event_media || [],
+                eventDate: ev.eventDate,
+                startTime: ev.startTime,
+                endTime: ev.endTime
             })),
-            updates: updates.map(u => ({
+            updates: combinedUpdates.map(u => ({
                 id: u.id,
                 title: u.title,
                 message: u.message,
                 date: dayjs(u.createdAt).fromNow(),
-                type: 'NOTICE'
+                type: u.type
             })),
             profile: {
                 fullName: parent.fullName,

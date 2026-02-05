@@ -9,3 +9,13 @@ exports.generateQRCode = async (data) => {
         return null;
     }
 };
+
+exports.generateQRCodeBuffer = async (data) => {
+    try {
+        // Generates a Buffer
+        return await QRCode.toBuffer(data);
+    } catch (err) {
+        console.error('Error generating QR code buffer', err);
+        return null;
+    }
+};

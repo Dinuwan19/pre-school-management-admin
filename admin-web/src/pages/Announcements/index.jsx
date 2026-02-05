@@ -13,7 +13,7 @@ const Announcements = () => {
     const [announcements, setAnnouncements] = useState([]);
     const [loading, setLoading] = useState(false);
     const [classrooms, setClassrooms] = useState([]);
-    const [targetType, setTargetType] = useState('ALL');
+    const [targetType, setTargetType] = useState(user?.role === 'TEACHER' ? 'CLASS' : 'ALL');
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [form] = Form.useForm();
 
@@ -61,7 +61,7 @@ const Announcements = () => {
             message.success('Announcement published');
             setIsModalVisible(false);
             form.resetFields();
-            setTargetType('ALL');
+            setTargetType(user?.role === 'TEACHER' ? 'CLASS' : 'ALL');
             fetchAnnouncements();
         } catch (error) {
             message.error('Failed to publish announcement');
@@ -190,11 +190,11 @@ const Announcements = () => {
                         <Input placeholder="Enter a clear, descriptive title" size="large" />
                     </Form.Item>
 
-                    <Form.Item name="targetType" label="Recipient Group" rules={[{ required: true }]} initialValue="ALL">
+                    <Form.Item name="targetType" label="Recipient Group" rules={[{ required: true }]} initialValue={user?.role === 'TEACHER' ? 'CLASS' : 'ALL'}>
                         <Select size="large" onChange={val => setTargetType(val)}>
-                            <Option value="ALL">All Users</Option>
-                            <Option value="TEACHER">Staff & Teachers</Option>
-                            <Option value="PARENT">Parents Only</Option>
+                            {user?.role !== 'TEACHER' && <Option value="ALL">All Users</Option>}
+                            {user?.role !== 'TEACHER' && <Option value="TEACHER">Staff & Teachers</Option>}
+                            {user?.role !== 'TEACHER' && <Option value="PARENT">Parents Only</Option>}
                             <Option value="CLASS">Specific Classroom</Option>
                         </Select>
                     </Form.Item>

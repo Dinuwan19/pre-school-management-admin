@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const { getNextReceiptNo, generateInvoice } = require('../services/invoice.service');
 
 exports.generateBilling = async (req, res, next) => {
     console.log('[Billing] Generating billing for:', req.body);
@@ -11,6 +12,25 @@ exports.generateBilling = async (req, res, next) => {
         if (monthsToProcess.length === 0) {
             return res.status(400).json({ message: 'No billing month specified' });
         }
+
+        // --- Double Billing Check ---
+        const existingBillings = await prisma.billing.findMany({
+            where: { studentId: parseInt(studentId) }
+        });
+
+        // Flatten all billed months (including consolidated comma-separated ones)
+        const allBilledMonths = existingBillings.reduce((acc, b) => {
+            const months = b.billingMonth.split(',').map(m => m.trim());
+            return [...acc, ...months];
+        }, []);
+
+        const overlaps = monthsToProcess.filter(m => allBilledMonths.includes(m));
+        if (overlaps.length > 0) {
+            return res.status(400).json({
+                message: `The following months are already billed for this student: ${overlaps.join(', ')}`
+            });
+        }
+        // ---------------------------
 
         // Consolidated Billing Logic:
         // Join months into a single string e.g., "January, February"
@@ -41,7 +61,7 @@ exports.payBillingCash = async (req, res, next) => {
         const billing = await prisma.billing.findUnique({ where: { id: parseInt(billingId) } });
 
         if (!billing) return res.status(404).json({ message: 'Billing record not found' });
-        if (billing.status === 'PAID') return res.status(400).json({ message: 'Billing already paid' });
+        if (billing.status !== 'UNPAID') return res.status(400).json({ message: 'This month is already paid or verification is pending.' });
 
         // 1. Update Billing Status
         const updatedBilling = await prisma.billing.update({
@@ -50,18 +70,30 @@ exports.payBillingCash = async (req, res, next) => {
         });
 
         // 2. Create Payment Record (Auto-Approved)
-        await prisma.payment.create({
+        const payment = await prisma.payment.create({
             data: {
                 amountPaid: billing.amount,
                 paymentMethod: 'CASH',
                 status: 'APPROVED',
                 verifiedById: req.user.id,
                 verifiedAt: new Date(),
+                receiptNo: await getNextReceiptNo(),
                 billingpayment: {
                     create: { billingId: billing.id }
                 }
             }
         });
+
+        // 3. Generate Invoice
+        try {
+            const invoiceUrl = await generateInvoice(payment.id);
+            await prisma.payment.update({
+                where: { id: payment.id },
+                data: { invoiceUrl }
+            });
+        } catch (invError) {
+            console.error('Cash Invoice Gen Error:', invError);
+        }
 
         res.json({ message: 'Cash payment recorded successfully', billing: updatedBilling });
     } catch (error) {
@@ -99,7 +131,7 @@ exports.getAllBillings = async (req, res, next) => {
             where,
             include: {
                 student: {
-                    select: { fullName: true, studentUniqueId: true }
+                    select: { fullName: true, studentUniqueId: true, parentId: true, secondParentId: true }
                 },
                 billingpayment: {
                     include: {
@@ -111,6 +143,47 @@ exports.getAllBillings = async (req, res, next) => {
             },
             orderBy: { billingMonth: 'desc' }
         });
+
+        // If specific studentId and PARENT role, return unified object with stats and full payment history
+        // If specific studentId and PARENT role, return unified object with stats and full payment history
+        if (studentId && req.user.role === 'PARENT') {
+            // Fetch student details explicitly to ensure we have identifiers for payment search
+            const studentDetails = await prisma.student.findUnique({
+                where: { id: parseInt(studentId) },
+                select: { studentUniqueId: true, fullName: true }
+            });
+
+            // Fallback to billing student if explicit fetch fails (unlikely if ID matches)
+            const sId = studentDetails?.studentUniqueId || billings[0]?.student?.studentUniqueId || '';
+            const sName = studentDetails?.fullName || billings[0]?.student?.fullName || '';
+
+            const payments = await prisma.payment.findMany({
+                where: {
+                    OR: [
+                        { billingpayment: { some: { billing: { studentId: parseInt(studentId) } } } },
+                        { transactionRef: { contains: `[Student ID: ${sId}]` } },
+                        { transactionRef: { contains: `[Student: ${sName}]` } }
+                    ]
+                },
+                orderBy: { createdAt: 'desc' }
+            });
+
+            const totalPaid = payments
+                .filter(p => p.status === 'APPROVED')
+                .reduce((sum, p) => sum + parseFloat(p.amountPaid), 0);
+
+            const pending = payments
+                .filter(p => p.status === 'PENDING')
+                .reduce((sum, p) => sum + parseFloat(p.amountPaid), 0);
+
+            return res.json({
+                billings,
+                payments,
+                totalPaid,
+                pending,
+                stats: { totalPaid, pending }
+            });
+        }
 
         res.json(billings);
     } catch (error) {
@@ -237,12 +310,27 @@ exports.getDashboardStats = async (req, res, next) => {
         });
         const expenseMTD = monthExpensesAgg._sum.amount ? parseFloat(monthExpensesAgg._sum.amount) : 0;
 
-        // 5. Pending Payments (Online payments waiting approval)
+        // 5. Pending Total = Online payments waiting approval (PENDING) + Overdue Unpaid Billings
         const pendingPaymentsAgg = await prisma.payment.aggregate({
             _sum: { amountPaid: true },
             where: { status: 'PENDING' }
         });
-        const pendingTotal = pendingPaymentsAgg._sum.amountPaid ? parseFloat(pendingPaymentsAgg._sum.amountPaid) : 0;
+        const verificationQueueTotal = pendingPaymentsAgg._sum.amountPaid ? parseFloat(pendingPaymentsAgg._sum.amountPaid) : 0;
+
+        // Overdue logic: Unpaid billings before the 5th of the current month
+        const now = new Date();
+        const fifthOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 5, 0, 0, 0);
+
+        const overdueBillingsAgg = await prisma.billing.aggregate({
+            _sum: { amount: true },
+            where: {
+                status: 'UNPAID',
+                createdAt: { lt: fifthOfCurrentMonth }
+            }
+        });
+        const overdueTotal = overdueBillingsAgg._sum.amount ? parseFloat(overdueBillingsAgg._sum.amount) : 0;
+
+        const pendingTotal = verificationQueueTotal + overdueTotal;
 
         const netIncomeAllTime = totalIncomeAllTime - totalExpensesAllTime;
         const netIncomeMTD = incomeMTD - expenseMTD;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Row, Col, Statistic, List, Avatar, Badge, Empty, Space, Button, Progress, Divider } from 'antd';
-import { UserOutlined, TeamOutlined, HomeOutlined, BellOutlined, ArrowRightOutlined, BookOutlined, CalendarOutlined, DollarOutlined } from '@ant-design/icons';
+import { Typography, Card, Row, Col, Statistic, List, Avatar, Badge, Empty, Space, Button, Progress, Divider, Tag } from 'antd';
+import { UserOutlined, TeamOutlined, HomeOutlined, BellOutlined, ArrowRightOutlined, BookOutlined, CalendarOutlined, DollarOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
@@ -153,20 +153,44 @@ const Dashboard = () => {
                             >
                                 <List
                                     loading={loading}
-                                    dataSource={data?.events || []}
+                                    dataSource={[
+                                        ...(data?.events || []).map(e => ({ ...e, uiType: 'NOTICE' })),
+                                        ...(data?.upcomingMeetings || []).map(m => ({ ...m, uiType: 'MEETING' }))
+                                    ].sort((a, b) => new Date(b.createdAt || b.requestDate) - new Date(a.createdAt || a.requestDate))}
                                     renderItem={(item) => (
                                         <List.Item style={{ borderBottom: '1px solid #f0f0f0', padding: '16px 0' }}>
                                             <List.Item.Meta
-                                                avatar={<Avatar style={{ backgroundColor: '#F0EAFB', color: '#7B57E4' }}>{item.targetRole?.[0] || 'A'}</Avatar>}
-                                                title={<Text strong>{item.title}</Text>}
-                                                description={<Text type="secondary" italic>{dayjs(item.createdAt).fromNow()}</Text>}
+                                                avatar={
+                                                    <Avatar style={{
+                                                        backgroundColor: item.uiType === 'MEETING' ? '#F0FDF4' : '#F0EAFB',
+                                                        color: item.uiType === 'MEETING' ? '#22C55E' : '#7B57E4'
+                                                    }}>
+                                                        {item.uiType === 'MEETING' ? <CalendarOutlined /> : (item.targetRole?.[0] || 'A')}
+                                                    </Avatar>
+                                                }
+                                                title={
+                                                    <Space>
+                                                        <Text strong>{item.title}</Text>
+                                                        {item.uiType === 'MEETING' && <Tag color="green">Meeting</Tag>}
+                                                    </Space>
+                                                }
+                                                description={
+                                                    <Space direction="vertical" size={0}>
+                                                        <Text type="secondary" italic>{dayjs(item.createdAt || item.requestDate).fromNow()}</Text>
+                                                        {item.uiType === 'MEETING' && (
+                                                            <Text type="secondary" style={{ fontSize: 13 }}>
+                                                                <ClockCircleOutlined /> {item.preferredTime} | Student: {item.student?.fullName}
+                                                            </Text>
+                                                        )}
+                                                    </Space>
+                                                }
                                             />
                                             <div style={{ maxWidth: '60%', color: '#666' }}>
-                                                {item.message}
+                                                {item.message || item.description}
                                             </div>
                                         </List.Item>
                                     )}
-                                    locale={{ emptyText: <Empty description="No recent events" /> }}
+                                    locale={{ emptyText: <Empty description="No recent updates" /> }}
                                 />
                             </Card>
                         </Col>

@@ -12,16 +12,19 @@ import {
     CalendarOutlined,
     BarChartOutlined,
     ScheduleOutlined,
-    FileTextOutlined
+    FileTextOutlined,
+    IdcardOutlined
 } from '@ant-design/icons';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/client';
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
 
 const MainLayout = () => {
     const [collapsed, setCollapsed] = useState(false);
+    const [pendingMeetings, setPendingMeetings] = useState(0);
     const {
         token: { colorBgContainer, borderRadiusLG },
     } = theme.useToken();
@@ -35,6 +38,22 @@ const MainLayout = () => {
         navigate('/login');
     };
 
+    const fetchPendingCount = async () => {
+        try {
+            const res = await api.get('/dashboard/stats');
+            setPendingMeetings(res.data?.counts?.pendingMeetings || 0);
+        } catch (error) {
+            console.error('Failed to fetch pending meetings count', error);
+        }
+    };
+
+    React.useEffect(() => {
+        fetchPendingCount();
+        // Refresh every 5 minutes
+        const interval = setInterval(fetchPendingCount, 5 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, []);
+
     const menuItems = [
         {
             key: '/dashboard',
@@ -43,21 +62,15 @@ const MainLayout = () => {
         },
 
         {
-            key: 'students-sub',
+            key: '/students',
             icon: <UserOutlined />,
             label: 'Students',
-            children: [
-                { key: '/students', label: 'All Students' }
-            ]
         },
         ...(user?.role !== 'PARENT' ? [
             {
-                key: 'parents-sub',
+                key: '/parents',
                 icon: <TeamOutlined />,
                 label: 'Parents',
-                children: [
-                    { key: '/parents', label: 'All Parents' }
-                ]
             },
             {
                 key: '/classrooms',
@@ -67,7 +80,7 @@ const MainLayout = () => {
         ] : []),
         ...(user?.role === 'SUPER_ADMIN' ? [{
             key: '/staff',
-            icon: <UserOutlined />,
+            icon: <IdcardOutlined />,
             label: 'Staff',
         }] : []),
         ...(user?.role !== 'PARENT' ? [
@@ -82,6 +95,7 @@ const MainLayout = () => {
                 label: 'Education & Communication',
                 children: [
                     { key: '/announcements', label: 'Announcements' },
+                    { key: '/meetings', label: 'Meeting Requests' },
                     { key: '/homework', label: 'Homework' }
                 ]
             }
@@ -136,7 +150,7 @@ const MainLayout = () => {
                 <Menu
                     theme="light"
                     mode="inline"
-                    defaultOpenKeys={['students-sub', 'parents-sub']}
+                    defaultOpenKeys={['billing-sub', 'edu-comm-sub']}
                     selectedKeys={[location.pathname]}
                     onClick={({ key }) => {
                         if (key.includes('/add')) {
@@ -178,17 +192,28 @@ const MainLayout = () => {
                         <Breadcrumb items={breadcrumbItems} />
                     </div>
 
-                    <div
-                        style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
-                        onClick={() => navigate('/dashboard')}
-                    >
-                        <div style={{ textAlign: 'right', lineHeight: 1.2 }}>
-                            <div style={{ fontWeight: 600, color: '#333' }}>{user?.username}</div>
-                            <div style={{ fontSize: 11, color: '#888' }}>{user?.role}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+                        <Badge count={pendingMeetings} size="small" offset={[-2, 6]}>
+                            <Button
+                                type="text"
+                                icon={<BellOutlined style={{ fontSize: 20, color: '#64748B' }} />}
+                                onClick={() => navigate('/meetings')}
+                                style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            />
+                        </Badge>
+
+                        <div
+                            style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+                            onClick={() => navigate('/dashboard')}
+                        >
+                            <div style={{ textAlign: 'right', lineHeight: 1.2 }}>
+                                <div style={{ fontWeight: 600, color: '#333' }}>{user?.username}</div>
+                                <div style={{ fontSize: 11, color: '#888' }}>{user?.role}</div>
+                            </div>
+                            <Avatar style={{ backgroundColor: '#F0EAFB', color: '#7B57E4' }}>
+                                {user?.username?.substring(0, 2).toUpperCase() || 'AD'}
+                            </Avatar>
                         </div>
-                        <Avatar style={{ backgroundColor: '#F0EAFB', color: '#7B57E4' }}>
-                            {user?.username?.substring(0, 2).toUpperCase() || 'AD'}
-                        </Avatar>
                     </div>
                 </Header>
                 <Content

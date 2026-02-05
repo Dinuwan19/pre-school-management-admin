@@ -1,0 +1,16 @@
+🚀 Starting Comprehensive Billing Data Cleanup...
+📦 Wiping Database Records...
+✅ Deleted 5 BillingPayment links.
+✅ Deleted 12 Payment records.
+✅ Deleted 5 Billing records.
+
+☁️ Clearing Supabase Cloud Storage (receipts bucket)...
+🔍 Found 6 items to remove.
+✅ Cleared folder: invoices (7 files)
+✅ Deleted root file: receipt-1769958758461-849143194.pdf
+✅ Deleted root file: receipt-1769959182661-506735811.pdf
+✅ Deleted root file: receipt-1769960229475-775525483.pdf
+✅ Deleted root file: receipt-1769960332623-583677966.pdf
+✅ Deleted root file: receipt-1769960717266-561829711.pdf
+
+✨ Cleanup Complete! Billing system is now 100% fresh.

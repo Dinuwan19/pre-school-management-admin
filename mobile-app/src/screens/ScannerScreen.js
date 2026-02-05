@@ -18,7 +18,7 @@ const ScannerScreen = ({ navigation }) => {
     const [permission, requestPermission] = useCameraPermissions();
     const [scanned, setScanned] = useState(false);
     const [result, setResult] = useState(null); // { status, message, student }
-    const [stats, setStats] = useState({ present: 0 }); // Simple local stats
+    const [scanMode, setScanMode] = useState('AUTO'); // AUTO, CHECK_IN, CHECK_OUT
     const lastScanRef = useRef(0);
 
     useEffect(() => {
@@ -27,78 +27,61 @@ const ScannerScreen = ({ navigation }) => {
         }
     }, [permission]);
 
-    const playSound = async (success) => {
-        try {
-            // In a real app, load sound files. Here we rely on Haptics mostly.
-            // But we can simulate "beep" via system if available, or just Vibrate.
-        } catch (error) {
-            console.log('Audio Error', error);
-        }
-    };
-
     const handleBarCodeScanned = async ({ type, data }) => {
         const now = Date.now();
-        if (scanned || now - lastScanRef.current < 2000) return; // 2 sec debounce local
+        if (scanned || now - lastScanRef.current < 1500) return; // 1.5 sec debounce
         lastScanRef.current = now;
         setScanned(true);
 
         try {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-            // Handle QR data: Could be a simple numeric ID or a JSON object
-            console.log('QR Code Scanned:', data);
             let studentId;
-
             try {
-                // Try parsing as JSON first (System Generated Format)
                 const parsed = JSON.parse(data);
                 studentId = parsed.id || data;
             } catch (e) {
-                // Fallback to raw data (Legacy/Simple Format)
                 studentId = data;
             }
 
-            console.log('Processing scan for studentId:', studentId);
-            const response = await api.post('/attendance/scan', { studentId: parseInt(studentId), deviceId: 'MOBILE_APP_1' });
-            console.log('Scan Response:', response.data);
+            console.log(`[Scan] studentId: ${studentId}, mode: ${scanMode}`);
+            const response = await api.post('/attendance/scan', {
+                studentId: parseInt(studentId),
+                deviceId: 'MOBILE_APP_STAFF',
+                forceMode: scanMode === 'AUTO' ? null : scanMode
+            });
 
             const { status, message, type: scanType, student: studentInfo } = response.data;
 
-            // Determine feedback
             let feedbackType = 'SUCCESS';
-            if (scanType === 'IGNORED' || scanType === 'ALREADY_IN' || scanType === 'COMPLETED') feedbackType = 'WARNING';
+            if (scanType === 'IGNORED' || scanType === 'ALREADY_IN' || scanType === 'ALREADY_OUT') feedbackType = 'WARNING';
             if (status === 'ERROR') feedbackType = 'ERROR';
 
-            if (feedbackType === 'SUCCESS') {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            } else if (feedbackType === 'WARNING') {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            } else {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            }
+            if (feedbackType === 'SUCCESS') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            else if (feedbackType === 'WARNING') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            else Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
             setResult({
                 type: feedbackType,
                 message: message,
                 student: studentInfo,
-                scanType: scanType // CHECK_IN, CHECK_OUT
+                scanType: scanType
             });
 
         } catch (error) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             setResult({
                 type: 'ERROR',
-                message: error.response?.data?.message || 'Network/Server Error',
+                message: error.response?.data?.message || 'Network Error',
                 student: null
             });
         }
 
-        // Auto-dismiss result after 3 seconds to allow continuous scanning?
-        // Better: Tap to dismiss or auto-dismiss.
+        // Auto-dismiss faster for rapid scanning
         setTimeout(() => {
             setScanned(false);
             setResult(null);
-        }, 3000);
+        }, 1500);
     };
 
     if (!permission) return <View />;
@@ -110,29 +93,52 @@ const ScannerScreen = ({ navigation }) => {
                 style={StyleSheet.absoluteFillObject}
                 onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
                 barcodeScannerSettings={{
-                    barcodeTypes: ["qr", "pdf417"],
+                    barcodeTypes: ["qr"],
                 }}
             />
 
+            {/* Overlay Viewfinder */}
             <View style={styles.overlay}>
                 <View style={styles.header}>
-                    <Text style={styles.headerText}>School Attendance</Text>
+                    <Text style={styles.headerText}>Staff Scanner</Text>
                 </View>
+
+                <View style={styles.modeContainer}>
+                    <TouchableOpacity
+                        style={[styles.modeButton, scanMode === 'AUTO' && styles.modeButtonActive]}
+                        onPress={() => setScanMode('AUTO')}
+                    >
+                        <Text style={[styles.modeButtonText, scanMode === 'AUTO' && styles.modeButtonTextActive]}>Auto</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.modeButton, scanMode === 'CHECK_IN' && styles.modeButtonActive]}
+                        onPress={() => setScanMode('CHECK_IN')}
+                    >
+                        <Text style={[styles.modeButtonText, scanMode === 'CHECK_IN' && styles.modeButtonTextActive]}>In</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.modeButton, scanMode === 'CHECK_OUT' && styles.modeButtonActive]}
+                        onPress={() => setScanMode('CHECK_OUT')}
+                    >
+                        <Text style={[styles.modeButtonText, scanMode === 'CHECK_OUT' && styles.modeButtonTextActive]}>Out</Text>
+                    </TouchableOpacity>
+                </View>
+
                 <View style={styles.scannerFrame} />
+
                 <View style={styles.footer}>
-                    <Text style={styles.footerText}>Align QR Code within the frame</Text>
+                    <Text style={styles.footerText}>Mode: {scanMode.replace('_', ' ')}</Text>
                 </View>
             </View>
 
-            {/* Visual Verification Modal */}
+            {/* Verification Result Overlay */}
             {result && (
-                <View style={[styles.resultOverlay, { backgroundColor: result.type === 'SUCCESS' ? 'rgba(16, 185, 129, 0.9)' : result.type === 'WARNING' ? 'rgba(245, 158, 11, 0.9)' : 'rgba(239, 68, 68, 0.9)' }]}>
+                <View style={[styles.resultOverlay, { backgroundColor: result.type === 'SUCCESS' ? 'rgba(16, 185, 129, 0.95)' : result.type === 'WARNING' ? 'rgba(245, 158, 11, 0.95)' : 'rgba(239, 68, 68, 0.95)' }]}>
                     <Text style={styles.resultTitle}>{result.scanType?.replace('_', ' ') || result.type}</Text>
 
                     {result.student && (
                         <View style={styles.studentCard}>
                             <View style={styles.photoPlaceholder}>
-                                {/* Use Image if photoUrl exists */}
                                 <Text style={styles.photoText}>{result.student.fullName[0]}</Text>
                             </View>
                             <Text style={styles.studentName}>{result.student.fullName}</Text>
@@ -168,6 +174,32 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 18,
         fontWeight: 'bold',
+    },
+    modeContainer: {
+        flexDirection: 'row',
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        borderRadius: 25,
+        padding: 4,
+        position: 'absolute',
+        top: 120,
+        width: '60%',
+        justifyContent: 'space-between',
+    },
+    modeButton: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderRadius: 20,
+    },
+    modeButtonActive: {
+        backgroundColor: '#fff',
+    },
+    modeButtonText: {
+        color: '#fff',
+        fontWeight: 'bold',
+    },
+    modeButtonTextActive: {
+        color: '#4f46e5',
     },
     scannerFrame: {
         width: 250,

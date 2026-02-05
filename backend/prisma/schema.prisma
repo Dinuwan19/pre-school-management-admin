@@ -14,9 +14,9 @@ model attendance {
   checkInTime     DateTime?         @db.Time(0)
   checkOutTime    DateTime?         @db.Time(0)
   markedById      Int
-  status          attendance_status @default(PRESENT)
-  method          attendance_method @default(MANUAL)
   deviceId        String?
+  method          attendance_method @default(MANUAL)
+  status          attendance_status @default(PRESENT)
   user            user              @relation(fields: [markedById], references: [id], map: "Attendance_markedById_fkey")
   student         student           @relation(fields: [studentId], references: [id], map: "Attendance_studentId_fkey")
   attendanceaudit attendanceaudit[]
@@ -29,8 +29,8 @@ model attendanceaudit {
   id           Int        @id @default(autoincrement())
   attendanceId Int
   changedById  Int
-  oldData      String     @db.Text // JSON string
-  newData      String     @db.Text // JSON string
+  oldData      String     @db.Text
+  newData      String     @db.Text
   reason       String?    @db.Text
   changedAt    DateTime   @default(now())
   attendance   attendance @relation(fields: [attendanceId], references: [id])
@@ -58,6 +58,7 @@ model billing {
   status         String           @default("UNPAID")
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
+  invoiceUrl     String?
   student        student          @relation(fields: [studentId], references: [id], map: "Billing_studentId_fkey")
   billingpayment billingpayment[]
 
@@ -80,14 +81,58 @@ model classroom {
   name           String
   ageGroup       String?
   capacity       Int?
-  mealPlan       String?          @db.Text
   status         classroom_status @default(ACTIVE)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
+  mealPlan       String?          @db.Text
   homework       homework[]
   notification   notification[]
   student        student[]
-  teacherprofile teacherprofile[]
+  teacherprofiles teacherprofile[]
+  events         event[]
+}
+
+
+// ... existing homework ...
+// ... existing notification ...
+// ... existing parent ...
+// ... existing payment ...
+// ... existing student ...
+// ... existing studentprogress ...
+
+model teacherprofile {
+  teacherId           Int                 @id
+  qualification       String?
+  qualificationPdf    String?
+  designation         teacher_designation @default(ASSISTANT)
+  classrooms          classroom[]
+  user                user                @relation(fields: [teacherId], references: [id], map: "TeacherProfile_teacherId_fkey")
+}
+
+// ... existing user ...
+// ... existing meeting_request ...
+// ... existing report_log ...
+
+model event {
+  id                 Int                  @id @default(autoincrement())
+  title              String
+  description        String?              @db.Text
+  eventDate          DateTime             @db.Date
+  startTime          String?
+  endTime            String?
+  location           String?
+  status             event_status         @default(UPCOMING)
+  createdById        Int
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  mediaUrl           String?
+  user               user                 @relation(fields: [createdById], references: [id])
+  event_attendance   event_attendance[]
+  event_waiting_list event_waiting_list[]
+  event_media        event_media[]
+  classrooms         classroom[]
+
+  @@index([createdById], map: "Event_createdById_fkey")
 }
 
 model expense {
@@ -96,8 +141,8 @@ model expense {
   amount      Decimal  @db.Decimal(10, 2)
   expenseDate DateTime
   description String?  @db.Text
-  receiptUrl  String?
   createdAt   DateTime @default(now())
+  receiptUrl  String?
 }
 
 model homework {
@@ -145,16 +190,16 @@ model parent {
   phone                                  String?             @unique(map: "Parent_phone_key")
   email                                  String?             @unique(map: "Parent_email_key")
   photoUrl                               String?
-  avatarType                             avatar_type         @default(ADULT)
-  verificationCode                       String?             @unique
   status                                 parent_status       @default(ACTIVE)
   createdAt                              DateTime            @default(now())
   updatedAt                              DateTime            @updatedAt
   userId                                 Int?                @unique
+  verificationCode                       String?             @unique
+  avatarType                             avatar_type         @default(ADULT)
+  meeting_requests                       meeting_request[]
   user                                   user?               @relation(fields: [userId], references: [id])
   student_student_parentIdToparent       student[]           @relation("student_parentIdToparent")
   student_student_secondParentIdToparent student[]           @relation("student_secondParentIdToparent")
-  meeting_requests                       meeting_request[]
 }
 
 model payment {
@@ -167,6 +212,8 @@ model payment {
   amountPaid     Decimal          @db.Decimal(10, 2)
   status         payment_status   @default(PENDING)
   transactionRef String?
+  receiptNo      String?          @unique
+  invoiceUrl     String?
   billingpayment billingpayment[]
   user           user?            @relation(fields: [verifiedById], references: [id], map: "Payment_verifiedById_fkey")
 
@@ -174,36 +221,37 @@ model payment {
 }
 
 model student {
-  id                                    Int               @id @default(autoincrement())
-  studentUniqueId                       String            @unique(map: "Student_studentUniqueId_key")
+  id                                    Int                  @id @default(autoincrement())
+  studentUniqueId                       String               @unique(map: "Student_studentUniqueId_key")
   fullName                              String
   enrollmentDate                        DateTime?
   dateOfBirth                           DateTime?
   gender                                student_gender?
-  medicalInfo                           String?           @db.Text
+  medicalInfo                           String?              @db.Text
   emergencyContact                      String?
   photoUrl                              String?
-  avatarType                            avatar_type       @default(CHILD)
   birthCertPdf                          String?
   parentId                              Int
   secondParentId                        Int?
   classroomId                           Int
-  qrCode                                String?           @db.LongText
-  status                                student_status    @default(ACTIVE)
-  createdAt                             DateTime          @default(now())
-  updatedAt                             DateTime          @updatedAt
+  qrCode                                String?              @db.LongText
+  status                                student_status       @default(ACTIVE)
+  createdAt                             DateTime             @default(now())
+  updatedAt                             DateTime             @updatedAt
+  avatarType                            avatar_type          @default(CHILD)
+  vaccineCardPdf                        String?
   attendance                            attendance[]
   billing                               billing[]
-  classroom                             classroom         @relation(fields: [classroomId], references: [id], map: "Student_classroomId_fkey")
-  parent_student_parentIdToparent       parent            @relation("student_parentIdToparent", fields: [parentId], references: [id], map: "Student_parentId_fkey")
-  parent_student_secondParentIdToparent parent?           @relation("student_secondParentIdToparent", fields: [secondParentId], references: [id], map: "Student_secondParentId_fkey")
+  event_attendance                      event_attendance[]
+  event_waiting_list                    event_waiting_list[]
+  classroom                             classroom            @relation(fields: [classroomId], references: [id], map: "Student_classroomId_fkey")
+  parent_student_parentIdToparent       parent               @relation("student_parentIdToparent", fields: [parentId], references: [id], map: "Student_parentId_fkey")
+  parent_student_secondParentIdToparent parent?              @relation("student_secondParentIdToparent", fields: [secondParentId], references: [id], map: "Student_secondParentId_fkey")
   studentprogress                       studentprogress[]
 
   @@index([classroomId], map: "Student_classroomId_fkey")
   @@index([parentId], map: "Student_parentId_fkey")
   @@index([secondParentId], map: "Student_secondParentId_fkey")
-  event_attendance   event_attendance[]
-  event_waiting_list event_waiting_list[]
 }
 
 model studentprogress {
@@ -225,17 +273,6 @@ model studentprogress {
   @@index([updatedById], map: "StudentProgress_updatedById_fkey")
 }
 
-model teacherprofile {
-  teacherId           Int                 @id
-  qualification       String?
-  qualificationPdf    String?
-  designation         teacher_designation @default(ASSISTANT)
-  assignedClassroomId Int?
-  classroom           classroom?          @relation(fields: [assignedClassroomId], references: [id], map: "TeacherProfile_assignedClassroomId_fkey")
-  user                user                @relation(fields: [teacherId], references: [id], map: "TeacherProfile_teacherId_fkey")
-
-  @@index([assignedClassroomId], map: "TeacherProfile_assignedClassroomId_fkey")
-}
 
 model user {
   id                                             Int               @id @default(autoincrement())
@@ -252,43 +289,120 @@ model user {
   address                                        String?           @db.Text
   joiningDate                                    DateTime?
   photoUrl                                       String?
+  createdAt                                      DateTime          @default(now())
+  updatedAt                                      DateTime          @updatedAt
   resetToken                                     String?
   resetTokenExpires                              DateTime?
   isActive                                       Boolean           @default(true)
   isEmailVerified                                Boolean           @default(false)
-  createdAt                                      DateTime          @default(now())
-  updatedAt                                      DateTime          @updatedAt
-  otp                                            otp[]
-  tempPasswordLog                                tempPasswordLog[]
   attendance                                     attendance[]
+  attendanceaudit                                attendanceaudit[]
   auditlog                                       auditlog[]
+  events                                         event[]
   homework                                       homework[]
+  meetings_created                               meeting_request[] @relation("meeting_created_by")
   notification_notification_createdByIdTouser    notification[]    @relation("notification_createdByIdTouser")
   notification_notification_targetParentIdTouser notification[]    @relation("notification_targetParentIdTouser")
+  otp                                            otp[]
+  parent                                         parent?
   payment                                        payment[]
+  report_logs                                    report_log[]
   studentprogress                                studentprogress[]
   teacherprofile                                 teacherprofile?
-  attendanceaudit                                attendanceaudit[]
-  parent                                         parent?
-  meetings_created                               meeting_request[] @relation("meeting_created_by")
-  report_logs                                    report_log[]
-  events                                         event[]
+  temppasswordlog                                temppasswordlog[]
 }
 
 model meeting_request {
-  id           Int            @id @default(autoincrement())
-  parentId     Int
-  teacherId    Int?
-  studentId    Int?
-  title        String
-  description  String?        @db.Text
-  requestDate  DateTime
+  id            Int            @id @default(autoincrement())
+  parentId      Int
+  teacherId     Int?
+  studentId     Int?
+  title         String
+  description   String?        @db.Text
+  requestDate   DateTime
   preferredTime String?
-  status       meeting_status @default(PENDING)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  parent       parent         @relation(fields: [parentId], references: [id])
-  teacher      user?          @relation("meeting_created_by", fields: [teacherId], references: [id])
+  status        meeting_status @default(PENDING)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  parent        parent         @relation(fields: [parentId], references: [id])
+  teacher       user?          @relation("meeting_created_by", fields: [teacherId], references: [id])
+
+  @@index([parentId], map: "meeting_request_parentId_fkey")
+  @@index([teacherId], map: "meeting_request_teacherId_fkey")
+}
+
+model report_log {
+  id            Int      @id @default(autoincrement())
+  reportType    String
+  dateRange     String
+  generatedById Int
+  filePath      String?
+  createdAt     DateTime @default(now())
+  user          user     @relation(fields: [generatedById], references: [id])
+
+  @@index([generatedById], map: "ReportLog_generatedById_fkey")
+}
+
+
+model event_media {
+  id        Int      @id @default(autoincrement())
+  eventId   Int
+  url       String
+  type      String?  @default("IMAGE") // IMAGE, FILE
+  createdAt DateTime @default(now())
+  event     event    @relation(fields: [eventId], references: [id])
+
+  @@index([eventId], map: "EventMedia_eventId_fkey")
+}
+
+model event_attendance {
+  id        Int               @id @default(autoincrement())
+  eventId   Int
+  studentId Int
+  status    attendance_status @default(PRESENT)
+  event     event             @relation(fields: [eventId], references: [id])
+  student   student           @relation(fields: [studentId], references: [id])
+
+  @@unique([eventId, studentId], map: "EventAttendance_eventId_studentId_key")
+  @@index([studentId], map: "EventAttendance_studentId_fkey")
+}
+
+model event_waiting_list {
+  id          Int      @id @default(autoincrement())
+  eventId     Int
+  studentId   Int
+  status      String   @default("PENDING")
+  requestedAt DateTime @default(now())
+  event       event    @relation(fields: [eventId], references: [id])
+  student     student  @relation(fields: [studentId], references: [id])
+
+  @@unique([eventId, studentId], map: "EventWaitingList_eventId_studentId_key")
+  @@index([studentId], map: "EventWaitingList_studentId_fkey")
+}
+
+model otp {
+  id        Int         @id @default(autoincrement())
+  userId    Int
+  codeHash  String
+  expiresAt DateTime
+  purpose   otp_purpose
+  isUsed    Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  user      user        @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "OTP_userId_fkey")
+}
+
+model temppasswordlog {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  passwordHash String
+  expiresAt    DateTime
+  used         Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  user         user     @relation(fields: [userId], references: [id], map: "tempPasswordLog_userId_fkey")
+
+  @@index([userId], map: "TempPasswordLog_userId_fkey")
 }
 
 enum user_role {
@@ -362,63 +476,6 @@ enum meeting_status {
   CANCELLED
 }
 
-model report_log {
-  id            Int      @id @default(autoincrement())
-  reportType    String
-  dateRange     String
-  generatedById Int
-  filePath      String?
-  createdAt     DateTime @default(now())
-  user          user     @relation(fields: [generatedById], references: [id])
-
-  @@index([generatedById], map: "ReportLog_generatedById_fkey")
-}
-
-model event {
-  id                 Int                  @id @default(autoincrement())
-  title              String
-  description        String?              @db.Text
-  eventDate          DateTime             @db.Date
-  startTime          String?
-  endTime            String?
-  location           String?
-  mediaUrl           String?
-  status             event_status         @default(UPCOMING)
-  createdById        Int
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  user               user                 @relation(fields: [createdById], references: [id])
-  event_attendance   event_attendance[]
-  event_waiting_list event_waiting_list[]
-
-  @@index([createdById], map: "Event_createdById_fkey")
-}
-
-model event_attendance {
-  id        Int               @id @default(autoincrement())
-  eventId   Int
-  studentId Int
-  status    attendance_status @default(PRESENT)
-  event     event             @relation(fields: [eventId], references: [id])
-  student   student           @relation(fields: [studentId], references: [id])
-
-  @@unique([eventId, studentId], map: "EventAttendance_eventId_studentId_key")
-  @@index([studentId], map: "EventAttendance_studentId_fkey")
-}
-
-model event_waiting_list {
-  id          Int      @id @default(autoincrement())
-  eventId     Int
-  studentId   Int
-  status      String   @default("PENDING")
-  requestedAt DateTime @default(now())
-  event       event    @relation(fields: [eventId], references: [id])
-  student     student  @relation(fields: [studentId], references: [id])
-
-  @@unique([eventId, studentId], map: "EventWaitingList_eventId_studentId_key")
-  @@index([studentId], map: "EventWaitingList_studentId_fkey")
-}
-
 enum event_status {
   DRAFT
   PENDING
@@ -429,35 +486,10 @@ enum event_status {
   CANCELLED
 }
 
-model otp {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  codeHash  String
-  expiresAt DateTime
-  purpose   otp_purpose
-  isUsed    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  user      user     @relation(fields: [userId], references: [id])
-
-  @@index([userId], map: "OTP_userId_fkey")
-}
-
 enum otp_purpose {
   FORGOT_PASSWORD
   EMAIL_VERIFY
   ACCOUNT_ACTIVATION
-}
-
-model tempPasswordLog {
-  id           Int      @id @default(autoincrement())
-  userId       Int
-  passwordHash String
-  expiresAt    DateTime
-  used         Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  user         user     @relation(fields: [userId], references: [id])
-
-  @@index([userId], map: "TempPasswordLog_userId_fkey")
 }
 
 enum avatar_type {

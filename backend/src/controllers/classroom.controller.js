@@ -28,20 +28,22 @@ exports.getAllClassrooms = async (req, res, next) => {
 
         if (req.user.role === 'TEACHER') {
             const teacherProfile = await prisma.teacherprofile.findUnique({
-                where: { teacherId: req.user.id }
+                where: { teacherId: req.user.id },
+                include: { classrooms: true }
             });
 
-            if (!teacherProfile || !teacherProfile.assignedClassroomId) {
+            if (!teacherProfile || !teacherProfile.classrooms || teacherProfile.classrooms.length === 0) {
                 return res.json([]);
             }
-            where.id = teacherProfile.assignedClassroomId;
+            // Filter by all assigned classrooms
+            where.id = { in: teacherProfile.classrooms.map(c => c.id) };
         }
 
         const classrooms = await prisma.classroom.findMany({
             where: where,
             include: {
                 student: { select: { id: true, fullName: true, photoUrl: true } },
-                teacherprofile: {
+                teacherprofiles: {
                     include: { user: { select: { fullName: true } } }
                 }
             },
@@ -50,7 +52,7 @@ exports.getAllClassrooms = async (req, res, next) => {
 
         const formattedClassrooms = classrooms.map(c => ({
             ...c,
-            teacherProfiles: c.teacherprofile,
+            teacherProfiles: c.teacherprofiles,
             students: c.student
         }));
 
@@ -67,9 +69,13 @@ exports.getClassroomById = async (req, res, next) => {
 
         if (req.user.role === 'TEACHER') {
             const teacherProfile = await prisma.teacherprofile.findUnique({
-                where: { teacherId: req.user.id }
+                where: { teacherId: req.user.id },
+                include: { classrooms: true }
             });
-            if (!teacherProfile || teacherProfile.assignedClassroomId !== classroomId) {
+
+            const isAssigned = teacherProfile?.classrooms.some(c => c.id === classroomId);
+
+            if (!isAssigned) {
                 return res.status(403).json({ message: 'Forbidden: You only have access to your assigned classroom' });
             }
         }
@@ -78,14 +84,14 @@ exports.getClassroomById = async (req, res, next) => {
             where: { id: classroomId },
             include: {
                 student: true,
-                teacherprofile: { include: { user: true } }
+                teacherprofiles: { include: { user: true } }
             }
         });
         if (!classroom) return res.status(404).json({ message: 'Classroom not found' });
 
         const formattedClassroom = {
             ...classroom,
-            teacherProfiles: classroom.teacherprofile,
+            teacherProfiles: classroom.teacherprofiles,
             students: classroom.student
         };
 
@@ -123,15 +129,29 @@ exports.assignTeacher = async (req, res, next) => {
 
         const currentClassroom = await prisma.classroom.findUnique({
             where: { id: classroomId },
-            include: { teacherprofile: true }
+            include: { teacherprofiles: true }
         });
         if (!currentClassroom) return res.status(404).json({ message: 'Classroom not found' });
 
+        // Check if teacher is already assigned to max 3 classrooms
+        const teacherProfile = await prisma.teacherprofile.findUnique({
+            where: { teacherId: parseInt(teacherId) },
+            include: { classrooms: true }
+        });
+
+        if (teacherProfile && teacherProfile.classrooms.length >= 3) {
+            // Check if already assigned to THIS classroom
+            const isAssigned = teacherProfile.classrooms.some(c => c.id === classroomId);
+            if (!isAssigned) {
+                return res.status(400).json({ message: 'Teacher is already assigned to the maximum of 3 classrooms.' });
+            }
+        }
+
         // If setting as LEAD, check if one already exists
         if (designation === 'LEAD') {
-            const existingLead = currentClassroom.teacherprofile.find(tp => tp.designation === 'LEAD');
+            const existingLead = currentClassroom.teacherprofiles.find(tp => tp.designation === 'LEAD');
             if (existingLead && existingLead.teacherId !== parseInt(teacherId)) {
-                // Demote existing lead to assistant if we are replacing
+                // Demote existing lead to assistant
                 await prisma.teacherprofile.update({
                     where: { teacherId: existingLead.teacherId },
                     data: { designation: 'ASSISTANT' }
@@ -142,17 +162,21 @@ exports.assignTeacher = async (req, res, next) => {
         const profile = await prisma.teacherprofile.upsert({
             where: { teacherId: parseInt(teacherId) },
             update: {
-                assignedClassroomId: classroomId,
-                designation: designation || 'ASSISTANT'
+                designation: designation || 'ASSISTANT',
+                classrooms: {
+                    connect: { id: classroomId }
+                }
             },
             create: {
                 teacherId: parseInt(teacherId),
-                assignedClassroomId: classroomId,
-                designation: designation || 'ASSISTANT'
+                designation: designation || 'ASSISTANT',
+                classrooms: {
+                    connect: { id: classroomId }
+                }
             }
         });
 
-        res.json({ message: 'Teacher assigned and designation updated successfully', profile });
+        res.json({ message: 'Teacher assigned to classroom successfully', profile });
     } catch (error) {
         next(error);
     }

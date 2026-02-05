@@ -17,6 +17,7 @@ import ClassroomView from './pages/Classrooms/ClassroomView';
 import StaffProfile from './pages/Staff/StaffProfile';
 import Attendance from './pages/Attendance';
 import Announcements from './pages/Announcements';
+import MeetingRequests from './pages/Announcements/MeetingRequests';
 import Homework from './pages/Homework';
 import BillingOverview from './pages/Billing/BillingOverview';
 import StudentBilling from './pages/Billing/StudentBilling';
@@ -45,6 +46,7 @@ function App() {
             {/* Dashboard & Common - Accessible by ALL staff/parents (managed by component) */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/announcements" element={<Announcements />} />
+            <Route path="/meetings" element={<MeetingRequests />} />
             <Route path="/homework" element={<Homework />} />
 
             {/* Classrooms - Accessible by Staff */}

@@ -18,8 +18,16 @@ import {
     BookOpen,
     MessageSquare,
     ChevronRight,
-    MapPin
+    MapPin,
+    X,
+    Download,
+    Camera,
+    ChevronLeft
 } from 'lucide-react-native';
+import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system';
+import dayjs from 'dayjs';
+import { BASE_URL } from '../config/api';
 
 const { width } = Dimensions.get('window');
 
@@ -35,6 +43,11 @@ const DashboardScreen = ({ navigation }) => {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isChildModalVisible, setIsChildModalVisible] = useState(false);
+    const [selectedItem, setSelectedItem] = useState(null);
+    const [detailModalVisible, setDetailModalVisible] = useState(false);
+    const [imageModalVisible, setImageModalVisible] = useState(false);
+    const [selectedImageUrl, setSelectedImageUrl] = useState(null);
+    const [isDownloading, setIsDownloading] = useState(false);
 
     useFocusEffect(
         useCallback(() => {
@@ -62,6 +75,39 @@ const DashboardScreen = ({ navigation }) => {
             setLoading(false);
         }
     }, []);
+
+    const openDetail = (item) => {
+        setSelectedItem({ ...item, type: 'Event' });
+        setDetailModalVisible(true);
+    };
+
+    const handleDownload = async () => {
+        if (!selectedImageUrl) return;
+        setIsDownloading(true);
+        try {
+            const { status } = await MediaLibrary.requestPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission needed', 'Please grant gallery permissions to download photos.');
+                return;
+            }
+            const fileName = `school_event_${Date.now()}.jpg`;
+            const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+            const downloadRes = await FileSystem.downloadAsync(selectedImageUrl, fileUri);
+            const asset = await MediaLibrary.createAssetAsync(downloadRes.uri);
+            await MediaLibrary.createAlbumAsync('SchoolEvents', asset, false);
+            Alert.alert('Success', 'Photo saved to your gallery!');
+        } catch (error) {
+            console.error('Download Error:', error);
+            Alert.alert('Error', 'Failed to save photo.');
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
+    const openImageFullscreen = (url) => {
+        setSelectedImageUrl(url);
+        setImageModalVisible(true);
+    };
 
     if (loading) {
         return (
@@ -155,16 +201,32 @@ const DashboardScreen = ({ navigation }) => {
                     </View>
 
                     {stats?.updates && stats.updates.length > 0 ? (
-                        stats.updates.map((update) => (
-                            <UpdateCard
-                                key={update.id}
-                                icon={<Bell size={20} color={update.type === 'ALERT' ? "#EF4444" : "#3B82F6"} />}
-                                bgColor={update.type === 'ALERT' ? "#FEF2F2" : "#EFF6FF"}
-                                title={update.title}
-                                time={update.date}
-                                desc={update.message}
-                            />
-                        ))
+                        stats.updates.map((update) => {
+                            let icon = <Bell size={20} color="#3B82F6" />;
+                            let bgColor = "#EFF6FF";
+
+                            if (update.type === 'ALERT') { // Payments
+                                icon = <Bell size={20} color="#EF4444" />;
+                                bgColor = "#FEF2F2";
+                            } else if (update.type === 'HOMEWORK') {
+                                icon = <BookOpen size={20} color="#3B82F6" />;
+                                bgColor = "#EFF6FF";
+                            } else { // NOTICE
+                                icon = <Bell size={20} color="#9D5BF0" />;
+                                bgColor = "#F3F0FF";
+                            }
+
+                            return (
+                                <UpdateCard
+                                    key={update.id}
+                                    icon={icon}
+                                    bgColor={bgColor}
+                                    title={update.title}
+                                    time={update.date}
+                                    desc={update.message}
+                                />
+                            );
+                        })
                     ) : (
                         <Text style={{ color: '#9CA3AF', fontStyle: 'italic' }}>No recent updates</Text>
                     )}
@@ -184,7 +246,7 @@ const DashboardScreen = ({ navigation }) => {
                     {stats?.upcomingEvents && stats.upcomingEvents.length > 0 ? (
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eventScroll}>
                             {stats.upcomingEvents.map((event) => (
-                                <View key={event.id} style={styles.eventCard}>
+                                <TouchableOpacity key={event.id} style={styles.eventCard} onPress={() => openDetail(event)}>
                                     <View style={styles.dateBox}>
                                         <Text style={styles.monthText}>{event.date.split(' ')[0].toUpperCase()}</Text>
                                         <Text style={styles.dayText}>{event.date.split(' ')[1]}</Text>
@@ -201,8 +263,14 @@ const DashboardScreen = ({ navigation }) => {
                                                 <Text style={styles.eventMetaText}>School</Text>
                                             </View>
                                         </View>
+                                        {event.event_media?.length > 0 && (
+                                            <View style={styles.mediaMiniBadge}>
+                                                <Camera size={10} color="#9D5BF0" />
+                                                <Text style={styles.mediaMiniText}>{event.event_media.length} Photos</Text>
+                                            </View>
+                                        )}
                                     </View>
-                                </View>
+                                </TouchableOpacity>
                             ))}
                         </ScrollView>
                     ) : (
@@ -260,6 +328,128 @@ const DashboardScreen = ({ navigation }) => {
                         </ScrollView>
                     </View>
                 </TouchableOpacity>
+            </Modal>
+
+            {/* Event Detail Modal */}
+            <Modal
+                visible={detailModalVisible}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setDetailModalVisible(false)}
+            >
+                <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
+                    <View style={[styles.modalContent, { height: '85%', borderTopLeftRadius: 30, borderTopRightRadius: 30 }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#9D5BF0', textTransform: 'uppercase' }}>Event Details</Text>
+                            <TouchableOpacity onPress={() => setDetailModalVisible(false)}>
+                                <View style={styles.closeBtnCircle}><Text style={{ color: '#64748B' }}>✕</Text></View>
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {selectedItem?.mediaUrl && (
+                                <TouchableOpacity
+                                    activeOpacity={0.9}
+                                    onPress={() => openImageFullscreen(selectedItem.mediaUrl.startsWith('http') ? selectedItem.mediaUrl : `${BASE_URL}${selectedItem.mediaUrl}`)}
+                                >
+                                    <Image
+                                        source={{ uri: selectedItem.mediaUrl.startsWith('http') ? selectedItem.mediaUrl : `${BASE_URL}${selectedItem.mediaUrl}` }}
+                                        style={styles.modalCoverImage}
+                                        resizeMode="cover"
+                                    />
+                                </TouchableOpacity>
+                            )}
+                            <Text style={styles.detailTitle}>{selectedItem?.title}</Text>
+                            <Text style={styles.detailMetaText}>
+                                {selectedItem?.eventDate
+                                    ? `${dayjs(selectedItem.eventDate).format('dddd, MMM DD, YYYY')} • ${selectedItem.startTime}`
+                                    : selectedItem?.date}
+                            </Text>
+
+                            <Text style={styles.detailDesc}>
+                                {selectedItem?.description || 'Join us for this school event!'}
+                            </Text>
+
+                            {/* Event Media Gallery */}
+                            {selectedItem?.event_media?.length > 0 && (
+                                <View style={styles.galleryContainer}>
+                                    <View style={styles.galleryHeader}>
+                                        <Camera size={18} color="#9D5BF0" />
+                                        <Text style={styles.galleryTitle}>Event Photos & Files</Text>
+                                    </View>
+                                    <View style={styles.galleryGrid}>
+                                        {selectedItem.event_media.map((media) => (
+                                            <TouchableOpacity
+                                                key={media.id}
+                                                style={styles.galleryItem}
+                                                onPress={() => {
+                                                    const uri = media.url.startsWith('http') ? media.url : `${BASE_URL}${media.url}`;
+                                                    if (media.type === 'IMAGE' || !media.type) {
+                                                        openImageFullscreen(uri);
+                                                    } else {
+                                                        Linking.openURL(uri);
+                                                    }
+                                                }}
+                                            >
+                                                {(media.type === 'IMAGE' || !media.type) ? (
+                                                    <Image
+                                                        source={{ uri: media.url.startsWith('http') ? media.url : `${BASE_URL}${media.url}` }}
+                                                        style={styles.galleryImage}
+                                                    />
+                                                ) : (
+                                                    <View style={styles.filePlaceholder}>
+                                                        <BookOpen size={24} color="#94A3B8" />
+                                                        <Text style={{ fontSize: 10, color: '#94A3B8' }}>File</Text>
+                                                    </View>
+                                                )}
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+                            )}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Premium Image Viewer Modal */}
+            <Modal
+                visible={imageModalVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setImageModalVisible(false)}
+            >
+                <View style={styles.imageViewerOverlay}>
+                    <TouchableOpacity
+                        style={styles.imageViewerCloseBtn}
+                        onPress={() => setImageModalVisible(false)}
+                    >
+                        <X size={28} color="#fff" />
+                    </TouchableOpacity>
+
+                    {selectedImageUrl && (
+                        <Image
+                            source={{ uri: selectedImageUrl }}
+                            style={styles.fullscreenImage}
+                            resizeMode="contain"
+                        />
+                    )}
+
+                    <TouchableOpacity
+                        style={styles.imageDownloadBtn}
+                        onPress={handleDownload}
+                        disabled={isDownloading}
+                    >
+                        {isDownloading ? (
+                            <ActivityIndicator color="#fff" size="small" />
+                        ) : (
+                            <>
+                                <Download size={20} color="#fff" />
+                                <Text style={styles.imageDownloadText}>Save to Device</Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                </View>
             </Modal>
         </View>
     );
@@ -544,6 +734,78 @@ const styles = StyleSheet.create({
         borderRadius: 6,
         backgroundColor: '#9D5BF0',
     },
+    // Dashboard Specific Enhancements
+    mediaMiniBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginTop: 6,
+        backgroundColor: '#F3EFFF',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+        alignSelf: 'flex-start'
+    },
+    mediaMiniText: { fontSize: 10, color: '#9D5BF0', fontWeight: 'bold' },
+    closeBtnCircle: {
+        width: 28, height: 28, borderRadius: 14,
+        backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center'
+    },
+    modalCoverImage: {
+        width: '100%', height: 180, borderRadius: 20, marginBottom: 20
+    },
+    detailTitle: { fontSize: 22, fontWeight: 'bold', color: '#1E2937', marginBottom: 6 },
+    detailMetaText: { fontSize: 14, color: '#64748B', marginBottom: 15 },
+    detailDesc: { fontSize: 15, color: '#4B5563', lineHeight: 22, marginBottom: 25 },
+    galleryContainer: { marginBottom: 20 },
+    galleryHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+    galleryTitle: { fontSize: 16, fontWeight: 'bold', color: '#1E2937' },
+    galleryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    galleryItem: {
+        width: (width - 68) / 3,
+        aspectRatio: 1,
+        borderRadius: 12,
+        overflow: 'hidden',
+        backgroundColor: '#F1F5F9'
+    },
+    galleryImage: { width: '100%', height: '100%' },
+    filePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    imageViewerOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.95)',
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    imageViewerCloseBtn: {
+        position: 'absolute',
+        top: 50,
+        right: 20,
+        zIndex: 10,
+        padding: 10,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 25
+    },
+    fullscreenImage: {
+        width: width,
+        height: '70%'
+    },
+    imageDownloadBtn: {
+        position: 'absolute',
+        bottom: 50,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#9D5BF0',
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+        borderRadius: 30,
+        gap: 10,
+        elevation: 5
+    },
+    imageDownloadText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold'
+    }
 });
 
 export default DashboardScreen;

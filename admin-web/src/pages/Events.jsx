@@ -1,20 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Table, Tag, Modal, Form, Input, DatePicker, TimePicker, Select, Typography, message, Space, Tabs, Row, Col } from 'antd';
-import { CalendarOutlined, PlusOutlined, EnvironmentOutlined, UserOutlined, FileTextOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Card, Button, Tag, Modal, Form, Input, DatePicker, TimePicker, Select, Typography, message, Space, Row, Col, Upload, List, Avatar } from 'antd';
+import { CalendarOutlined, PlusOutlined, EnvironmentOutlined, UserOutlined, FileTextOutlined, CheckCircleOutlined, DeleteOutlined, EditOutlined, UploadOutlined, EyeOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import mockApi from '../api/client';
 import dayjs from 'dayjs';
+import { useAuth } from '../context/AuthContext';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
-const { TabPane } = Tabs;
 
 const Events = () => {
     const [events, setEvents] = useState([]);
     const [waitingList, setWaitingList] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [classrooms, setClassrooms] = useState([]); // Added state
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [form] = Form.useForm();
+    const [mediaForm] = Form.useForm();
     const [submitting, setSubmitting] = useState(false);
+    const [filterStatus, setFilterStatus] = useState('All Events');
+    const [editingEvent, setEditingEvent] = useState(null);
+    const [mediaModalVisible, setMediaModalVisible] = useState(false);
+    const [selectedEventForMedia, setSelectedEventForMedia] = useState(null);
+    const [viewingGallery, setViewingGallery] = useState(false);
+    const [detailModalVisible, setDetailModalVisible] = useState(false);
+    const [selectedEventForDetails, setSelectedEventForDetails] = useState(null);
+    const { user } = useAuth();
 
     const fetchEvents = async () => {
         setLoading(true);
@@ -37,9 +47,19 @@ const Events = () => {
         }
     };
 
+    const fetchClassrooms = async () => {
+        try {
+            const response = await mockApi.get('/classrooms');
+            setClassrooms(response.data);
+        } catch (error) {
+            console.error('Failed to fetch classrooms');
+        }
+    };
+
     useEffect(() => {
         fetchEvents();
         fetchWaitingList();
+        fetchClassrooms();
     }, []);
 
     const handleCreateEvent = async (values) => {
@@ -85,7 +105,7 @@ const Events = () => {
 
     const handleApproveEvent = async (id) => {
         try {
-            await mockApi.put(`/events/${id}/approve`); // New Endpoint
+            await mockApi.put(`/events/${id}/approve`);
             message.success('Event approved and published');
             fetchEvents();
         } catch (error) {
@@ -93,137 +113,373 @@ const Events = () => {
         }
     };
 
-    const eventColumns = [
-        {
-            title: 'Event',
-            dataIndex: 'title',
-            key: 'title',
-            render: (text) => <Text strong>{text}</Text>,
-        },
-        {
-            title: 'Date',
-            dataIndex: 'eventDate',
-            key: 'eventDate',
-            render: (date) => dayjs(date).format('MMM D, YYYY'),
-            sorter: (a, b) => new Date(a.eventDate) - new Date(b.eventDate),
-        },
-        {
-            title: 'Time',
-            key: 'time',
-            render: (_, record) => `${record.startTime} - ${record.endTime}`,
-        },
-        {
-            title: 'Location',
-            dataIndex: 'location',
-            key: 'location',
-            render: (text) => <Space><EnvironmentOutlined /> {text}</Space>,
-        },
-        {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            render: (status) => {
-                let color = 'default';
-                if (status === 'UPCOMING') color = 'blue';
-                if (status === 'PUBLISHED') color = 'blue';
-                if (status === 'COMPLETED') color = 'green';
-                if (status === 'CANCELLED') color = 'red';
-                if (status === 'PENDING') color = 'orange';
-                return <Tag color={color}>{status}</Tag>;
-            },
-        },
+    const handleEdit = (event) => {
+        setEditingEvent(event);
+        form.setFieldsValue({
+            ...event,
+            eventDate: dayjs(event.eventDate),
+            startTime: dayjs(`2000-01-01 ${event.startTime}`),
+            endTime: dayjs(`2000-01-01 ${event.endTime}`),
+        });
+        setIsModalVisible(true);
+    };
 
-        {
-            title: 'Action',
-            key: 'action',
-            render: (_, record) => (
-                record.status === 'PENDING' && (
-                    <Button
-                        type="dashed"
-                        size="small"
-                        icon={<CheckCircleOutlined />}
-                        onClick={() => handleApproveEvent(record.id)}
-                        style={{ borderColor: '#52c41a', color: '#52c41a' }}
-                    >
-                        Approve
-                    </Button>
-                )
-            )
+    const handleUpdateEvent = async (values) => {
+        setSubmitting(true);
+        try {
+            const payload = {
+                ...values,
+                eventDate: values.eventDate.format('YYYY-MM-DD'),
+                startTime: values.startTime.format('HH:mm'),
+                endTime: values.endTime.format('HH:mm'),
+            };
+            await mockApi.put(`/events/${editingEvent.id}/status`, payload);
+            message.success('Event updated successfully');
+            setIsModalVisible(false);
+            setEditingEvent(null);
+            form.resetFields();
+            fetchEvents();
+        } catch (error) {
+            message.error('Failed to update event');
+        } finally {
+            setSubmitting(false);
         }
-    ];
+    };
 
-    const waitingListColumns = [
-        {
-            title: 'Student',
-            dataIndex: ['student', 'fullName'],
-            key: 'student',
-        },
-        {
-            title: 'Event',
-            dataIndex: ['event', 'title'],
-            key: 'event',
-        },
-        {
-            title: 'Requested At',
-            dataIndex: 'requestedAt',
-            key: 'requestedAt',
-            render: (date) => dayjs(date).format('YYYY-MM-DD HH:mm'),
-        },
-        {
-            title: 'Action',
-            key: 'action',
-            render: (_, record) => (
-                <Button type="primary" size="small" onClick={() => handleApprovePayload(record.id)} style={{ background: '#7B57E4', borderColor: '#7B57E4' }}>
-                    Approve
-                </Button>
-            ),
-        },
-    ];
+    const handleDelete = (id) => {
+        Modal.confirm({
+            title: 'Delete Event',
+            content: 'Are you sure you want to delete this event?',
+            okText: 'Yes, Delete',
+            okType: 'danger',
+            cancelText: 'No',
+            onOk: async () => {
+                try {
+                    await mockApi.delete(`/events/${id}`);
+                    message.success('Event deleted');
+                    fetchEvents();
+                } catch (error) {
+                    message.error('Failed to delete event');
+                }
+            }
+        });
+    };
+
+    const getStatusColor = (status) => {
+        const colors = {
+            'UPCOMING': 'blue',
+            'PUBLISHED': 'blue',
+            'COMPLETED': 'green',
+            'CANCELLED': 'red',
+            'PENDING': 'orange'
+        };
+        return colors[status] || 'default';
+    };
+
+    const handleUploadMedia = async (values) => {
+        setSubmitting(true);
+        try {
+            const formData = new FormData();
+            if (values.media && values.media.fileList) {
+                values.media.fileList.forEach(file => {
+                    formData.append('media', file.originFileObj);
+                });
+            }
+
+            await mockApi.post(`/events/${selectedEventForMedia.id}/media`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            message.success('Media uploaded successfully');
+            setMediaModalVisible(false);
+            mediaForm.resetFields();
+
+            // Refresh both the list and the active detail view if open
+            if (selectedEventForDetails) {
+                const updatedEvent = await mockApi.get(`/events/${selectedEventForDetails.id}`);
+                setSelectedEventForDetails(updatedEvent.data);
+            }
+            fetchEvents();
+        } catch (error) {
+            message.error('Failed to upload media');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleDeleteMedia = async (mediaId) => {
+        try {
+            await mockApi.delete(`/events/media/${mediaId}`);
+            message.success('Media deleted');
+            // Refresh the selected event data to update the gallery
+            if (selectedEventForDetails) {
+                const updatedEvent = await mockApi.get(`/events/${selectedEventForDetails.id}`);
+                setSelectedEventForDetails(updatedEvent.data);
+            }
+            fetchEvents();
+        } catch (error) {
+            message.error('Failed to delete media');
+        }
+    };
+
+
+
+    const getMediaUrl = (path) => {
+        if (!path) return null;
+        if (path.startsWith('http')) return path;
+        return `http://127.0.0.1:5000${path}`;
+    };
+
+    const filteredEvents = events.filter(event => {
+        if (filterStatus === 'All Events') return true;
+        return event.status === filterStatus.toUpperCase();
+    });
 
     return (
-        <div style={{ padding: 24 }}>
-            <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ paddingBottom: 40, background: '#F8FAFC', minHeight: '100vh' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
                 <div>
-                    <Title level={2} style={{ margin: 0 }}>Events</Title>
-                    <Text type="secondary">Manage school events and waiting lists</Text>
+                    <Title level={4} style={{ margin: 0 }}>Events</Title>
+                    <Text type="secondary">Manage school events and activities</Text>
                 </div>
-                <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)} style={{ background: '#7B57E4', borderColor: '#7B57E4', borderRadius: 8, height: 44 }}>
+                <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={() => {
+                        setEditingEvent(null);
+                        form.resetFields();
+                        setIsModalVisible(true);
+                    }}
+                    style={{ background: '#7B57E4', borderRadius: 8, height: 40 }}
+                >
                     Create Event
                 </Button>
             </div>
 
-            <Tabs defaultActiveKey="1">
-                <TabPane tab="All Events" key="1">
-                    <Card bordered={false}>
-                        <Table
-                            dataSource={events}
-                            columns={eventColumns}
-                            rowKey="id"
-                            loading={loading}
-                        />
-                    </Card>
-                </TabPane>
-                <TabPane tab={`Waiting List (${waitingList.length})`} key="2">
-                    <Card bordered={false}>
-                        <Table
-                            dataSource={waitingList}
-                            columns={waitingListColumns}
-                            rowKey="id"
-                        />
-                    </Card>
-                </TabPane>
-            </Tabs>
+            <div style={{ marginBottom: 24 }}>
+                <Space size={8}>
+                    {['All Events', 'Upcoming', 'Completed', 'Pending'].map(s => (
+                        <Tag.CheckableTag
+                            key={s}
+                            checked={filterStatus === s}
+                            onChange={() => setFilterStatus(s)}
+                            style={{
+                                padding: '6px 16px',
+                                borderRadius: 20,
+                                fontSize: 13,
+                                border: filterStatus === s ? '1px solid #7B57E4' : '1px solid #E2E8F0',
+                                background: filterStatus === s ? '#7B57E4' : 'white',
+                                color: filterStatus === s ? 'white' : '#64748B'
+                            }}
+                        >
+                            {s}
+                        </Tag.CheckableTag>
+                    ))}
+                </Space>
+            </div>
+
+            <List
+                grid={{ gutter: 24, xs: 1, sm: 2, md: 2, lg: 3, xl: 3 }}
+                dataSource={filteredEvents}
+                loading={loading}
+                renderItem={item => (
+                    <List.Item>
+                        <Card
+                            hoverable
+                            style={{ borderRadius: 20, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}
+                            bodyStyle={{ padding: 24 }}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                                <Title level={4} style={{ margin: 0, fontSize: 18 }}>{item.title}</Title>
+                                <Space size={4} style={{ color: '#64748B' }}>
+                                    <UserOutlined />
+                                    <Text style={{ fontSize: 13 }}>{item.attendees || 0}/20</Text>
+                                </Space>
+                            </div>
+
+                            <Tag color={getStatusColor(item.status)} style={{ borderRadius: 6, margin: '8px 0 16px 0', border: 'none', padding: '2px 8px' }}>
+                                {item.status}
+                            </Tag>
+
+                            <div style={{ marginBottom: 24 }}>
+                                <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                                    <Space><CalendarOutlined style={{ color: '#94A3B8' }} /> <Text style={{ color: '#64748B' }}>{dayjs(item.eventDate).format('MMM D, YYYY')}</Text></Space>
+                                    <Space><EnvironmentOutlined style={{ color: '#94A3B8' }} /> <Text style={{ color: '#64748B' }}>{item.location}</Text></Space>
+                                </Space>
+                            </div>
+
+                            <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Space>
+                                    <Avatar icon={<UserOutlined />} size="small" style={{ backgroundColor: '#E0E7FF', color: '#6366F1' }} />
+                                    <div>
+                                        <Text type="secondary" style={{ fontSize: 11, display: 'block', lineHeight: 1 }}>Lead Teacher</Text>
+                                        <Text strong style={{ fontSize: 13 }}>{item.user?.fullName || 'Admin'}</Text>
+                                    </div>
+                                </Space>
+                                <Space>
+                                    <Button
+                                        type="text"
+                                        icon={<EditOutlined />}
+                                        onClick={(e) => { e.stopPropagation(); handleEdit(item); }}
+                                        size="small"
+                                    />
+                                    <Button
+                                        type="text"
+                                        danger
+                                        icon={<DeleteOutlined />}
+                                        onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                                        size="small"
+                                    />
+                                </Space>
+                            </div>
+
+                            <div style={{ marginTop: 16 }}>
+                                <Button
+                                    block
+                                    style={{ borderRadius: 12, height: 40, color: '#7B57E4', borderColor: '#E9E3FF', background: '#F9F8FF' }}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedEventForDetails(item);
+                                        setDetailModalVisible(true);
+                                    }}
+                                >
+                                    View Details
+                                </Button>
+                            </div>
+
+                            {/* Legacy buttons removed to clean up card, moved to Details view */}
+
+
+                        </Card>
+                    </List.Item>
+                )}
+            />
+
+            {/* Unified Event Detail Modal (Read-only + Gallery) */}
+            <Modal
+                title={null}
+                open={detailModalVisible}
+                onCancel={() => setDetailModalVisible(false)}
+                width={800}
+                footer={[
+                    <Button key="close" onClick={() => setDetailModalVisible(false)}>Close</Button>
+                ]}
+                bodyStyle={{ padding: 0 }}
+                centered
+            >
+                <div style={{ padding: '24px 32px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+                        <div>
+                            <Title level={3} style={{ margin: 0 }}>{selectedEventForDetails?.title}</Title>
+                            <Tag color={getStatusColor(selectedEventForDetails?.status)} style={{ marginTop: 8, borderRadius: 6, border: 'none' }}>
+                                {selectedEventForDetails?.status}
+                            </Tag>
+                        </div>
+                        <Space size={12}>
+                            <Button
+                                icon={<EditOutlined />}
+                                onClick={() => {
+                                    setDetailModalVisible(false);
+                                    handleEdit(selectedEventForDetails);
+                                }}
+                            >
+                                Edit
+                            </Button>
+                            {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && selectedEventForDetails?.status === 'COMPLETED' && (
+                                <Button
+                                    type="primary"
+                                    icon={<UploadOutlined />}
+                                    style={{ background: '#7B57E4', border: 'none' }}
+                                    onClick={() => {
+                                        setSelectedEventForMedia(selectedEventForDetails);
+                                        setMediaModalVisible(true);
+                                    }}
+                                >
+                                    Upload Media
+                                </Button>
+                            )}
+                        </Space>
+                    </div>
+
+                    <Row gutter={48}>
+                        <Col span={24} md={14}>
+                            <Title level={5}>Description</Title>
+                            <Text style={{ display: 'block', marginBottom: 24, fontSize: 15, color: '#334155', lineHeight: 1.6 }}>
+                                {selectedEventForDetails?.description || 'No description provided.'}
+                            </Text>
+
+                            <Space direction="vertical" size={16} style={{ width: '100%', padding: '20px', background: '#F8FAFC', borderRadius: 12 }}>
+                                <Space><CalendarOutlined style={{ color: '#7B57E4' }} /> <Text strong>Date:</Text> <Text>{dayjs(selectedEventForDetails?.eventDate).format('MMMM D, YYYY')}</Text></Space>
+                                <Space><ClockCircleOutlined style={{ color: '#7B57E4' }} /> <Text strong>Time:</Text> <Text>{selectedEventForDetails?.startTime} - {selectedEventForDetails?.endTime}</Text></Space>
+                                <Space><EnvironmentOutlined style={{ color: '#7B57E4' }} /> <Text strong>Location:</Text> <Text>{selectedEventForDetails?.location}</Text></Space>
+                            </Space>
+                        </Col>
+
+                        <Col span={24} md={10}>
+                            <Title level={5}>Event Media</Title>
+                            <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: 8 }}>
+                                <Row gutter={12}>
+                                    {selectedEventForDetails?.event_media?.map(media => (
+                                        <Col key={media.id} span={12} style={{ marginBottom: 12 }}>
+                                            <Card
+                                                hoverable
+                                                size="small"
+                                                bodyStyle={{ padding: 4 }}
+                                                cover={
+                                                    media.type === 'IMAGE' ? (
+                                                        <img
+                                                            alt="media"
+                                                            src={getMediaUrl(media.url)}
+                                                            style={{ height: 100, objectFit: 'cover' }}
+                                                            onClick={() => window.open(getMediaUrl(media.url), '_blank')}
+                                                        />
+                                                    ) : (
+                                                        <div
+                                                            style={{ height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F1F5F9' }}
+                                                            onClick={() => window.open(getMediaUrl(media.url), '_blank')}
+                                                        >
+                                                            <FileTextOutlined style={{ fontSize: 24, color: '#94A3B8' }} />
+                                                        </div>
+                                                    )
+                                                }
+                                                actions={[
+                                                    <Button
+                                                        type="text"
+                                                        danger
+                                                        icon={<DeleteOutlined />}
+                                                        size="small"
+                                                        onClick={(e) => { e.stopPropagation(); handleDeleteMedia(media.id); }}
+                                                    />
+                                                ]}
+                                            />
+                                        </Col>
+                                    ))}
+                                </Row>
+                                {(!selectedEventForDetails?.event_media || selectedEventForDetails.event_media.length === 0) && (
+                                    <div style={{ padding: '32px 0', textAlign: 'center', border: '1px dashed #E2E8F0', borderRadius: 12 }}>
+                                        <Text type="secondary">No media yet</Text>
+                                    </div>
+                                )}
+                            </div>
+                        </Col>
+                    </Row>
+                </div>
+            </Modal>
 
             <Modal
-                title="Create New Event"
+                title={editingEvent ? "Edit Event" : "Create New Event"}
                 open={isModalVisible}
-                onCancel={() => setIsModalVisible(false)}
+                onCancel={() => {
+                    setIsModalVisible(false);
+                    setEditingEvent(null);
+                    form.resetFields();
+                }}
                 footer={null}
             >
                 <Form
                     form={form}
                     layout="vertical"
-                    onFinish={handleCreateEvent}
+                    onFinish={editingEvent ? handleUpdateEvent : handleCreateEvent}
                 >
                     <Form.Item name="title" label="Event Title" rules={[{ required: true }]}>
                         <Input placeholder="Ex: Sports Day" />
@@ -231,8 +487,26 @@ const Events = () => {
                     <Form.Item name="description" label="Description">
                         <TextArea rows={3} />
                     </Form.Item>
-                    <Form.Item name="mediaUrl" label="Media URL (Optional)">
-                        <Input placeholder="https://example.com/image.jpg" prefix={<FileTextOutlined />} />
+                    <Form.Item name="targetClassroomIds" label="Target Audience (Classrooms)">
+                        <Select
+                            mode="multiple"
+                            placeholder="Select classrooms (Leave empty for All)"
+                            optionFilterProp="children"
+                        >
+                            <Select.Option value="all">All Classrooms</Select.Option>
+                            {classrooms.map(c => (
+                                <Select.Option key={c.id} value={c.id}>{c.name}</Select.Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+
+                    <Form.Item name="status" label="Event Status" rules={[{ required: true }]}>
+                        <Select>
+                            <Select.Option value="PENDING">PENDING</Select.Option>
+                            <Select.Option value="UPCOMING">PUBLISHED / UPCOMING</Select.Option>
+                            <Select.Option value="COMPLETED">COMPLETED</Select.Option>
+                            <Select.Option value="CANCELLED">CANCELLED</Select.Option>
+                        </Select>
                     </Form.Item>
                     <Row gutter={16}>
                         <Col span={12}>
@@ -259,10 +533,40 @@ const Events = () => {
                         </Col>
                     </Row>
                     <Button type="primary" htmlType="submit" loading={submitting} block style={{ background: '#7B57E4', borderColor: '#7B57E4', height: 40, borderRadius: 8 }}>
-                        Create Event
+                        {editingEvent ? "Update Event" : "Create Event"}
                     </Button>
                 </Form>
             </Modal>
+
+            {/* Upload Media Modal */}
+            <Modal
+                title={`Upload Media - ${selectedEventForMedia?.title}`}
+                open={mediaModalVisible}
+                onCancel={() => setMediaModalVisible(false)}
+                footer={null}
+            >
+                <Form form={mediaForm} layout="vertical" onFinish={handleUploadMedia}>
+                    <Form.Item
+                        name="media"
+                        label="Select Images/Files"
+                        rules={[{ required: true, message: 'Please select at least one file' }]}
+                    >
+                        <Upload
+                            multiple
+                            beforeUpload={() => false}
+                            listType="picture"
+                            accept="image/*,.pdf,.doc,.docx"
+                        >
+                            <Button icon={<UploadOutlined />}>Click to Select</Button>
+                        </Upload>
+                    </Form.Item>
+                    <Button type="primary" htmlType="submit" loading={submitting} block style={{ background: '#7B57E4', borderColor: '#7B57E4' }}>
+                        Start Upload
+                    </Button>
+                </Form>
+            </Modal>
+
+            {/* Legacy gallery modal removed in favor of integrated view */}
         </div>
     );
 };

@@ -110,7 +110,8 @@ Instructions:
     const filteredParents = parents.filter(p =>
         p.fullName.toLowerCase().includes(searchText.toLowerCase()) ||
         (p.phone && p.phone.includes(searchText)) ||
-        (p.parentUniqueId && p.parentUniqueId.toLowerCase().includes(searchText.toLowerCase()))
+        (p.parentUniqueId && p.parentUniqueId.toLowerCase().includes(searchText.toLowerCase())) ||
+        (p.nationalId && p.nationalId.toLowerCase().includes(searchText.toLowerCase()))
     );
 
     const columns = [
@@ -165,14 +166,6 @@ Instructions:
                     >
                         View
                     </Button>
-                    {user?.role !== 'TEACHER' && (
-                        <Button
-                            size="small"
-                            onClick={() => handleEdit(record)}
-                        >
-                            Edit
-                        </Button>
-                    )}
                 </Space>
             )
         }

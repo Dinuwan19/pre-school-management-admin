@@ -4,7 +4,7 @@ const dayjs = require('dayjs');
 exports.scanAttendance = async (req, res, next) => {
     try {
         console.log(`[Attendance] Scan attempt for studentId: ${req.body.studentId} by user: ${req.user?.username}`);
-        const { studentId } = req.body;
+        const { studentId, forceMode } = req.body;
         const markedById = req.user ? req.user.id : 1;
         const now = new Date();
         const todayStr = dayjs().format('YYYY-MM-DD');
@@ -23,8 +23,8 @@ exports.scanAttendance = async (req, res, next) => {
         }
 
         // Scoping check for Teacher/Staff
-        if (req.classroomScope && student.classroomId !== req.classroomScope) {
-            return res.status(403).json({ message: 'Forbidden: Student is not in your assigned classroom', status: 'ERROR' });
+        if (req.classroomScope && !req.classroomScope.includes(student.classroomId)) {
+            return res.status(403).json({ message: 'Forbidden: Student is not in your assigned classrooms', status: 'ERROR' });
         }
 
         // 2. Find existing record for today
@@ -35,80 +35,83 @@ exports.scanAttendance = async (req, res, next) => {
             }
         });
 
-        // 3. Logic: 2-Hour Gap Rule
+        // 3. Logic: 2-Hour Gap Rule + Late Marking + Force Mode
         let result = {};
+        const schoolStartTime = dayjs(todayStr).hour(8).minute(0); // 8:00 AM
+        const lateThreshold = schoolStartTime.add(30, 'minute'); // 8:30 AM
 
-        if (!attendance) {
-            // CASE A: No record -> First Check-in
-            const newRecord = await prisma.attendance.create({
-                data: {
-                    studentId: student.id,
-                    attendanceDate: new Date(todayStr),
-                    checkInTime: now,
-                    markedById,
-                    method: 'QR',
-                    status: 'PRESENT',
-                    deviceId: req.body.deviceId || 'UNKNOWN'
-                }
-            });
-            result = { message: 'Checked In Successfully', type: 'CHECK_IN', data: newRecord };
+        // Determine if we should perform Check-In or Check-Out
+        let mode = 'AUTO';
+        if (forceMode === 'CHECK_IN') mode = 'IN';
+        else if (forceMode === 'CHECK_OUT') mode = 'OUT';
+        else {
+            if (!attendance) mode = 'IN';
+            else mode = 'OUT';
+        }
+
+        if (mode === 'IN') {
+            if (attendance && !forceMode) {
+                // If it's auto and we already have a record, it should have gone to mode 'OUT'
+                // This block is mostly for safety if logic changes
+            }
+
+            if (!attendance) {
+                const isLate = dayjs(now).isAfter(lateThreshold);
+                const newRecord = await prisma.attendance.create({
+                    data: {
+                        studentId: student.id,
+                        attendanceDate: new Date(todayStr),
+                        checkInTime: now,
+                        markedById,
+                        method: 'QR',
+                        status: isLate ? 'LATE' : 'PRESENT',
+                        deviceId: req.body.deviceId || 'UNKNOWN'
+                    }
+                });
+                result = { message: isLate ? 'Checked In (LATE)' : 'Checked In Successfully', type: 'CHECK_IN', data: newRecord };
+            } else {
+                return res.json({
+                    message: 'Already checked in for today',
+                    type: 'ALREADY_IN',
+                    data: attendance,
+                    student: { fullName: student.fullName, photoUrl: student.photoUrl, id: student.studentUniqueId }
+                });
+            }
         } else {
-            // CASE B: Already has record
-            const lastUpdate = attendance.checkOutTime || attendance.checkInTime;
+            // mode === 'OUT'
+            if (!attendance) {
+                return res.status(400).json({ message: 'Cannot Check-Out: No Check-In record for today', status: 'ERROR' });
+            }
+
+            if (attendance.checkOutTime && !forceMode) {
+                return res.json({
+                    message: 'Already checked out for today',
+                    type: 'ALREADY_OUT',
+                    data: attendance,
+                    student: { fullName: student.fullName, photoUrl: student.photoUrl, id: student.studentUniqueId }
+                });
+            }
+
+            const lastUpdate = attendance.checkInTime;
             const diffMinutes = dayjs(now).diff(dayjs(lastUpdate), 'minute');
 
-            if (diffMinutes < 2) {
-                // Debounce: Double scan within 2 minutes -> Ignore
+            if (!forceMode && diffMinutes < 2) {
                 return res.json({
                     message: 'Already scanned just now',
                     type: 'IGNORED',
                     data: attendance,
-                    student: {
-                        fullName: student.fullName,
-                        photoUrl: student.photoUrl,
-                        id: student.studentUniqueId
-                    }
+                    student: { fullName: student.fullName, photoUrl: student.photoUrl, id: student.studentUniqueId }
                 });
             }
 
-            if (!attendance.checkOutTime) {
-                // Has Check-in, No Check-out
-                if (diffMinutes >= 120) { // 2 Hours (120 mins)
-                    // Check-out
-                    const updated = await prisma.attendance.update({
-                        where: { id: attendance.id },
-                        data: {
-                            checkOutTime: now,
-                            status: 'COMPLETED'
-                        }
-                    });
-                    result = { message: 'Checked Out Successfully', type: 'CHECK_OUT', data: updated };
-                } else {
-                    // Less than 2 hours -> Warning/Info
-                    return res.json({
-                        message: 'Already checked in. Try again later for check-out.',
-                        type: 'ALREADY_IN',
-                        data: attendance,
-                        student: {
-                            fullName: student.fullName,
-                            photoUrl: student.photoUrl,
-                            id: student.studentUniqueId
-                        }
-                    });
+            const updated = await prisma.attendance.update({
+                where: { id: attendance.id },
+                data: {
+                    checkOutTime: now,
+                    status: 'COMPLETED'
                 }
-            } else {
-                // Already checked out
-                return res.json({
-                    message: 'Attendance already completed for today',
-                    type: 'COMPLETED',
-                    data: attendance,
-                    student: {
-                        fullName: student.fullName,
-                        photoUrl: student.photoUrl,
-                        id: student.studentUniqueId
-                    }
-                });
-            }
+            });
+            result = { message: 'Checked Out Successfully', type: 'CHECK_OUT', data: updated };
         }
 
         // 4. Return enriched data for visual verification
@@ -136,8 +139,8 @@ exports.manualAttendance = async (req, res, next) => {
         // Scoping check
         if (req.classroomScope) {
             const student = await prisma.student.findUnique({ where: { id: parseInt(studentId) } });
-            if (!student || student.classroomId !== req.classroomScope) {
-                return res.status(403).json({ message: 'Forbidden: Student not in your classroom' });
+            if (!student || !req.classroomScope.includes(student.classroomId)) {
+                return res.status(403).json({ message: 'Forbidden: Student not in your assigned classrooms' });
             }
         }
 
@@ -194,12 +197,24 @@ exports.manualAttendance = async (req, res, next) => {
 
 exports.bulkMarkAttendance = async (req, res, next) => {
     try {
+        const { classroomId, status, date } = req.body;
+        const markedById = req.user.id;
+        const attendanceDate = date ? new Date(date) : new Date(dayjs().format('YYYY-MM-DD'));
+
         // Use classroom scoping from middleware if exists
         let finalClassroomId = parseInt(classroomId);
         if (req.classroomScope) {
-            finalClassroomId = req.classroomScope;
+            // If scoped, must be within the allowed classrooms
+            if (classroomId && !req.classroomScope.includes(parseInt(classroomId))) {
+                return res.status(403).json({ message: 'Forbidden: You do not have access to this classroom' });
+            }
+            finalClassroomId = parseInt(classroomId) || req.classroomScope[0];
         } else if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
             return res.status(403).json({ message: 'Access denied: No classroom assigned' });
+        }
+
+        if (!finalClassroomId) {
+            return res.status(400).json({ message: 'Classroom ID is required' });
         }
 
         // 1. Get all students in classroom
@@ -212,6 +227,9 @@ exports.bulkMarkAttendance = async (req, res, next) => {
         });
 
         const studentIds = students.map(s => s.id);
+        if (studentIds.length === 0) {
+            return res.json({ message: 'No active students found in this classroom', count: 0 });
+        }
 
         // 2. Find existing records to avoid duplicates in createMany
         const existingRecords = await prisma.attendance.findMany({
@@ -255,7 +273,7 @@ exports.bulkMarkAttendance = async (req, res, next) => {
             });
         }
 
-        res.json({ message: `Bulk marked ${studentIds.length} students as ${status}` });
+        res.json({ message: `Bulk marked ${studentIds.length} students as ${status}`, count: studentIds.length });
     } catch (error) {
         next(error);
     }
@@ -269,7 +287,7 @@ exports.getDailyAttendance = async (req, res, next) => {
         // 1. Get Students (Scoped by role)
         let studentWhere = { status: 'ACTIVE' };
         if (req.classroomScope) {
-            studentWhere.classroomId = req.classroomScope;
+            studentWhere.classroomId = { in: req.classroomScope };
         } else if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
             return res.json([]);
         }

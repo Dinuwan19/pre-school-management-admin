@@ -9,8 +9,8 @@ router.use(authenticateToken);
 router.use(authorizeRole(['SUPER_ADMIN']));
 
 router.get('/', staffController.getAllStaff);
-router.post('/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: 'qualificationPdf', maxCount: 1 }]), validate(userSchema), staffController.createStaff);
+router.post('/', upload.fields([{ name: 'qualificationPdf', maxCount: 1 }]), validate(userSchema), staffController.createStaff);
 router.get('/:id', staffController.getStaffById);
-router.put('/:id', upload.fields([{ name: 'photo', maxCount: 1 }, { name: 'qualificationPdf', maxCount: 1 }]), validate(userSchema), staffController.updateStaff);
+router.put('/:id', upload.fields([{ name: 'qualificationPdf', maxCount: 1 }]), validate(userSchema), staffController.updateStaff);
 
 module.exports = router;

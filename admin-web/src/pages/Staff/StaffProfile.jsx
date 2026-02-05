@@ -50,22 +50,29 @@ const StaffProfile = () => {
 
             Object.keys(values).forEach(key => {
                 if (values[key] !== undefined && values[key] !== null) {
-                    if (key === 'photo' || key === 'qualificationPdf') {
-                        if (values[key].file) formData.append(key, values[key].file.originFileObj);
+                    if (key === 'qualificationPdf') {
+                        const fileObj = values[key]?.file || values[key]?.fileList?.[0] || (values[key] instanceof File ? values[key] : null);
+                        if (fileObj && (fileObj.originFileObj || fileObj instanceof File)) {
+                            formData.append(key, fileObj.originFileObj || fileObj);
+                        }
                     } else if (key === 'joiningDate') {
                         formData.append(key, values[key].format('YYYY-MM-DD'));
+                    } else if (key === 'classroomIds' && Array.isArray(values[key])) {
+                        // Append each ID individually or as a JSON string - usually individual is safer for multer
+                        values[key].forEach(id => formData.append('classroomIds', id));
                     } else {
                         formData.append(key, values[key]);
                     }
                 }
             });
 
-            await api.put(`/staff/${id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+            await api.put(`/staff/${id}`, formData);
             message.success('Staff updated successfully');
             setIsEditModalVisible(false);
             fetchStaffData();
         } catch (error) {
-            message.error('Update failed');
+            const errorMsg = error.response?.data?.message || error.message || 'Update failed';
+            message.error(errorMsg);
         } finally {
             setSaving(false);
         }
@@ -74,7 +81,7 @@ const StaffProfile = () => {
     if (loading) return <div style={{ textAlign: 'center', marginTop: 100 }}><Spin size="large" /></div>;
     if (!staff) return <div style={{ padding: 40 }}><Text type="danger">Staff not found</Text></div>;
 
-    const classroom = staff.teacherprofile?.classroom;
+    const assignedClassrooms = staff.teacherprofile?.classrooms || [];
 
     return (
         <div style={{ background: '#f5f7fb', minHeight: '100vh', padding: '0 24px 24px' }}>
@@ -158,16 +165,18 @@ const StaffProfile = () => {
                         )}
                     </Card>
 
-                    <Card size="small" title={<Text strong>Assigned Classroom</Text>} bordered={false} style={{ borderRadius: 16 }}>
-                        {classroom ? (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
-                                <div>
-                                    <div style={{ fontWeight: 600 }}>{classroom.name}</div>
-                                    <Text type="secondary">{classroom.ageGroup}</Text>
-                                    <div style={{ color: '#999', fontSize: 13 }}>{classroom.capacity} students</div>
+                    <Card size="small" title={<Text strong>Assigned Classrooms</Text>} bordered={false} style={{ borderRadius: 16 }}>
+                        {assignedClassrooms.length > 0 ? (
+                            assignedClassrooms.map(classroom => (
+                                <div key={classroom.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600 }}>{classroom.name}</div>
+                                        <Text type="secondary">{classroom.ageGroup}</Text>
+                                        <div style={{ color: '#999', fontSize: 13 }}>{classroom.capacity} students</div>
+                                    </div>
+                                    <Button size="small" onClick={() => navigate(`/classrooms/${classroom.id}`)}>View</Button>
                                 </div>
-                                <Button size="small" onClick={() => navigate(`/classrooms/${classroom.id}`)}>View Classroom</Button>
-                            </div>
+                            ))
                         ) : (
                             <div style={{ padding: '24px 0', textAlign: 'center' }}><Text type="secondary">Not assigned to any classroom</Text></div>
                         )}
@@ -187,7 +196,7 @@ const StaffProfile = () => {
                     ...staff,
                     joiningDate: dayjs(staff.joiningDate),
                     qualification: staff.teacherprofile?.qualification,
-                    assignedClassroomId: staff.teacherprofile?.assignedClassroomId,
+                    classroomIds: staff.teacherprofile?.classrooms?.map(c => c.id) || [],
                     designation: staff.teacherprofile?.designation || 'ASSISTANT'
                 }}>
                     <Row gutter={16}>
@@ -199,12 +208,28 @@ const StaffProfile = () => {
                         {staff.role === 'TEACHER' && (
                             <>
                                 <Col span={12}><Form.Item name="designation" label="Designation"><Select><Option value="LEAD">Lead Teacher</Option><Option value="ASSISTANT">Assistant Teacher</Option></Select></Form.Item></Col>
-                                <Col span={12}><Form.Item name="assignedClassroomId" label="Classroom"><Select allowClear placeholder="Select Classroom">{classrooms.map(c => <Option key={c.id} value={c.id}>{c.name}</Option>)}</Select></Form.Item></Col>
+                                <Col span={12}>
+                                    <Form.Item name="classroomIds" label="Assigned Classrooms">
+                                        <Select mode="multiple" allowClear placeholder="Select Classrooms" maxTagCount={2}>
+                                            {classrooms.map(c => <Option key={c.id} value={c.id}>{c.name}</Option>)}
+                                        </Select>
+                                    </Form.Item>
+                                </Col>
                             </>
                         )}
                         <Col span={24}><Form.Item name="qualification" label="Qualification"><Input.TextArea placeholder="Enter degrees, certificates, etc." /></Form.Item></Col>
-                        <Col span={12}><Form.Item name="photo" label="Update Photo"><Upload beforeUpload={() => false} maxCount={1}><Button icon={<UploadOutlined />}>Select Image</Button></Upload></Form.Item></Col>
-                        <Col span={12}><Form.Item name="qualificationPdf" label="Qualification PDF"><Upload beforeUpload={() => false} maxCount={1} accept=".pdf"><Button icon={<UploadOutlined />}>Select PDF</Button></Upload></Form.Item></Col>
+                        <Col span={24}>
+                            <Form.Item name="qualificationPdf" label="Qualification PDF">
+                                <Upload beforeUpload={() => false} maxCount={1} accept=".pdf">
+                                    <Button icon={<UploadOutlined />}>Select PDF</Button>
+                                </Upload>
+                                {staff.teacherprofile?.qualificationPdf && (
+                                    <div style={{ fontSize: 10, color: '#999', marginTop: 4 }}>
+                                        Current: {staff.teacherprofile.qualificationPdf.split('/').pop()}
+                                    </div>
+                                )}
+                            </Form.Item>
+                        </Col>
                     </Row>
                 </Form>
             </Modal>

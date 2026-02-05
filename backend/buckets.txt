@@ -1,0 +1,10 @@
+🔍 Checking Supabase Buckets...
+✅ Available Buckets:
+ - "avatars" (Private)
+ - "student photos" (Private)
+ - "student-photos" (Private)
+ - "reports" (Private)
+ - "events" (Public)
+ - "teacher-documents" (Public)
+ - "receipts" (Public)
+ - "student-documents" (Public)

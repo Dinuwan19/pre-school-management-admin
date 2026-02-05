@@ -15,7 +15,15 @@ import {
     Pencil,
     Utensils,
     Clock,
-    Info
+    Info,
+    Coffee,
+    Soup,
+    Apple,
+    ChefHat,
+    Heart,
+    Sparkles,
+    Sun,
+    Moon
 } from 'lucide-react-native';
 import { requestMeeting } from '../services/meeting.service';
 import api from '../config/api';
@@ -257,7 +265,6 @@ const StudentProfileScreen = ({ route, navigation }) => {
         let mealData = null;
         try {
             if (student?.classroom?.mealPlan) {
-                // If it looks like JSON, try to parse it
                 if (student.classroom.mealPlan.trim().startsWith('{')) {
                     mealData = JSON.parse(student.classroom.mealPlan);
                 }
@@ -266,45 +273,93 @@ const StudentProfileScreen = ({ route, navigation }) => {
             console.log('Error parsing meal plan:', e);
         }
 
+        const getMealIcon = (text) => {
+            const t = text.toLowerCase();
+            if (t.includes('breakfast')) return <Coffee size={16} color="#F59E0B" />;
+            if (t.includes('lunch')) return <Soup size={16} color="#10B981" />;
+            if (t.includes('snack')) return <Apple size={16} color="#EC4899" />;
+            if (t.includes('dinner')) return <Moon size={16} color="#6366F1" />;
+            return <Utensils size={16} color="#9D5BF0" />;
+        };
+
+        const getMealBg = (text) => {
+            const t = text.toLowerCase();
+            if (t.includes('breakfast')) return '#FFFBEB';
+            if (t.includes('lunch')) return '#ECFDF5';
+            if (t.includes('snack')) return '#FDF2F8';
+            if (t.includes('dinner')) return '#EEF2FF';
+            return '#F3F0FF';
+        };
+
+        const getMealBorder = (text) => {
+            const t = text.toLowerCase();
+            if (t.includes('breakfast')) return '#FEF3C7';
+            if (t.includes('lunch')) return '#D1FAE5';
+            if (t.includes('snack')) return '#FCE7F3';
+            if (t.includes('dinner')) return '#E0E7FF';
+            return '#EBE5FF';
+        };
+
         return (
             <View style={styles.tabContent}>
-                <View style={styles.infoSection}>
-                    <Text style={styles.sectionHeading}>WEEKLY MENU</Text>
-                    {mealData ? (
-                        Object.entries(mealData).map(([day, meal], index) => (
-                            <View key={index} style={styles.mealItem}>
-                                <Text style={styles.mealDay}>{day}</Text>
-                                <Text style={styles.mealValue}>{meal}</Text>
-                            </View>
-                        ))
-                    ) : (
-                        <View style={styles.mealCard}>
-                            <View style={styles.mealIconBox}>
-                                <Utensils size={32} color="#9D5BF0" />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.mealTitle}>Classroom Menu</Text>
-                                <Text style={styles.mealContent}>
-                                    {student?.classroom?.mealPlan || 'Meal plan not assigned yet for this classroom.'}
-                                </Text>
-                            </View>
+                <View style={styles.mealContainer}>
+                    <View style={styles.mealHeaderRow}>
+                        <View style={styles.mealHeaderIconBox}>
+                            <ChefHat size={20} color="#fff" />
                         </View>
-                    )}
-                </View>
-
-                {mealData && (
-                    <View style={[styles.infoSection, { backgroundColor: '#F3EFFF' }]}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                            <Info size={20} color="#9D5BF0" />
-                            <View style={{ flex: 1 }}>
-                                <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Note</Text>
-                                <Text style={{ fontSize: 13, color: '#64748B', marginTop: 2 }}>
-                                    Meals are subject to availability and may change slightly.
-                                </Text>
-                            </View>
+                        <View>
+                            <Text style={styles.mealHeroTitle}>Weekly Menu</Text>
+                            <Text style={styles.mealHeroSub}>Fresh and healthy meals every day</Text>
                         </View>
                     </View>
-                )}
+
+                    {mealData ? (
+                        Object.entries(mealData).map(([day, meal], index) => {
+                            const items = meal?.items && Array.isArray(meal.items)
+                                ? meal.items
+                                : (typeof meal === 'string' ? [meal] : []);
+
+                            return (
+                                <View key={index} style={styles.cuteMealCard}>
+                                    <View style={styles.dayStrip}>
+                                        <Sun size={14} color="#9D5BF0" />
+                                        <Text style={styles.cuteMealDay}>{day.toUpperCase()}</Text>
+                                    </View>
+
+                                    <View style={styles.mealItemsList}>
+                                        {items.length > 0 ? items.map((item, i) => (
+                                            <View key={i} style={[styles.fancyMealRow, { backgroundColor: getMealBg(item), borderColor: getMealBorder(item) }]}>
+                                                <View style={styles.fancyMealIcon}>{getMealIcon(item)}</View>
+                                                <Text style={styles.fancyMealText}>{item}</Text>
+                                            </View>
+                                        )) : (
+                                            <Text style={styles.emptyMealText}>No specific meals listed for this day.</Text>
+                                        )}
+                                    </View>
+                                </View>
+                            );
+                        })
+                    ) : (
+                        <View style={styles.emptyMealState}>
+                            <View style={styles.emptyMealIllustration}>
+                                <Sparkles size={40} color="#9D5BF0" />
+                            </View>
+                            <Text style={styles.emptyMealTitle}>Menu Under Review</Text>
+                            <Text style={styles.emptyMealDesc}>
+                                {student?.classroom?.mealPlan && !student.classroom.mealPlan.trim().startsWith('{')
+                                    ? student.classroom.mealPlan
+                                    : 'Our nutritionists are finalizing the weekly menu. Check back shortly for healthy updates!'}
+                            </Text>
+                        </View>
+                    )}
+
+                    <View style={styles.nutritionNote}>
+                        <Heart size={16} color="#EF4444" />
+                        <Text style={styles.nutritionNoteText}>
+                            All meals are prepared fresh with organic ingredients catering to kids' nutritional needs.
+                        </Text>
+                    </View>
+                </View>
             </View>
         );
     };
@@ -832,7 +887,28 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1, borderBottomColor: '#F1F5F9'
     },
     mealDay: { fontSize: 14, fontWeight: 'bold', color: '#1E293B', width: 100 },
-    mealValue: { fontSize: 14, color: '#64748B', flex: 1, textAlign: 'right' }
+    mealValue: { fontSize: 14, color: '#64748B', flex: 1, textAlign: 'right' },
+
+    // Cute Meal UI Styles
+    mealContainer: { paddingVertical: 5 },
+    mealHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+    mealHeaderIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#9D5BF0', justifyContent: 'center', alignItems: 'center', marginRight: 15, elevation: 4, shadowColor: '#9D5BF0', shadowOpacity: 0.3, shadowRadius: 8 },
+    mealHeroTitle: { fontSize: 20, fontWeight: 'bold', color: '#1E293B' },
+    mealHeroSub: { fontSize: 13, color: '#64748B', marginTop: 2 },
+    cuteMealCard: { backgroundColor: '#fff', borderRadius: 24, padding: 15, marginBottom: 15, borderWidth: 1, borderColor: '#F1F5F9', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
+    dayStrip: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, backgroundColor: '#F3F0FF', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20, gap: 6 },
+    cuteMealDay: { fontSize: 12, fontWeight: '800', color: '#9D5BF0', letterSpacing: 1 },
+    mealItemsList: { gap: 8 },
+    fancyMealRow: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 16, borderWidth: 1 },
+    fancyMealIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.7)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+    fancyMealText: { fontSize: 14, fontWeight: '600', color: '#334155', flex: 1 },
+    emptyMealText: { fontSize: 13, color: '#94A3B8', fontStyle: 'italic', paddingLeft: 5 },
+    emptyMealState: { alignItems: 'center', padding: 40, backgroundColor: '#F8FAFC', borderRadius: 30, borderWidth: 1, borderColor: '#F1F5F9', borderStyle: 'dashed' },
+    emptyMealIllustration: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', marginBottom: 20, elevation: 4, shadowColor: '#000', shadowOpacity: 0.05 },
+    emptyMealTitle: { fontSize: 18, fontWeight: 'bold', color: '#1E293B', marginBottom: 8 },
+    emptyMealDesc: { fontSize: 14, color: '#64748B', textAlign: 'center', lineHeight: 20 },
+    nutritionNote: { flexDirection: 'row', alignItems: 'center', padding: 15, backgroundColor: '#FFF1F2', borderRadius: 20, marginTop: 10, gap: 12 },
+    nutritionNoteText: { fontSize: 12, color: '#E11D48', fontWeight: '500', flex: 1, lineHeight: 18 }
 });
 
 export default StudentProfileScreen;

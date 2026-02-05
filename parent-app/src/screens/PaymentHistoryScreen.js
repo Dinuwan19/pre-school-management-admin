@@ -13,11 +13,15 @@ import {
     Dimensions,
     TextInput,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    Linking, // Added Linking for opening URLs
+    RefreshControl
 } from 'react-native';
-import { ChevronLeft, ChevronRight, CreditCard, Calendar, Download, AlertCircle, CheckCircle2, Upload, Plus, X, User, ChevronDown } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, CreditCard, Calendar, Download, AlertCircle, CheckCircle2, Upload, Plus, X, User, ChevronDown, Check, CheckCircle, Lock } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { BASE_URL } from '../config/api'; // Added BASE_URL import
+import CommonHeader from '../components/CommonHeader'; // Added CommonHeader import
 import { AVATARS, getAvatarSource } from '../constants/avatars';
 import { getChildBillings, getLinkedChildren } from '../services/child.service';
 import { uploadPaymentReceipt } from '../services/payment.service';
@@ -49,13 +53,14 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
     const [selectedPaymentYear, setSelectedPaymentYear] = useState(dayjs().year());
     const [billings, setBillings] = useState([]);
     const [allBillings, setAllBillings] = useState([]);
-    const [stats, setStats] = useState({ totalPaid: '0.00', pending: '0.00' });
+    const [allPayments, setAllPayments] = useState([]); // Track all payments for month locking
 
     // Modal & Upload State
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedBilling, setSelectedBilling] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [isStudentSwitcherVisible, setIsStudentSwitcherVisible] = useState(false);
+    const [selectedPayment, setSelectedPayment] = useState(null); // Added selectedPayment state
 
     useEffect(() => {
         (async () => {
@@ -94,14 +99,12 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
             if (selectedStudent) {
                 const data = await getChildBillings(selectedStudent.id, month.format('MM'), month.format('YYYY'));
                 setBillings(data.billings || []);
-                setStats({
-                    totalPaid: data.totalPaid || 0,
-                    pending: data.pending || 0
-                });
 
-                // Fetch all billings (limitless) to help with multi-month mapping
+
+                // Fetch all history (billings + payments) to help with multi-month mapping
                 const allData = await getChildBillings(selectedStudent.id);
                 setAllBillings(allData.billings || []);
+                setAllPayments(allData.payments || []);
             }
         } catch (error) {
             console.error(error);
@@ -136,8 +139,12 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
         if (selectedBilling) {
             billingIds = [selectedBilling.id];
         } else if (selectedMonths.length > 0) {
+            const targetCodes = selectedMonths.map(name => {
+                const idx = months.indexOf(name);
+                return `${selectedPaymentYear}-${String(idx + 1).padStart(2, '0')}`;
+            });
             billingIds = allBillings
-                .filter(b => selectedMonths.includes(b.billingMonth))
+                .filter(b => targetCodes.includes(b.billingMonth))
                 .map(b => b.id);
 
             if (billingIds.length === 0) {
@@ -170,7 +177,10 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                 paymentAmount,
                 'ONLINE_TRANSFER',
                 file,
-                `[Student: ${selectedStudent?.fullName || 'Unknown'}] ` + (paymentFor ? `[${paymentFor}] ` : '') + paymentNote + (selectedMonths.length > 0 ? ` (Months: ${selectedMonths.join(', ')})` : '')
+                `[Student: ${selectedStudent?.fullName || 'Unknown'}] [Student ID: ${selectedStudent?.studentUniqueId || 'N/A'}] ` +
+                (paymentFor ? `[${paymentFor}] ` : '') +
+                (selectedMonths.length > 0 ? `[Months: ${selectedMonths.join(', ')}] ` : '') +
+                paymentNote
             );
 
             Alert.alert('Success', 'Payment slip submitted for approval');
@@ -238,60 +248,136 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
         </View>
     );
 
-    const renderStats = () => (
-        <View style={styles.statsContainer}>
-            <View style={[styles.statBox, { backgroundColor: COLORS.white }]}>
-                <Text style={styles.statLabel}>Total Paid</Text>
-                <Text style={[styles.statValue, { color: COLORS.success }]}>LKR {stats.totalPaid}</Text>
-            </View>
-            <View style={[styles.statBox, { backgroundColor: COLORS.white }]}>
-                <Text style={styles.statLabel}>Pending</Text>
-                <Text style={[styles.statValue, { color: COLORS.error }]}>LKR {stats.pending}</Text>
-            </View>
-        </View>
-    );
 
     const renderInvoiceItem = (item, index) => {
-        const isPaid = item.status === 'PAID' || item.status === 'SUCCESS';
+        const isBilling = item.type === 'BILLING';
+        // Treat APPROVED cash payments as paid
+        const isPaid = item.status === 'PAID' || item.status === 'APPROVED' || item.status === 'SUCCESS';
         const dueDate = dayjs(item.createdAt).add(7, 'day');
         const isOverdue = !isPaid && dayjs().isAfter(dueDate);
 
-        // Determine Status Color & Text
-        let statusColor = COLORS.error; // Default Red for Overdue
-        let statusBg = COLORS.error + '20';
-        let statusText = 'Overdue';
+        // UI Styling Configuration
+        let statusConfig = { color: '#3B82F6', bg: '#EFF6FF', label: 'Unpaid', icon: null };
 
         if (isPaid) {
-            statusColor = '#059669'; // Emerald
-            statusBg = '#ECFDF5';
-            statusText = 'Paid';
+            statusConfig = { color: '#059669', bg: '#ECFDF5', label: 'Paid', icon: <CheckCircle2 size={12} color="#059669" /> };
         } else if (item.status === 'PENDING') {
-            statusColor = '#D97706'; // Amber
-            statusBg = '#FFFBEB';
-            statusText = 'Pending Approval';
-        } else if (isOverdue) {
-            statusColor = '#DC2626'; // Red
-            statusBg = '#FEF2F2';
-            statusText = 'Overdue';
-        } else {
-            statusColor = '#2563EB'; // Blue
-            statusBg = '#EFF6FF';
-            statusText = 'Unpaid';
+            statusConfig = { color: '#D97706', bg: '#FFFBEB', label: 'Pending Approval', icon: <AlertCircle size={12} color="#D97706" /> };
+        } else if (isOverdue && isBilling) {
+            statusConfig = { color: '#DC2626', bg: '#FEF2F2', label: 'Overdue', icon: <AlertCircle size={12} color="#DC2626" /> };
         }
 
+        // Robust Title Parsing
+        let displayTitle = '';
+        let monthSubtitle = '';
+
+        if (isBilling) {
+            displayTitle = item.billingMonth ? dayjs(item.billingMonth).format('MMMM') : 'Monthly Fee';
+            monthSubtitle = item.billingMonth ? dayjs(item.billingMonth).year() : '';
+        } else if (item.transactionRef) {
+            // Try [Months: ...] tag first
+            const monthMatch = item.transactionRef.match(/\[Months:\s(.*?)\]/);
+            if (monthMatch) {
+                displayTitle = monthMatch[1]; // e.g. "January, February"
+            } else {
+                // Fallback: Check if common month names exist in text
+                const foundMonths = months.filter(m => item.transactionRef.includes(m));
+                displayTitle = foundMonths.length > 0 ? foundMonths.join(', ') : 'Payment';
+            }
+        } else {
+            displayTitle = 'Generic Payment';
+        }
+
+        const amount = isBilling ? item.amount : (item.amountPaid || item.amount);
+
+        // Determine correct download link (Invoice for Billing/Cash, Receipt for Uploads)
+        // Check finding nested payment invoice for billings
+        let linkedInvoiceUrl = null;
+        if (isBilling && item.billingpayment?.length > 0) {
+            // Find valid invoice in linked payments
+            const validPayment = item.billingpayment.find(bp => bp.payment?.invoiceUrl);
+            linkedInvoiceUrl = validPayment?.payment?.invoiceUrl;
+        }
+
+        const downloadUrl = linkedInvoiceUrl || item.invoiceUrl || item.paymentInfo?.invoiceUrl || item.receiptUrl;
+        const isInvoice = !!(linkedInvoiceUrl || item.invoiceUrl || (isBilling && item.paymentInfo?.invoiceUrl));
+
         return (
-            <View key={index} style={styles.invoiceListItem}>
-                <View style={styles.invoiceListLeft}>
-                    <Text style={styles.invoiceListTitle}>{item.billingMonth} {item.billingYear}</Text>
-                    <Text style={styles.invoiceListDate}>{dayjs(item.createdAt).format('DD MMM YYYY')}</Text>
-                </View>
-                <View style={styles.invoiceListRight}>
-                    <Text style={styles.invoiceListAmount}>Rs. {parseFloat(item.amount).toLocaleString()}</Text>
-                    <View style={[styles.statusBadgeSmall, { backgroundColor: statusBg }]}>
-                        <Text style={[styles.statusBadgeTextSmall, { color: statusColor }]}>
-                            {statusText}
+            <View key={item.key || (isBilling ? `b-${item.id}` : `p-${item.id}`) || index} style={styles.invoiceListItem}>
+                {/* Left: Icon & Info */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <View style={[styles.iconBox, { backgroundColor: isPaid ? '#ECFDF5' : '#F8FAFC' }]}>
+                        {isPaid ? <CheckCircle2 size={24} color="#10B981" /> : <Calendar size={24} color="#94A3B8" />}
+                    </View>
+                    <View style={{ marginLeft: 12, flex: 1 }}>
+                        <Text style={styles.invoiceListTitle} numberOfLines={1}>{displayTitle}</Text>
+                        <Text style={styles.invoiceListDate}>
+                            {dayjs(item.createdAt).format('DD MMM YYYY')}
+                            {monthSubtitle ? ` • ${monthSubtitle}` : ''}
                         </Text>
                     </View>
+                </View>
+
+                {/* Right: Amount & Status */}
+                <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.invoiceListAmount}>Rs. {parseFloat(amount).toLocaleString()}</Text>
+
+                    <View style={[styles.statusBadgeSmall, { backgroundColor: statusConfig.bg, flexDirection: 'row', alignItems: 'center' }]}>
+                        {statusConfig.icon}
+                        <Text style={[styles.statusBadgeTextSmall, { color: statusConfig.color, marginLeft: 4 }]}>
+                            {statusConfig.label}
+                        </Text>
+                    </View>
+
+                    {/* Download Link */}
+                    {/* Unified Action Chip for Download */}
+                    {downloadUrl ? (
+                        <TouchableOpacity
+                            style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                backgroundColor: isInvoice ? '#F3E8FF' : '#E0F2FE',
+                                paddingHorizontal: 10,
+                                paddingVertical: 4,
+                                borderRadius: 12,
+                                marginTop: 6,
+                                borderWidth: 1,
+                                borderColor: isInvoice ? '#D8B4FE' : '#BAE6FD'
+                            }}
+                            onPress={() => {
+                                const finalUrl = downloadUrl.startsWith('http') ? downloadUrl : `${BASE_URL}${downloadUrl}`;
+                                Linking.openURL(finalUrl).catch(err => Alert.alert('Error', 'Could not open link'));
+                            }}
+                        >
+                            <Download size={12} color={isInvoice ? '#9333EA' : '#0284C7'} />
+                            <Text style={{
+                                fontSize: 11,
+                                color: isInvoice ? '#9333EA' : '#0284C7',
+                                marginLeft: 4,
+                                fontWeight: '600'
+                            }}>
+                                {isInvoice ? 'Invoice' : 'Receipt'}
+                            </Text>
+                        </TouchableOpacity>
+                    ) : (
+                        // Placeholder for when URL is missing but payment is approved (e.g. pending generation)
+                        (isPaid && !isInvoice && !item.receiptUrl) && (
+                            <View style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                backgroundColor: '#F1F5F9',
+                                paddingHorizontal: 10,
+                                paddingVertical: 4,
+                                borderRadius: 12,
+                                marginTop: 6,
+                                borderWidth: 1,
+                                borderColor: '#E2E8F0',
+                                opacity: 0.7
+                            }}>
+                                <Text style={{ fontSize: 11, color: '#94A3B8', fontWeight: '500' }}>Processing</Text>
+                            </View>
+                        )
+                    )}
                 </View>
             </View>
         );
@@ -316,26 +402,83 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
     return (
         <View style={styles.container}>
             {renderHeader()}
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl refreshing={loading} onRefresh={() => fetchData()} colors={['#9D5BF0']} />
+                }
+            >
                 <View style={styles.welcomeSection}>
                     <Text style={styles.studentName}>{selectedStudent?.fullName || 'Student'}'s Billing</Text>
                     <Text style={styles.subtitle}>Manage fees and view payment history</Text>
                 </View>
 
                 {renderMonthSelector()}
-                {renderStats()}
 
                 <View style={[styles.historySection, { backgroundColor: '#fff', borderRadius: 20, padding: 15, elevation: 2 }]}>
                     {loading ? (
                         <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 20 }} />
-                    ) : billings.length > 0 ? (
-                        billings.map((item, index) => renderInvoiceItem(item, index))
-                    ) : (
-                        <View style={styles.emptyState}>
-                            <AlertCircle size={48} color={COLORS.gray[300]} />
-                            <Text style={styles.emptyText}>No invoices for this month</Text>
-                        </View>
-                    )}
+                    ) : (() => {
+                        const currentMonthName = selectedMonth.format('MMMM'); // "January"
+                        const currentYearStr = selectedMonth.format('YYYY');   // "2026"
+                        const currentMonthCode = selectedMonth.format('YYYY-MM'); // "2026-01"
+
+                        // 1. Merge Billings and Payments
+                        const mergedHistory = [
+                            ...allBillings.map(b => ({ ...b, type: 'BILLING' })),
+                            ...allPayments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                                .filter(p => !p.billingpayment || p.billingpayment.length === 0)
+                                .map(p => ({ ...p, type: 'PAYMENT' }))
+                        ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+                        // 2. Apply "Smart Presence" Filter
+                        const filteredHistory = mergedHistory.filter(item => {
+                            // A. Official Billings: strict match on billingMonth code (YYYY-MM)
+                            if (item.type === 'BILLING') {
+                                return item.billingMonth === currentMonthCode;
+                            }
+
+                            // B. Unallocated Payments: Check Text Intent OR Date fallback
+                            if (item.transactionRef) {
+                                // Try to extract [Months: ...]
+                                const monthMatch = item.transactionRef.match(/\[Months:\s(.*?)\]/);
+
+                                if (monthMatch) {
+                                    // If explicit months are listed, check if CURRENT selected month is in that list
+                                    const monthsList = monthMatch[1]; // "January, February"
+                                    const includesCurrentMonth = monthsList.includes(currentMonthName);
+
+                                    // Also check year presence if available in ref, otherwise assume current year context
+                                    // For safety, if specific year is not mentioned in ref, we might show it. 
+                                    // logic: precise month match is strong signal.
+                                    return includesCurrentMonth;
+                                }
+                            }
+
+                            // C. Fallback: If no explicit months text, rely on Creation Date
+                            // Valid for generic payments or "Paid manually" without tags
+                            return dayjs(item.createdAt).format('YYYY-MM') === currentMonthCode;
+                        });
+
+                        // 3. Deduplicate (just in case)
+                        const uniqueHistory = filteredHistory.filter((item, index, self) =>
+                            index === self.findIndex((t) => (
+                                t.id === item.id && t.type === item.type
+                            ))
+                        );
+
+                        if (uniqueHistory.length > 0) {
+                            return uniqueHistory.map((item, index) => renderInvoiceItem(item, index));
+                        } else {
+                            return (
+                                <View style={styles.emptyState}>
+                                    <AlertCircle size={48} color={COLORS.gray[300]} />
+                                    <Text style={styles.emptyText}>No records for {currentMonthName}</Text>
+                                </View>
+                            );
+                        }
+                    })()}
                 </View>
 
                 {renderPaymentInfo()}
@@ -407,11 +550,35 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                             <Text style={styles.inputLabel}>Select Months to Pay</Text>
                             <View style={styles.monthsGridRefined}>
                                 {months.map((m, idx) => {
-                                    const isPaid = allBillings.some(b =>
-                                        b.billingMonth === m &&
-                                        b.billingYear === selectedPaymentYear.toString() &&
-                                        (b.status === 'PAID' || b.status === 'SUCCESS' || b.status === 'PENDING')
-                                    );
+                                    const targetBillingMonth = `${selectedPaymentYear}-${String(idx + 1).padStart(2, '0')}`;
+
+                                    // Logic: Only block if fully PAID or APPROVED. 
+                                    // PENDING/REJECTED should remain clickable.
+                                    const isPaid = allBillings.some(b => {
+                                        const monthMatch = (b.billingMonth || '').includes(targetBillingMonth) || (b.billingMonth || '').includes(m);
+                                        const statusMatch = (b.status === 'PAID' || b.status === 'SUCCESS' || b.status === 'APPROVED');
+                                        return monthMatch && statusMatch;
+                                    }) || allPayments.some(p => {
+                                        const ref = p.transactionRef || '';
+                                        // 1. Check Status
+                                        const isValidStatus = p.status === 'APPROVED' || p.status === 'PAID' || p.status === 'SUCCESS';
+                                        if (!isValidStatus) return false;
+
+                                        // 2. Check Year
+                                        const createdYear = dayjs(p.createdAt).year();
+                                        const hasYearInRef = ref.includes(String(selectedPaymentYear));
+                                        const isYearMatch = hasYearInRef || (createdYear === selectedPaymentYear);
+                                        if (!isYearMatch) return false;
+
+                                        // 3. Check Month
+                                        const monthMatch = ref.match(/\[Months:\s(.*?)\]/);
+                                        if (monthMatch) {
+                                            return monthMatch[1].includes(m);
+                                        } else {
+                                            return ref.includes(m);
+                                        }
+                                    });
+
                                     const isSelected = selectedMonths.includes(m);
 
                                     return (
@@ -419,9 +586,10 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                                             key={m}
                                             disabled={isPaid}
                                             style={[
-                                                styles.monthOptionRefined,
-                                                isSelected && styles.selectedMonthOptionRefined,
-                                                isPaid && styles.disabledMonthOptionRefined
+                                                styles.monthCard,
+                                                isPaid && styles.monthCardPaid,
+                                                isSelected && styles.monthCardSelected,
+                                                !isPaid && !isSelected && styles.monthCardAvailable
                                             ]}
                                             onPress={() => {
                                                 let newSelection = [...selectedMonths];
@@ -454,12 +622,23 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                                                 setSelectedMonths(newSelection);
                                             }}
                                         >
+                                            {/* Top Icon */}
+                                            <View style={styles.monthCardIcon}>
+                                                {isPaid ? (
+                                                    <Lock size={16} color="#15803d" />
+                                                ) : isSelected ? (
+                                                    <Check size={16} color="#ffffff" />
+                                                ) : (
+                                                    <View style={styles.monthCardCircle} />
+                                                )}
+                                            </View>
+
+                                            {/* Month Name */}
                                             <Text style={[
-                                                styles.monthOptionTextRefined,
-                                                isSelected && styles.selectedMonthTextRefined,
-                                                isPaid && styles.disabledMonthTextRefined
+                                                styles.monthCardText,
+                                                isPaid && styles.monthCardTextPaid,
+                                                isSelected && styles.monthCardTextSelected,
                                             ]}>{m.slice(0, 3)}</Text>
-                                            {isPaid && <CheckCircle2 size={10} color="#94A3B8" style={{ marginTop: 2 }} />}
                                         </TouchableOpacity>
                                     );
                                 })}
@@ -1211,7 +1390,60 @@ const styles = StyleSheet.create({
         ...FONTS.h4,
         fontSize: 16,
         color: COLORS.white,
-    }
+    },
+    // New Card Styles
+    monthCard: {
+        width: '30%',
+        height: 80,
+        borderRadius: 12,
+        marginBottom: 12,
+        padding: 10,
+        justifyContent: 'space-between',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        backgroundColor: '#fff',
+        elevation: 1,
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+    },
+    monthCardAvailable: {
+        backgroundColor: '#fff',
+        borderColor: '#E2E8F0',
+    },
+    monthCardSelected: {
+        backgroundColor: '#9D5BF0',
+        borderColor: '#9D5BF0',
+        elevation: 4,
+        shadowColor: '#9D5BF0',
+        shadowOpacity: 0.3,
+    },
+    monthCardPaid: {
+        backgroundColor: '#DCFCE7', // Soft Green
+        borderColor: '#86EFAC',
+        opacity: 0.8
+    },
+    monthCardIcon: {
+        alignItems: 'flex-end',
+    },
+    monthCardCircle: {
+        width: 16,
+        height: 16,
+        borderRadius: 8,
+        borderWidth: 1.5,
+        borderColor: '#CBD5E1',
+    },
+    monthCardText: {
+        fontWeight: 'bold',
+        fontSize: 16,
+        color: '#334155',
+    },
+    monthCardTextSelected: {
+        color: '#fff',
+    },
+    monthCardTextPaid: {
+        color: '#166534', // Dark Green
+    },
 });
 
 export default PaymentHistoryScreen;

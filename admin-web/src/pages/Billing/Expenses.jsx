@@ -11,6 +11,7 @@ const Expenses = () => {
     const [expenses, setExpenses] = useState([]);
     const [summary, setSummary] = useState({ totalThisMonth: 0, countThisMonth: 0 });
     const [loading, setLoading] = useState(false);
+    const [filterCurrentMonth, setFilterCurrentMonth] = useState(false);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [form] = Form.useForm();
 
@@ -87,15 +88,23 @@ const Expenses = () => {
                     <Title level={3}>Expense Management</Title>
                     <Text type="secondary">Track school operational costs and overheads</Text>
                 </div>
-                <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => setIsModalVisible(true)}
-                    style={{ background: '#7B57E4', borderRadius: 8 }}
-                    size="large"
-                >
-                    Add Expense
-                </Button>
+                <Space>
+                    <Button
+                        type={filterCurrentMonth ? "primary" : "default"}
+                        onClick={() => setFilterCurrentMonth(!filterCurrentMonth)}
+                    >
+                        {filterCurrentMonth ? "Showing Current Month" : "Showing All Expenses"}
+                    </Button>
+                    <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => setIsModalVisible(true)}
+                        style={{ background: '#7B57E4', borderRadius: 8 }}
+                        size="large"
+                    >
+                        Add Expense
+                    </Button>
+                </Space>
             </div>
 
             <Row gutter={16} style={{ marginBottom: 24 }}>
@@ -123,7 +132,16 @@ const Expenses = () => {
             </Row>
 
             <Card bordered={false} style={{ borderRadius: 16, boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-                <Table columns={columns} dataSource={expenses} loading={loading} rowKey="id" locale={{ emptyText: 'No expenses recorded yet' }} />
+                <Table
+                    columns={columns}
+                    dataSource={filterCurrentMonth
+                        ? expenses.filter(e => dayjs(e.expenseDate).format('YYYY-MM') === dayjs().format('YYYY-MM'))
+                        : expenses
+                    }
+                    loading={loading}
+                    rowKey="id"
+                    locale={{ emptyText: 'No expenses recorded yet' }}
+                />
             </Card>
 
             <Modal

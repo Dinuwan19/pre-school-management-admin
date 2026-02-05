@@ -20,7 +20,7 @@ exports.requestMeeting = async (req, res, next) => {
             include: {
                 classroom: {
                     include: {
-                        teacherprofile: {
+                        teacherprofiles: {
                             where: { designation: 'LEAD' }
                         }
                     }
@@ -33,7 +33,7 @@ exports.requestMeeting = async (req, res, next) => {
         }
 
         // Use provided teacherId or fallback to Lead Teacher
-        const finalTeacherId = teacherId ? parseInt(teacherId) : student.classroom?.teacherprofile[0]?.teacherId;
+        const finalTeacherId = teacherId ? parseInt(teacherId) : student.classroom?.teacherprofiles[0]?.teacherId;
 
         if (!finalTeacherId) {
             return res.status(400).json({ message: 'No teacher found for this request. Please select a teacher manually.' });
@@ -82,13 +82,21 @@ exports.getParentMeetings = async (req, res, next) => {
 
 exports.getTeacherMeetings = async (req, res, next) => {
     try {
-        const teacherId = req.user.id;
+        const userId = req.user.id;
+        const userRole = req.user.role;
+
+        let where = {};
+        // If not Admin/Super Admin, filter by teacherId
+        if (userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN') {
+            where.teacherId = userId;
+        }
 
         const meetings = await prisma.meeting_request.findMany({
-            where: { teacherId: teacherId },
+            where,
             include: {
                 student: { select: { fullName: true } },
-                parent: { select: { fullName: true, phone: true } }
+                parent: { select: { fullName: true, phone: true } },
+                teacher: { select: { fullName: true } }
             },
             orderBy: { requestDate: 'asc' }
         });

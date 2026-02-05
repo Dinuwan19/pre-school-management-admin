@@ -61,11 +61,13 @@ const PaymentsScreen = ({ navigation }) => {
 
     const fetchBillings = async (studentId) => {
         try {
-            // Fetch all billings and filter (or assumes API returns all for parent)
             const data = await getChildBillings(studentId);
-            // If the API returns all, filter here. Use 'studentId' prop if available in data
-            const filtered = data.filter(b => b.studentId === studentId);
+            // Handle both legacy array and new object response
+            const billingList = Array.isArray(data) ? data : (data.billings || []);
+            const filtered = billingList.filter(b => b.studentId === studentId);
             setBillings(filtered);
+
+            // If data has stats, we could use them, but this screen calculates locally for the specific month view
         } catch (error) {
             console.error(error);
         }
@@ -126,10 +128,11 @@ const PaymentsScreen = ({ navigation }) => {
             };
 
             await uploadPaymentReceipt(
-                selectedBilling.id,
+                [selectedBilling.id], // Send as array
                 selectedBilling.amount,
                 'ONLINE_TRANSFER',
-                file
+                file,
+                `[Student: ${selectedChild?.fullName || 'Unknown'}] [Student ID: ${selectedChild?.studentUniqueId || 'N/A'}] [Months: ${selectedBilling.billingMonth}] Monthly Fee`
             );
 
             Alert.alert('Success', 'Payment slip submitted for approval');

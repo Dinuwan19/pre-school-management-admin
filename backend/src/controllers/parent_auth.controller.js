@@ -289,7 +289,7 @@ exports.getLinkedChildren = async (req, res, next) => {
                     include: {
                         classroom: {
                             include: {
-                                teacherprofile: {
+                                teacherprofiles: {
                                     where: { designation: 'LEAD' },
                                     include: { user: true }
                                 }
@@ -340,7 +340,7 @@ exports.getLinkedChildren = async (req, res, next) => {
                 fullName: child.fullName,
                 photoUrl: child.photoUrl,
                 classroom: child.classroom?.name,
-                teacherName: child.classroom?.teacherprofile?.[0]?.user?.fullName || 'N/A',
+                teacherName: child.classroom?.teacherprofiles?.[0]?.user?.fullName || 'N/A',
                 attendance: child.attendance[0]?.status === 'PRESENT' ? 'Present' : 'Absent',
                 attendanceRate,
                 progress: progressAvg,
@@ -358,22 +358,67 @@ exports.getLinkedChildren = async (req, res, next) => {
 exports.getParentBillings = async (req, res, next) => {
     try {
         const userId = req.user.id;
+        // Optional: filter by specific student if passed
+        const { studentId } = req.query;
+
         const parentRecord = await prisma.parent.findUnique({ where: { userId } });
+        if (!parentRecord) return res.status(404).json({ message: 'Parent record not found' });
 
         const students = await prisma.student.findMany({
-            where: { parentId: parentRecord.id },
-            select: { id: true, fullName: true }
+            where: {
+                parentId: parentRecord.id,
+                ...(studentId ? { id: parseInt(studentId) } : {})
+            },
+            select: { id: true, fullName: true, studentUniqueId: true }
         });
 
         const studentIds = students.map(s => s.id);
 
+        if (studentIds.length === 0) {
+            return res.json({ billings: [], payments: [] });
+        }
+
+        // 1. Get Official Billings
         const billings = await prisma.billing.findMany({
             where: { studentId: { in: studentIds } },
-            include: { student: { select: { fullName: true } } },
+            include: {
+                student: { select: { fullName: true } },
+                billingpayment: {
+                    include: {
+                        payment: true
+                    }
+                }
+            },
             orderBy: { billingMonth: 'desc' }
         });
 
-        res.json(billings);
+        // 2. Get All Related Payments (Linked + Unlinked via Text Match)
+        // Build OR conditions for each student's text signature
+        const textMatchConditions = students.flatMap(s => [
+            { transactionRef: { contains: `[Student ID: ${s.studentUniqueId}]` } },
+            { transactionRef: { contains: `[Student: ${s.fullName}]` } }
+        ]);
+
+        const payments = await prisma.payment.findMany({
+            where: {
+                OR: [
+                    // A. Linked to one of our student's billings
+                    { billingpayment: { some: { billing: { studentId: { in: studentIds } } } } },
+                    // B. OR matched by text reference (for unlinked/pending)
+                    ...textMatchConditions
+                ]
+            },
+            include: {
+                billingpayment: { include: { billing: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        // Return object structure
+        res.json({
+            billings,
+            payments
+        });
     } catch (error) {
         next(error);
     }

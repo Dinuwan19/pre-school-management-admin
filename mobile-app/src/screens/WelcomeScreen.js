@@ -42,7 +42,7 @@ const WelcomeScreen = ({ navigation }) => {
                         onPress={() => navigation.navigate('Scanner')}
                         activeOpacity={0.8}
                     >
-                        <Text style={styles.buttonText}>Scan QR</Text>
+                        <Text style={styles.buttonText}>Open Scanner</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -142,6 +142,29 @@ const styles = StyleSheet.create({
         marginTop: 10,
         fontWeight: '500',
         letterSpacing: 1,
+    },
+    statsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '80%',
+        marginTop: 20,
+    },
+    statCard: {
+        backgroundColor: '#F3EFFF',
+        padding: 15,
+        borderRadius: 15,
+        width: '45%',
+        alignItems: 'center',
+    },
+    statValue: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#6B21A8',
+    },
+    statLabel: {
+        fontSize: 12,
+        color: '#9D5BF0',
+        marginTop: 4,
     },
     footer: {
         width: '100%',

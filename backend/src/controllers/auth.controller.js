@@ -20,7 +20,7 @@ exports.login = async (req, res, next) => {
 
         const user = await prisma.user.findUnique({
             where: { username },
-            include: { tempPasswordLog: { where: { used: false, expiresAt: { gte: new Date() } } } }
+            include: { temppasswordlog: { where: { used: false, expiresAt: { gte: new Date() } } } }
         });
 
         if (!user || user.status !== 'ACTIVE' || !user.isActive) {
@@ -40,14 +40,14 @@ exports.login = async (req, res, next) => {
         let usedTempPassword = false;
 
         // If regular password fails, check temp passwords
-        if (!isMatch && user.tempPasswordLog && user.tempPasswordLog.length > 0) {
-            for (const log of user.tempPasswordLog) {
+        if (!isMatch && user.temppasswordlog && user.temppasswordlog.length > 0) {
+            for (const log of user.temppasswordlog) {
                 const tempMatch = await bcrypt.compare(password, log.passwordHash);
                 if (tempMatch) {
                     isMatch = true;
                     usedTempPassword = true;
                     // Mark this temp password as used
-                    await prisma.tempPasswordLog.update({
+                    await prisma.temppasswordlog.update({
                         where: { id: log.id },
                         data: { used: true }
                     });

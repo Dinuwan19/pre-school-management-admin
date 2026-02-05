@@ -2,6 +2,8 @@ const prisma = require('../config/prisma');
 const dayjs = require('dayjs');
 const fs = require('fs');
 const path = require('path');
+const { uploadFile } = require('../services/storage.service');
+
 // Note: In a real production app, use 'pdfkit' or similar to generate actual PDFs.
 // For this prototype, we'll confirm data fetching and mock the file path/download.
 
@@ -50,12 +52,25 @@ exports.generateReport = async (req, res, next) => {
         // 3. Log the Report
         const mockFileName = `${type.replace(/\s/g, '_')}_${dayjs().format('YYYYMMDD_HHmm')}.pdf`;
 
+        // Create a mock PDF buffer (In real app, use PDFKit here)
+        const pdfContent = `Report: ${type}\nDate Range: ${dateRange}\nGenerated: ${new Date().toISOString()}\n\nDetails: ${JSON.stringify(reportData, null, 2)}`;
+        const pdfBuffer = Buffer.from(pdfContent);
+
+        // Upload to Supabase 'reports' bucket
+        const fileObj = {
+            originalname: mockFileName,
+            mimetype: 'application/pdf',
+            buffer: pdfBuffer
+        };
+
+        const publicUrl = await uploadFile(fileObj, 'reports');
+
         const log = await prisma.report_log.create({
             data: {
                 reportType: type,
                 dateRange: dateRange,
                 generatedById: generatedById,
-                filePath: `/reports/${mockFileName}`
+                filePath: publicUrl
             }
         });
 

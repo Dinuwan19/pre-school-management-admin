@@ -2,6 +2,7 @@ const prisma = require('../config/prisma');
 const { logAction } = require('../services/audit.service');
 const dayjs = require('dayjs');
 const { generateQRCode } = require('../utils/qrGenerator');
+const { uploadFile, uploadLocalFile } = require('../services/storage.service'); // Import service
 
 exports.createStudent = async (req, res, next) => {
     try {
@@ -19,13 +20,21 @@ exports.createStudent = async (req, res, next) => {
         const studentUniqueId = `S${(count + 1).toString().padStart(4, '0')}`;
         const nameToUse = fullName || `${firstName} ${lastName}`;
 
-        // Handle uploaded files
+        // Handle uploaded files (Supabase)
         let photoUrl = req.body.photoUrl;
         let birthCertPdf = null;
+        let vaccineCardPdf = null;
 
         if (req.files) {
-            if (req.files['photo']) photoUrl = `/uploads/${req.files['photo'][0].filename}`;
-            if (req.files['birthCert']) birthCertPdf = `/uploads/${req.files['birthCert'][0].filename}`;
+            if (req.files['photo']) {
+                photoUrl = await uploadFile(req.files['photo'][0], 'student photos');
+            }
+            if (req.files['birthCert']) {
+                birthCertPdf = await uploadFile(req.files['birthCert'][0], 'student-documents');
+            }
+            if (req.files['vaccineCard']) {
+                vaccineCardPdf = await uploadFile(req.files['vaccineCard'][0], 'student-documents');
+            }
         }
 
         const student = await prisma.student.create({
@@ -37,6 +46,7 @@ exports.createStudent = async (req, res, next) => {
                 gender,
                 photoUrl,
                 birthCertPdf,
+                vaccineCardPdf,
                 medicalInfo,
                 emergencyContact,
                 classroomId: parseInt(classroomId),
@@ -47,11 +57,18 @@ exports.createStudent = async (req, res, next) => {
         });
 
         const qrPayload = JSON.stringify({ id: student.id, sid: student.studentUniqueId, name: student.fullName });
-        const qrCodeImage = await generateQRCode(qrPayload);
+        const { generateQRCodeBuffer } = require('../utils/qrGenerator');
+        const qrBuffer = await generateQRCodeBuffer(qrPayload);
+
+        let qrCodeUrl = null;
+        if (qrBuffer) {
+            const qrFilename = `qr-${student.studentUniqueId}-${Date.now()}.png`;
+            qrCodeUrl = await uploadLocalFile(qrFilename, qrBuffer, 'image/png', 'student-documents');
+        }
 
         const updatedStudent = await prisma.student.update({
             where: { id: student.id },
-            data: { qrCode: qrCodeImage }
+            data: { qrCode: qrCodeUrl }
         });
 
         await logAction(req.user?.id || 1, `CREATE_STUDENT: Created student ${student.studentUniqueId}`);
@@ -67,8 +84,11 @@ exports.getAllStudents = async (req, res, next) => {
         let where = { status: 'ACTIVE' };
 
         // Use classroom scoping from middleware
+        // Use classroom scoping from middleware
         if (req.classroomScope) {
-            where.classroomId = req.classroomScope;
+            // If scope is empty array, it means no access (handled by middleware usually but safe to check)
+            if (req.classroomScope.length === 0) return res.json([]);
+            where.classroomId = { in: req.classroomScope };
         } else if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
             // Teacher with no classroom assigned sees nothing
             return res.json([]);
@@ -116,8 +136,10 @@ exports.getStudentById = async (req, res, next) => {
         };
 
         if (req.classroomScope) {
+            if (req.classroomScope.length === 0) return res.status(403).json({ message: 'Forbidden: No classrooms assigned' });
+
             const studentCheck = await prisma.student.findFirst({
-                where: { ...queryCondition, classroomId: req.classroomScope }
+                where: { ...queryCondition, classroomId: { in: req.classroomScope } }
             });
             if (!studentCheck) return res.status(403).json({ message: 'Forbidden: Student not in your classroom' });
         } else if (req.user.role === 'PARENT') {
@@ -170,7 +192,7 @@ exports.getStudentById = async (req, res, next) => {
             include: {
                 classroom: {
                     include: {
-                        teacherprofile: {
+                        teacherprofiles: {
                             where: { designation: 'LEAD' },
                             include: { user: { select: { id: true, fullName: true, role: true } } }
                         }
@@ -190,7 +212,7 @@ exports.getStudentById = async (req, res, next) => {
 
         // Fetch all teachers in this classroom
         const classroomTeachers = await prisma.teacherprofile.findMany({
-            where: { assignedClassroomId: student.classroomId },
+            where: { classrooms: { some: { id: student.classroomId } } },
             include: { user: { select: { id: true, fullName: true, role: true } } }
         });
 
@@ -276,15 +298,42 @@ exports.updateStudent = async (req, res, next) => {
         if (data.secondParentId) data.secondParentId = parseInt(data.secondParentId);
         delete data.dob;
 
-        // Handle uploaded files
+        // Handle uploaded files (Supabase)
         if (req.files) {
-            if (req.files['photo']) data.photoUrl = `/uploads/${req.files['photo'][0].filename}`;
-            if (req.files['birthCert']) data.birthCertPdf = `/uploads/${req.files['birthCert'][0].filename}`;
+            if (req.files['photo']) {
+                data.photoUrl = await uploadFile(req.files['photo'][0], 'student photos');
+            }
+            if (req.files['birthCert']) {
+                data.birthCertPdf = await uploadFile(req.files['birthCert'][0], 'student-documents');
+            }
+            if (req.files['vaccineCard']) {
+                data.vaccineCardPdf = await uploadFile(req.files['vaccineCard'][0], 'student-documents');
+            }
         }
+
+        console.log('Update Data before cleaning:', data);
+        console.log('Received Files:', Object.keys(req.files || {}));
+
+        // 3. Final cleanup - ensure only valid schema fields are passed to Prisma
+        const validFields = [
+            'fullName', 'enrollmentDate', 'dateOfBirth', 'gender',
+            'medicalInfo', 'emergencyContact', 'photoUrl', 'avatarType',
+            'birthCertPdf', 'vaccineCardPdf', 'parentId', 'secondParentId',
+            'classroomId', 'status'
+        ];
+
+        const prismaData = {};
+        validFields.forEach(field => {
+            if (data[field] !== undefined && data[field] !== 'undefined' && data[field] !== null) {
+                prismaData[field] = data[field];
+            }
+        });
+
+        console.log('Prisma Update Data:', prismaData);
 
         const student = await prisma.student.update({
             where: { id: studentId },
-            data: data
+            data: prismaData
         });
 
         await logAction(req.user.id, `UPDATE_STUDENT: Updated student ${student.studentUniqueId}`);
@@ -304,9 +353,13 @@ exports.updateStudentProgress = async (req, res, next) => {
 
         if (req.user.role === 'TEACHER') {
             const teacherProfile = await prisma.teacherprofile.findUnique({
-                where: { teacherId: req.user.id }
+                where: { teacherId: req.user.id },
+                include: { classrooms: true }
             });
-            if (!teacherProfile || teacherProfile.assignedClassroomId !== student.classroomId) {
+
+            const isAssigned = teacherProfile?.classrooms.some(c => c.id === student.classroomId);
+
+            if (!isAssigned) {
                 return res.status(403).json({ message: 'Forbidden: Unauthorized classroom' });
             }
         }

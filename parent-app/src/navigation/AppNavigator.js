@@ -7,7 +7,6 @@ import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import EventsScreen from '../screens/EventsScreen';
-import MeetingsScreen from '../screens/MeetingsScreen';
 import StudentProfileScreen from '../screens/StudentProfileScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ChildrenListScreen from '../screens/ChildrenListScreen';
