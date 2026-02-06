@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Typography, Row, Col, Avatar, Button, Tabs, Progress, List, Tag, Spin, message, Form, Slider, Divider, Statistic, Alert, Modal, Input, Select, DatePicker, Upload, Descriptions, Breadcrumb, Space, Empty, Image } from 'antd';
+import { Card, Typography, Row, Col, Avatar, Button, Tabs, Progress, List, Tag, Spin, message, Form, Divider, Statistic, Alert, Modal, Input, Select, DatePicker, Upload, Descriptions, Breadcrumb, Space, Empty, Image } from 'antd';
 import {
     UserOutlined, ArrowLeftOutlined, EditOutlined, PhoneOutlined,
-    EnvironmentOutlined, CalendarOutlined, SafetyCertificateOutlined,
-    DownloadOutlined, SaveOutlined, CloseOutlined, TeamOutlined, HeartOutlined, UploadOutlined, FilePdfOutlined,
-    CheckCircleOutlined, InfoCircleOutlined, BookOutlined, BulbOutlined, MedicineBoxOutlined, HomeOutlined, StarOutlined
+    EnvironmentOutlined, CalendarOutlined,
+    DownloadOutlined, HeartOutlined, UploadOutlined,
+    CheckCircleOutlined, InfoCircleOutlined, BookOutlined, BulbOutlined, MedicineBoxOutlined, HomeOutlined, PlusOutlined
 } from '@ant-design/icons';
 import api from '../../api/client';
 import dayjs from 'dayjs';
@@ -30,6 +30,49 @@ const StudentProfile = () => {
     const [classrooms, setClassrooms] = useState([]);
     const [saving, setSaving] = useState(false);
     const [markingAttendance, setMarkingAttendance] = useState(false);
+    const [skillMetadata, setSkillMetadata] = useState([]);
+    const [selectedTerm, setSelectedTerm] = useState(1);
+    const [assessmentScores, setAssessmentScores] = useState({});
+    const [viewMode, setViewMode] = useState('summary'); // 'summary' or 'history'
+    const [activeCategoryId, setActiveCategoryId] = useState(null);
+    const [focusedSkillIndex, setFocusedSkillIndex] = useState(0);
+    const [isReviewModalVisible, setIsReviewModalVisible] = useState(false);
+    const [reviewCategory, setReviewCategory] = useState(null);
+    const [isAddSubSkillModalVisible, setIsAddSubSkillModalVisible] = useState(false);
+    const [newSubSkillName, setNewSubSkillName] = useState('');
+    const [addingSubSkill, setAddingSubSkill] = useState(false);
+
+    useEffect(() => {
+        const handleKeyPress = (e) => {
+            if (!isEditingProgress) return;
+            if (['1', '2', '3'].includes(e.key)) {
+                const val = parseInt(e.key);
+                const currentCat = skillMetadata.find(c => c.id.toString() === activeCategoryId);
+                if (currentCat && currentCat.skills[focusedSkillIndex]) {
+                    const skillId = currentCat.skills[focusedSkillIndex].id;
+                    const currentScore = assessmentScores[skillId];
+
+                    if (currentScore === val) {
+                        // Toggle OFF if same score pressed
+                        setAssessmentScores(prev => {
+                            const next = { ...prev };
+                            delete next[skillId];
+                            return next;
+                        });
+                    } else {
+                        // Mark score
+                        setAssessmentScores(prev => ({ ...prev, [skillId]: val }));
+                        // Move to next skill automatically
+                        if (focusedSkillIndex < currentCat.skills.length - 1) {
+                            setFocusedSkillIndex(prev => prev + 1);
+                        }
+                    }
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyPress);
+        return () => window.removeEventListener('keydown', handleKeyPress);
+    }, [isEditingProgress, activeCategoryId, focusedSkillIndex, skillMetadata, assessmentScores]);
 
     const calculateAge = (dob) => {
         if (!dob) return 'N/A';
@@ -44,9 +87,15 @@ const StudentProfile = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const studentRes = await api.get(`/students/${id}`);
-            const sData = studentRes.data;
-            setStudent(sData);
+            const [studentRes, metaRes, attendRes] = await Promise.all([
+                api.get(`/students/${id}`),
+                api.get('/students/metadata/skills'),
+                api.get(`/attendance/student/${id}`)
+            ]);
+            setStudent(studentRes.data);
+            setSkillMetadata(metaRes.data);
+            setAttendanceSummary(attendRes.data);
+            if (metaRes.data.length > 0) setActiveCategoryId(metaRes.data[0].id.toString());
 
             // Fetch secondary data
             if (user?.role !== 'TEACHER' && user?.role !== 'PARENT') {
@@ -58,10 +107,6 @@ const StudentProfile = () => {
                 setClassrooms(cRes.data);
             }
 
-            // Attendance
-            const attendanceRes = await api.get(`/attendance/student/${id}`).catch(() => ({ data: { attendanceRate: 0, presentDays: 0, totalDays: 0, history: [] } }));
-            setAttendanceSummary(attendanceRes.data);
-
         } catch (error) {
             console.error('Error fetching student data:', error);
             message.error('Failed to load student profile');
@@ -71,13 +116,23 @@ const StudentProfile = () => {
         }
     };
 
+    const fetchSkillMetadata = async () => {
+        try {
+            const res = await api.get('/students/metadata/skills');
+            setSkillMetadata(res.data);
+        } catch (error) {
+            console.error('Error fetching skill metadata:', error);
+        }
+    };
+
     useEffect(() => {
         fetchData();
+        fetchSkillMetadata();
     }, [id]);
 
     useEffect(() => {
         if (student && !loading) {
-            const p = student.studentprogress?.[0] || {};
+            const p = student.progress || {};
             progressForm.setFieldsValue({
                 reading: p.reading || 0,
                 writing: p.writing || 0,
@@ -134,16 +189,43 @@ const StudentProfile = () => {
 
     const handleSaveProgress = async () => {
         try {
-            const values = await progressForm.validateFields();
             setSubmittingProgress(true);
-            await api.put(`/students/${id}/progress`, values);
-            message.success('Progress updated');
+            const scorePayload = Object.entries(assessmentScores).map(([subSkillId, score]) => ({
+                subSkillId: parseInt(subSkillId),
+                score
+            }));
+
+            await api.put(`/students/${id}/progress`, {
+                term: selectedTerm,
+                remarks: progressForm.getFieldValue('remarks'),
+                scores: scorePayload
+            });
+
+            message.success('Assessment saved');
             setIsEditingProgress(false);
             fetchData();
         } catch (error) {
-            message.error('Progress update failed');
+            message.error('Failed to save assessment');
         } finally {
             setSubmittingProgress(false);
+        }
+    };
+
+    const handleAddSubSkill = async () => {
+        if (!newSubSkillName.trim()) return;
+        setAddingSubSkill(true);
+        try {
+            const res = await api.post(`/students/metadata/skills/${activeCategoryId}/subskills`, { name: newSubSkillName });
+            message.success('Skill added to category');
+            setNewSubSkillName('');
+            setIsAddSubSkillModalVisible(false);
+            // Refresh metadata
+            const metaRes = await api.get('/students/metadata/skills');
+            setSkillMetadata(metaRes.data);
+        } catch (error) {
+            message.error('Failed to add skill');
+        } finally {
+            setAddingSubSkill(false);
         }
     };
 
@@ -173,23 +255,6 @@ const StudentProfile = () => {
     if (loading) return <div style={{ textAlign: 'center', marginTop: 100 }}><Spin size="large" /></div>;
     if (!student) return <div style={{ padding: 40 }}><Alert message="Student not found" type="error" showIcon action={<Button onClick={() => navigate('/students')}>Back to Students</Button>} /></div>;
 
-    const currentProgress = student.studentprogress?.[0] || {};
-
-    const renderProgressBar = (label, value, color, fieldName) => (
-        <div style={{ marginBottom: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <Text strong>{label}</Text>
-                <Text type="secondary">{value || 0}%</Text>
-            </div>
-            {isEditingProgress ? (
-                <Form.Item name={fieldName} noStyle>
-                    <Slider marks={{ 0: '0', 50: '50', 100: '100' }} />
-                </Form.Item>
-            ) : (
-                <Progress percent={value || 0} showInfo={false} strokeColor={color} strokeWidth={8} style={{ margin: 0 }} />
-            )}
-        </div>
-    );
 
     const tabItems = [
         {
@@ -309,46 +374,391 @@ const StudentProfile = () => {
             label: <span><BookOutlined />Progress</span>,
             children: (
                 <div style={{ paddingTop: 16 }}>
-                    <Card size="small" title={<Text strong>Skills Development</Text>} bordered={false} style={{ marginBottom: 24 }}>
-                        <Form form={progressForm}>
-                            <Row gutter={[48, 0]}>
-                                <Col span={12}>
-                                    {renderProgressBar('Reading', currentProgress.reading, '#7B57E4', 'reading')}
-                                    {renderProgressBar('Writing', currentProgress.writing, '#1890FF', 'writing')}
-                                    {renderProgressBar('Listening', currentProgress.listening, '#52C41A', 'listening')}
-                                </Col>
-                                <Col span={12}>
-                                    {renderProgressBar('Speaking', currentProgress.speaking, '#FAAD14', 'speaking')}
-                                    {renderProgressBar('Math', currentProgress.mathematics, '#FF4D4F', 'mathematics')}
-                                    {renderProgressBar('Social', currentProgress.social, '#722ED1', 'social')}
-                                </Col>
-                            </Row>
-                            {isEditingProgress && (
-                                <Form.Item name="remarks" label="Teacher Note">
-                                    <Input.TextArea rows={4} placeholder="Add a note about the student's progress..." />
-                                </Form.Item>
+                    <style>{`
+                        .marking-sidebar .ant-menu-item { height: auto !important; line-height: 1.4 !important; padding: 12px 16px !important; margin: 4px 0 !important; border-radius: 8px !important; }
+                        .marking-sidebar .ant-menu-item-selected { background: #f3efff !important; color: #7b57e4 !important; }
+                        .skill-card { transition: all 0.2s; border: 1px solid #f0f0f0; margin-bottom: 12px; border-radius: 12px; }
+                        .skill-card:hover { border-color: #7b57e4; box-shadow: 0 4px 12px rgba(123, 87, 228, 0.08); }
+                        .skill-card.focused { border-color: #7b57e4; border-width: 2px; background: #fafbff; }
+                        .score-btn { width: 44px; height: 32px; border-radius: 6px; font-weight: 700; font-size: 11px; }
+                        .progress-pill { font-size: 10px; background: #eee; padding: 2px 8px; border-radius: 10px; color: #666; font-weight: 600; margin-top: 4px; display: inline-block; }
+                        .progress-pill.complete { background: #e6ffed; color: #52c41a; }
+                    `}</style>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                        <div>
+                            <Title level={5} style={{ margin: 0 }}>Progress Management</Title>
+                            <Text type="secondary" style={{ fontSize: 13 }}>Mark student development for the current term</Text>
+                        </div>
+                        <Space>
+                            <Select value={selectedTerm} onChange={setSelectedTerm} style={{ width: 100 }}>
+                                <Option value={1}>Term 1</Option>
+                                <Option value={2}>Term 2</Option>
+                                <Option value={3}>Term 3</Option>
+                            </Select>
+                            {user?.role !== 'PARENT' && !isEditingProgress && (
+                                <Button
+                                    type="primary"
+                                    icon={<EditOutlined />}
+                                    style={{ background: '#7b57e4', borderRadius: 8 }}
+                                    onClick={() => {
+                                        const assessment = student.assessments?.find(a => a.term === selectedTerm);
+                                        if (assessment) {
+                                            const scoresMap = {};
+                                            (assessment.scores || []).forEach(s => {
+                                                scoresMap[s.subSkillId] = s.score;
+                                            });
+                                            setAssessmentScores(scoresMap);
+                                            progressForm.setFieldsValue({ remarks: assessment.remarks });
+                                        } else {
+                                            setAssessmentScores({});
+                                            progressForm.setFieldsValue({ remarks: '' });
+                                        }
+                                        setIsEditingProgress(true);
+                                    }}
+                                >
+                                    {student.assessments?.find(a => a.term === selectedTerm) ? 'Edit Assessment' : 'New Assessment'}
+                                </Button>
                             )}
-                        </Form>
-                        {!isEditingProgress && (
-                            <div>
-                                <Text strong style={{ display: 'block', marginBottom: 8 }}>Teacher Note</Text>
-                                <div style={{ background: '#f0f2f5', padding: 12, borderRadius: 6, minHeight: 60 }}>
-                                    {currentProgress.remarks || <Text type="secondary">No notes added.</Text>}
+                        </Space>
+                    </div>
+
+                    {isEditingProgress ? (
+                        <div style={{ display: 'flex', gap: 24 }}>
+                            {/* Sidebar */}
+                            <div style={{ width: 200 }}>
+                                <div style={{ marginBottom: 16, padding: '0 8px' }}>
+                                    <Text strong style={{ fontSize: 12, textTransform: 'uppercase', color: '#999' }}>Categories</Text>
+                                </div>
+                                <div className="marking-sidebar">
+                                    {skillMetadata.map(cat => {
+                                        const markedCount = cat.skills.filter(s => assessmentScores[s.id]).length;
+                                        const isComplete = markedCount === cat.skills.length;
+                                        return (
+                                            <div
+                                                key={cat.id}
+                                                onClick={() => { setActiveCategoryId(cat.id.toString()); setFocusedSkillIndex(0); }}
+                                                style={{
+                                                    padding: '12px 16px',
+                                                    borderRadius: 12,
+                                                    cursor: 'pointer',
+                                                    marginBottom: 8,
+                                                    background: activeCategoryId === cat.id.toString() ? '#F3EFFF' : 'transparent',
+                                                    border: activeCategoryId === cat.id.toString() ? '1px solid #7B57E4' : '1px solid transparent'
+                                                }}
+                                            >
+                                                <Text strong style={{ color: activeCategoryId === cat.id.toString() ? '#7B57E4' : '#444', display: 'block' }}>{cat.name}</Text>
+                                                <div className={`progress-pill ${isComplete ? 'complete' : ''}`}>
+                                                    {markedCount}/{cat.skills.length} Marked
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
-                        )}
-                        {user?.role !== 'PARENT' && (
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-                                {!isEditingProgress ?
-                                    <Button type="primary" size="small" ghost icon={<EditOutlined />} onClick={() => setIsEditingProgress(true)}>Edit Notes & Progress</Button> :
-                                    <Space>
-                                        <Button size="small" onClick={() => setIsEditingProgress(false)}>Cancel</Button>
-                                        <Button size="small" type="primary" onClick={handleSaveProgress} loading={submittingProgress}>Save</Button>
-                                    </Space>
-                                }
+
+                            {/* Main Assessment Sheet */}
+                            <div style={{ flex: 1 }}>
+                                {(() => {
+                                    const currentCat = skillMetadata.find(c => c.id.toString() === activeCategoryId);
+                                    if (!currentCat) return null;
+                                    return (
+                                        <>
+                                            <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                                                <div>
+                                                    <Tag color="blue">{currentCat?.skills.length} Skills</Tag>
+                                                    <Title level={4} style={{ margin: '4px 0 0 0' }}>{currentCat?.name}</Title>
+                                                </div>
+                                                <Button
+                                                    type="dashed"
+                                                    icon={<PlusOutlined />}
+                                                    onClick={() => setIsAddSubSkillModalVisible(true)}
+                                                    style={{ borderRadius: 8, color: '#666', fontWeight: 600 }}
+                                                >
+                                                    Add Skill to {currentCat?.name}
+                                                </Button>
+                                            </div>
+
+                                            <div style={{ maxHeight: '600px', overflowY: 'auto', paddingRight: 8, margin: '0 -8px' }}>
+                                                {currentCat?.skills.map((skill, index) => {
+                                                    const score = assessmentScores[skill.id];
+                                                    const isFocused = index === focusedSkillIndex;
+                                                    return (
+                                                        <Card
+                                                            key={skill.id}
+                                                            size="small"
+                                                            className={`skill-card ${isFocused ? 'focused' : ''}`}
+                                                            style={{
+                                                                borderColor: score === 1 ? '#ff4d4f' : score === 2 ? '#faad14' : score === 3 ? '#52c41a' : (isFocused ? '#7b57e4' : '#f0f0f0'),
+                                                                background: isFocused ? '#fafbff' : '#fff'
+                                                            }}
+                                                            onClick={() => setFocusedSkillIndex(index)}
+                                                        >
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <div style={{ flex: 1 }}>
+                                                                    <Text strong style={{ fontSize: 15, display: 'block', marginBottom: 2 }}>
+                                                                        {index + 1}. {skill.name}
+                                                                    </Text>
+                                                                    <Text type="secondary" style={{ fontSize: 12 }}>Press keyboard 1, 2 or 3</Text>
+                                                                </div>
+                                                                <Space>
+                                                                    {[
+                                                                        { val: 1, label: 'NS', color: '#ff4d4f' },
+                                                                        { val: 2, label: 'AP', color: '#faad14' },
+                                                                        { val: 3, label: 'AC', color: '#52c41a' }
+                                                                    ].map(opt => (
+                                                                        <Button
+                                                                            key={opt.val}
+                                                                            className="score-btn"
+                                                                            style={{
+                                                                                borderColor: opt.color,
+                                                                                color: assessmentScores[skill.id] === opt.val ? '#fff' : opt.color,
+                                                                                background: assessmentScores[skill.id] === opt.val ? opt.color : '#fff',
+                                                                                boxShadow: assessmentScores[skill.id] === opt.val ? `0 2px 8px ${opt.color}44` : 'none'
+                                                                            }}
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                const currentScore = assessmentScores[skill.id];
+                                                                                if (currentScore === opt.val) {
+                                                                                    setAssessmentScores(prev => {
+                                                                                        const next = { ...prev };
+                                                                                        delete next[skill.id];
+                                                                                        return next;
+                                                                                    });
+                                                                                } else {
+                                                                                    setAssessmentScores(prev => ({ ...prev, [skill.id]: opt.val }));
+                                                                                    if (index < currentCat.skills.length - 1) setFocusedSkillIndex(index + 1);
+                                                                                }
+                                                                            }}
+                                                                        >{opt.label}</Button>
+                                                                    ))}
+                                                                </Space>
+                                                            </div>
+                                                        </Card>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid #f0f0f0' }}>
+                                                <Form form={progressForm} layout="vertical">
+                                                    <Form.Item name="remarks" label={<Text strong>Notes for {currentCat.name}</Text>}>
+                                                        <Input.TextArea rows={3} placeholder="Add specific observation for this category..." />
+                                                    </Form.Item>
+                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, alignItems: 'center', width: '100%' }}>
+                                                        <Button size="large" onClick={() => setIsEditingProgress(false)} style={{ borderRadius: 12 }}>Discard</Button>
+                                                        <Button type="primary" size="large" style={{ background: '#7B57E4', borderRadius: 12 }} onClick={handleSaveProgress} loading={submittingProgress}>
+                                                            Complete Term {selectedTerm} Assessment
+                                                        </Button>
+                                                    </div>
+                                                </Form>
+                                            </div>
+
+                                            <Modal
+                                                title={<Text strong>Add New Assessment Skill</Text>}
+                                                open={isAddSubSkillModalVisible}
+                                                onOk={handleAddSubSkill}
+                                                onCancel={() => setIsAddSubSkillModalVisible(false)}
+                                                confirmLoading={addingSubSkill}
+                                                okText="Add Skill"
+                                                okButtonProps={{ style: { background: '#7b57e4' } }}
+                                            >
+                                                <div style={{ padding: '8px 0' }}>
+                                                    <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 12 }}>
+                                                        This will add a new sub-skill to <b>{currentCat.name}</b> for all students.
+                                                    </Text>
+                                                    <Input
+                                                        placeholder="e.g. Can count from 1 to 50"
+                                                        value={newSubSkillName}
+                                                        onChange={(e) => setNewSubSkillName(e.target.value)}
+                                                        onPressEnter={handleAddSubSkill}
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                            </Modal>
+                                        </>
+                                    );
+                                })()}
                             </div>
-                        )}
-                    </Card>
+                        </div>
+                    ) : (
+                        <div>
+                            {student.assessments?.find(a => a.term === selectedTerm) ? (
+                                (() => {
+                                    const assessment = student.assessments.find(a => a.term === selectedTerm);
+                                    return (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                                            <div style={{ background: '#fff', borderRadius: 12, padding: '16px 24px', border: '1px solid #e8e8e8', marginBottom: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+                                                <Row align="middle">
+                                                    <Col span={16}>
+                                                        <Text style={{ color: '#999', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 }}>Term Performance</Text>
+                                                        <Title level={4} style={{ color: '#1a1a1a', margin: '2px 0 0' }}>Overall Progress</Title>
+                                                    </Col>
+                                                    <Col span={8} style={{ textAlign: 'right' }}>
+                                                        <div style={{ display: 'inline-block', textAlign: 'right' }}>
+                                                            <div style={{ fontSize: 32, fontWeight: 800, lineHeight: 1, color: '#7b57e4' }}>
+                                                                {(() => {
+                                                                    const markedScores = assessment.scores || [];
+                                                                    const totalMarkedWeight = markedScores.length * 3;
+                                                                    const actualMarkedWeight = markedScores.reduce((sum, s) => sum + s.score, 0);
+                                                                    return totalMarkedWeight > 0 ? Math.round((actualMarkedWeight / totalMarkedWeight) * 100) : 0;
+                                                                })()}%
+                                                            </div>
+                                                            <div style={{ color: '#999', fontSize: 9, fontWeight: 700, marginTop: 4 }}>CUMULATIVE RELATIVE</div>
+                                                        </div>
+                                                    </Col>
+                                                </Row>
+                                            </div>
+
+                                            <Row gutter={[20, 20]}>
+                                                {skillMetadata.map(cat => {
+                                                    const catScores = (assessment.scores || []).filter(s => s.subSkill?.categoryId === cat.id);
+                                                    const totalSkills = cat.skills.length;
+                                                    const markedSkills = catScores.length;
+
+                                                    let label, color, percentage, percentageDisplay;
+
+                                                    if (markedSkills === 0) {
+                                                        label = 'Not Assessed';
+                                                        color = '#94a3b8'; // Grey
+                                                        percentage = 0;
+                                                        percentageDisplay = '--';
+                                                    } else {
+                                                        const maxMarkedPossible = markedSkills * 3;
+                                                        const actual = catScores.reduce((sum, s) => sum + s.score, 0);
+                                                        percentage = Math.round((actual / maxMarkedPossible) * 100);
+                                                        percentageDisplay = `${percentage}%`;
+
+                                                        if (markedSkills < totalSkills) {
+                                                            label = 'Assessing...';
+                                                            color = '#7b57e4'; // Theme Purple
+                                                        } else {
+                                                            if (percentage >= 85) { label = 'Mastered'; color = '#52c41a'; } // Green
+                                                            else if (percentage >= 45) { label = 'Progressing'; color = '#1890ff'; } // Blue
+                                                            else { label = 'Needs Support'; color = '#ff4d4f'; } // Light Red
+                                                        }
+                                                    }
+
+                                                    const CATEGORY_COLORS = {
+                                                        'Language Development Skills': '#1890ff', // Blue
+                                                        'Logical & Mathematical Skills': '#ff4d4f', // Red
+                                                        'Physical Development Skills': '#52c41a', // Green
+                                                        'Aesthetic & Creative Skills': '#faad14', // Orange
+                                                        'Living & Non-Living World': '#7b57e4', // Purple
+                                                        'Healthy Living Habits': '#2dd4bf', // Teal (Changed from Deep Purple)
+                                                        'Cultural Heritage & Values': '#eb2f96' // Magenta
+                                                    };
+                                                    const barColor = CATEGORY_COLORS[cat.name] || '#7b57e4';
+
+                                                    return (
+                                                        <Col span={12} key={cat.id}>
+                                                            <Card
+                                                                size="small"
+                                                                bordered={false}
+                                                                style={{
+                                                                    borderRadius: 16,
+                                                                    boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+                                                                    minHeight: 180,
+                                                                    display: 'flex',
+                                                                    flexDirection: 'column',
+                                                                    border: '1px solid #f0f0f0',
+                                                                    opacity: markedSkills === 0 ? 0.7 : 1
+                                                                }}
+                                                                bodyStyle={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column' }}
+                                                            >
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 4px' }}>
+                                                                    <div style={{ flex: 1 }}>
+                                                                        <Text strong style={{ fontSize: 14, color: markedSkills === 0 ? '#888' : '#1a1a1a', display: 'block', marginBottom: 6 }}>{cat.name}</Text>
+                                                                        <Tag color={color} style={{ borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 10 }}>{label.toUpperCase()}</Tag>
+                                                                    </div>
+                                                                    <div style={{ textAlign: 'right' }}>
+                                                                        <div style={{ fontSize: 24, fontWeight: 700, color: barColor }}>{percentageDisplay}</div>
+                                                                        {markedSkills > 0 && markedSkills < totalSkills && (
+                                                                            <div style={{ fontSize: 9, color: '#999', fontWeight: 600 }}>{markedSkills}/{totalSkills} SKILLS</div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                <Progress
+                                                                    percent={percentage}
+                                                                    showInfo={false}
+                                                                    strokeColor={barColor}
+                                                                    trailColor="#f5f5f5"
+                                                                    strokeWidth={6}
+                                                                    style={{ marginTop: 12, opacity: markedSkills === 0 ? 0.3 : 1 }}
+                                                                />
+                                                                {markedSkills > 0 && (
+                                                                    <Button
+                                                                        type="link"
+                                                                        size="small"
+                                                                        onClick={() => { setReviewCategory(cat); setIsReviewModalVisible(true); }}
+                                                                        style={{ padding: 0, marginTop: 8, fontSize: 11, height: 'auto', color: '#7b57e4' }}
+                                                                    >
+                                                                        Review {markedSkills} Results →
+                                                                    </Button>
+                                                                )}
+                                                            </Card>
+                                                        </Col>
+                                                    );
+                                                })}
+                                            </Row>
+                                            <Card
+                                                size="small"
+                                                title={<Text strong style={{ color: '#7b57e4' }}><BulbOutlined /> Teacher's Insights</Text>}
+                                                bordered={false}
+                                                style={{ borderRadius: 16, background: '#fff', border: '1px solid #eef0f5' }}
+                                            >
+                                                <Paragraph style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: '#444' }}>
+                                                    {assessment.remarks || 'No remarks added for this term.'}
+                                                </Paragraph>
+                                                <div style={{ marginTop: 16, borderTop: '1px solid #f0f2f5', paddingTop: 12, display: 'flex', justifyContent: 'space-between' }}>
+                                                    <Text type="secondary" style={{ fontSize: 11 }}>Signed by {assessment.user?.fullName}</Text>
+                                                    <Text type="secondary" style={{ fontSize: 11 }}>{dayjs(assessment.updatedAt).format('MMMM DD, YYYY')}</Text>
+                                                </div>
+                                            </Card>
+
+                                            <Modal
+                                                title={<Text strong style={{ fontSize: 16 }}>Assessment Details: {reviewCategory?.name}</Text>}
+                                                open={isReviewModalVisible}
+                                                onCancel={() => setIsReviewModalVisible(false)}
+                                                footer={[
+                                                    <Button key="close" onClick={() => setIsReviewModalVisible(false)}>Close</Button>
+                                                ]}
+                                                width={600}
+                                                centered
+                                                bodyStyle={{ padding: '12px 24px 24px' }}
+                                            >
+                                                <div style={{ marginBottom: 20 }}>
+                                                    <Text type="secondary">Showing results for <b>Term {selectedTerm}</b>. Only assessed skills are listed below.</Text>
+                                                </div>
+                                                <List
+                                                    className="review-list"
+                                                    dataSource={(assessment.scores || []).filter(s => s.subSkill?.categoryId === reviewCategory?.id)}
+                                                    renderItem={(item) => (
+                                                        <List.Item style={{ padding: '16px 0', borderBottom: '1px solid #f0f2f5' }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                    <Text strong style={{ fontSize: 13, color: '#1a1a1a' }}>{item.subSkill?.name}</Text>
+                                                                    <Text type="secondary" style={{ fontSize: 11 }}>Progressing well</Text>
+                                                                </div>
+                                                                <Tag
+                                                                    color={item.score === 3 ? 'success' : item.score === 2 ? 'blue' : 'orange'}
+                                                                    style={{ borderRadius: 6, fontWeight: 700, fontSize: 10, padding: '2px 10px', textTransform: 'uppercase' }}
+                                                                >
+                                                                    {item.score === 3 ? 'Achieved' : item.score === 2 ? 'Approaching' : 'Learning'}
+                                                                </Tag>
+                                                            </div>
+                                                        </List.Item>
+                                                    )}
+                                                    locale={{ emptyText: <Empty description="No assessments recorded for this category." /> }}
+                                                />
+                                            </Modal>
+                                        </div>
+                                    );
+                                })()
+                            ) : (
+                                <Empty description={`No assessment found for Term ${selectedTerm}`} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                            )}
+                        </div>
+                    )}
                 </div>
             )
         },
@@ -520,7 +930,7 @@ const StudentProfile = () => {
                         <Tabs defaultActiveKey="profile" items={tabItems} size="large" />
                     </Card>
                 </Col>
-            </Row >
+            </Row>
 
             <Modal
                 title="Edit Student Info"
@@ -581,7 +991,7 @@ const StudentProfile = () => {
                     </Row>
                 </Form>
             </Modal>
-        </div >
+        </div>
     );
 };
 

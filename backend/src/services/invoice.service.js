@@ -35,6 +35,7 @@ exports.generateInvoice = async (paymentId) => {
                     include: {
                         billing: {
                             include: {
+                                billingCategory: true,
                                 student: {
                                     include: {
                                         classroom: true,
@@ -167,8 +168,9 @@ exports.generateInvoice = async (paymentId) => {
                     doc.text(index + 1, 65, itemY);
 
                     // Handle comma-separated or non-date billing months
-                    let description = 'Monthly Fee';
-                    if (billing.billingMonth) {
+                    // Handle category name or monthly fee
+                    let description = billing.billingCategory ? billing.billingCategory.name : 'Monthly Fee';
+                    if (!billing.billingCategory && billing.billingMonth) {
                         // Split by comma or space if consolidated
                         const rawMonths = billing.billingMonth.split(',').map(m => m.trim());
                         const formattedMonths = rawMonths.map(m => {

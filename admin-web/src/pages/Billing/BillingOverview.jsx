@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Typography, Row, Col, Card, Statistic, Space, Button, List, Tag } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined, CreditCardOutlined, PlusOutlined, HistoryOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../api/client';
 
 const { Title, Text } = Typography;
 
 const BillingOverview = () => {
+    const { user } = useAuth();
     const navigate = useNavigate();
     const [summary, setSummary] = useState({
         totalIncome: 0,
@@ -70,6 +72,11 @@ const BillingOverview = () => {
                             <Button block size="large" onClick={() => navigate('/billing/students')} style={{ borderRadius: 12, height: 50, textAlign: 'left' }}>
                                 Manage Student Billing
                             </Button>
+                            {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+                                <Button block size="large" onClick={() => navigate('/billing/students')} style={{ borderRadius: 12, height: 50, textAlign: 'left' }}>
+                                    Manage Fee Categories
+                                </Button>
+                            )}
                             <Button block size="large" onClick={() => navigate('/billing/expenses')} style={{ borderRadius: 12, height: 50, textAlign: 'left' }}>
                                 Manage Expenses
                             </Button>

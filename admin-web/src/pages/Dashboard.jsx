@@ -17,6 +17,8 @@ const Dashboard = () => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const userRole = user?.role?.toUpperCase().trim();
+
     const fetchDashboardData = async () => {
         setLoading(true);
         try {
@@ -36,7 +38,7 @@ const Dashboard = () => {
     const statCards = [
         { title: 'Students', value: data?.counts?.students || 0, icon: <UserOutlined />, color: '#7B57E4', path: '/students' },
         { title: 'Classrooms', value: data?.counts?.classrooms || 0, icon: <HomeOutlined />, color: '#FF9500', path: '/classrooms' },
-        ...(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? [
+        ...(userRole === 'ADMIN' || userRole === 'SUPER_ADMIN' ? [
             { title: 'Staff', value: data?.counts?.staff || 0, icon: <TeamOutlined />, color: '#00C7BE', path: '/staff' }
         ] : []),
         { title: 'Parents', value: data?.counts?.parents || 0, icon: <TeamOutlined />, color: '#FF4D4F', path: '/parents' },
@@ -109,7 +111,7 @@ const Dashboard = () => {
                                     </Card>
                                 </Col>
                                 {/* Only show Billing for Admins */}
-                                {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                                {(userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') && (
                                     <Col xs={24} md={12}>
                                         <Card
                                             title={<Space><BookOutlined style={{ color: '#7B57E4' }} /> Payment</Space>}
@@ -212,7 +214,7 @@ const Dashboard = () => {
                             <Button block size="large" onClick={() => navigate('/homework')} icon={<BookOutlined />} style={{ borderRadius: 12, height: 50, textAlign: 'left', fontWeight: 500 }}>
                                 Assign New Homework
                             </Button>
-                            {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                            {(userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') && (
                                 <Button block size="large" onClick={() => navigate('/billing/overview')} icon={<DollarOutlined />} style={{ borderRadius: 12, height: 50, textAlign: 'left', fontWeight: 500 }}>
                                     Manage School Fees
                                 </Button>

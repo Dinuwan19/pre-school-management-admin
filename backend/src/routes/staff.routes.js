@@ -6,7 +6,7 @@ const upload = require('../middlewares/upload.middleware');
 const { validate, userSchema } = require('../middlewares/validate.middleware');
 
 router.use(authenticateToken);
-router.use(authorizeRole(['SUPER_ADMIN']));
+router.use(authorizeRole(['SUPER_ADMIN', 'ADMIN']));
 
 router.get('/', staffController.getAllStaff);
 router.post('/', upload.fields([{ name: 'qualificationPdf', maxCount: 1 }]), validate(userSchema), staffController.createStaff);

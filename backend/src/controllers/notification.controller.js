@@ -157,7 +157,7 @@ exports.getAllNotifications = async (req, res, next) => {
                     type: isFee ? 'ALERT' : 'NOTICE'
                 };
             }),
-            ...extraUpdates
+            ...extraUpdates.map(u => ({ ...u, type: 'HOMEWORK' }))
         ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
         res.json(formattedNotifications);

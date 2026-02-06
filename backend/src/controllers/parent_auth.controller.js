@@ -299,9 +299,10 @@ exports.getLinkedChildren = async (req, res, next) => {
                             orderBy: { attendanceDate: 'desc' },
                             take: 1
                         },
-                        studentprogress: {
+                        assessments: {
                             orderBy: { updatedAt: 'desc' },
-                            take: 1
+                            take: 1,
+                            include: { scores: true }
                         }
                     }
                 }
@@ -325,13 +326,12 @@ exports.getLinkedChildren = async (req, res, next) => {
             });
             const attendanceRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 100;
 
-            // Calculate Progress Average
-            const progress = child.studentprogress[0];
+            // Calculate Progress Average from new assessments table
+            const lastAssessment = child.assessments?.[0];
             let progressAvg = 0;
-            if (progress) {
-                const subjects = ['reading', 'writing', 'speaking', 'listening', 'mathematics', 'social'];
-                const values = subjects.map(s => progress[s]).filter(v => v !== null);
-                progressAvg = values.length > 0 ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : 0;
+            if (lastAssessment && lastAssessment.scores && lastAssessment.scores.length > 0) {
+                const totalScore = lastAssessment.scores.reduce((acc, s) => acc + s.score, 0);
+                progressAvg = Math.round(totalScore / lastAssessment.scores.length);
             }
 
             return {
@@ -345,7 +345,7 @@ exports.getLinkedChildren = async (req, res, next) => {
                 attendanceRate,
                 progress: progressAvg,
                 lastAttendance: child.attendance[0],
-                latestProgress: child.studentprogress[0]
+                latestProgress: lastAssessment // Updated field mapping
             };
         }));
 

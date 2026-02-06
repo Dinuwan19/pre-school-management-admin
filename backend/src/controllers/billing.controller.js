@@ -4,7 +4,7 @@ const { getNextReceiptNo, generateInvoice } = require('../services/invoice.servi
 exports.generateBilling = async (req, res, next) => {
     console.log('[Billing] Generating billing for:', req.body);
     try {
-        const { studentId, billingMonth, billingMonths, amount } = req.body;
+        const { studentId, billingMonth, billingMonths, amount, categoryId } = req.body;
 
         // Handle multiple months if provided
         const monthsToProcess = billingMonths || (billingMonth ? [billingMonth] : []);
@@ -25,7 +25,7 @@ exports.generateBilling = async (req, res, next) => {
         }, []);
 
         const overlaps = monthsToProcess.filter(m => allBilledMonths.includes(m));
-        if (overlaps.length > 0) {
+        if (overlaps.length > 0 && !categoryId) { // Don't block custom categories if they want to bill extra
             return res.status(400).json({
                 message: `The following months are already billed for this student: ${overlaps.join(', ')}`
             });
@@ -42,7 +42,8 @@ exports.generateBilling = async (req, res, next) => {
                 studentId: parseInt(studentId),
                 billingMonth: monthString,
                 amount: parseFloat(amount), // Assumes amount passed is total
-                status: 'UNPAID'
+                status: 'UNPAID',
+                categoryId: categoryId ? parseInt(categoryId) : null
             }
         });
 
@@ -133,6 +134,7 @@ exports.getAllBillings = async (req, res, next) => {
                 student: {
                     select: { fullName: true, studentUniqueId: true, parentId: true, secondParentId: true }
                 },
+                billingCategory: true,
                 billingpayment: {
                     include: {
                         payment: {

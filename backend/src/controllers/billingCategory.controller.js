@@ -1,0 +1,139 @@
+const prisma = require('../config/prisma');
+
+/**
+ * Create a new billing category.
+ * SUPER_ADMIN only.
+ */
+exports.createCategory = async (req, res, next) => {
+    try {
+        const { name, reason, amount, validUntil, classroomIds } = req.body;
+
+        const category = await prisma.billingCategory.create({
+            data: {
+                name,
+                reason,
+                amount: parseFloat(amount),
+                validUntil: new Date(validUntil),
+                classrooms: {
+                    connect: classroomIds.map(id => ({ id: parseInt(id) }))
+                }
+            },
+            include: { classrooms: true }
+        });
+
+        res.status(201).json({
+            message: 'Billing category created successfully',
+            data: category
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Get all billing categories.
+ * For selection: can filter by validUntil > now.
+ */
+exports.getAllCategories = async (req, res, next) => {
+    try {
+        const { activeOnly } = req.query;
+        let where = {};
+
+        if (activeOnly === 'true') {
+            where.validUntil = { gte: new Date() };
+        }
+
+        // Parent specific scoping
+        if (req.user.role === 'PARENT') {
+            const parentProfile = await prisma.parent.findFirst({
+                where: { userId: req.user.id },
+                include: {
+                    student_student_parentIdToparent: { select: { classroomId: true } },
+                    student_student_secondParentIdToparent: { select: { classroomId: true } }
+                }
+            });
+
+            if (parentProfile) {
+                const classroomIds = [
+                    ...parentProfile.student_student_parentIdToparent.map(s => s.classroomId),
+                    ...parentProfile.student_student_secondParentIdToparent.map(s => s.classroomId)
+                ];
+
+                where.classrooms = {
+                    some: {
+                        id: { in: classroomIds }
+                    }
+                };
+            } else {
+                return res.json([]);
+            }
+        }
+
+        const categories = await prisma.billingCategory.findMany({
+            where,
+            include: { classrooms: true },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        res.json(categories);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Delete a category (soft/hard)
+ */
+exports.deleteCategory = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        await prisma.billingCategory.delete({
+            where: { id: parseInt(id) }
+        });
+        res.json({ message: 'Category deleted successfully' });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Get statistics for a specific category
+ */
+exports.getCategoryStats = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const category = await prisma.billingCategory.findUnique({
+            where: { id: parseInt(id) },
+            include: {
+                billings: {
+                    include: {
+                        student: { select: { fullName: true, studentUniqueId: true } }
+                    }
+                }
+            }
+        });
+
+        if (!category) return res.status(404).json({ message: 'Category not found' });
+
+        const totalExpected = category.billings.length * parseFloat(category.amount);
+        const totalPaid = category.billings
+            .filter(b => b.status === 'PAID')
+            .reduce((sum, b) => sum + parseFloat(b.amount), 0);
+
+        const paidCount = category.billings.filter(b => b.status === 'PAID').length;
+        const unpaidCount = category.billings.filter(b => b.status === 'UNPAID').length;
+
+        res.json({
+            category,
+            stats: {
+                totalExpected,
+                totalPaid,
+                paidCount,
+                unpaidCount,
+                collectionRate: totalExpected > 0 ? (totalPaid / totalExpected) * 100 : 0
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};

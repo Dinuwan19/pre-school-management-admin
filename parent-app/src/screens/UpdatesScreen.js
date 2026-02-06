@@ -63,7 +63,12 @@ const UpdatesScreen = ({ navigation }) => {
             setMeetings(meetingsData || []);
 
         } catch (error) {
-            console.error('Fetch Updates Error:', error);
+            console.error('Fetch Updates Error full:', error);
+            if (error.response) {
+                console.error('Fetch Updates Error data:', error.response.data);
+                console.error('Fetch Updates Error status:', error.response.status);
+            }
+            Alert.alert('Error', 'Failed to load updates. Please pull down to refresh.');
         } finally {
             setLoading(false);
         }

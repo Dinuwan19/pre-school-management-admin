@@ -200,16 +200,22 @@ exports.getStudentById = async (req, res, next) => {
                 },
                 parent_student_parentIdToparent: true,
                 parent_student_secondParentIdToparent: true,
-                studentprogress: {
+                parent_student_parentIdToparent: true,
+                parent_student_secondParentIdToparent: true,
+                assessments: {
                     orderBy: { updatedAt: 'desc' },
                     take: 10,
-                    include: { user: { select: { fullName: true } } }
+                    include: {
+                        user: { select: { fullName: true } },
+                        scores: { include: { subSkill: { include: { category: true } } } }
+                    }
                 },
                 attendance: attendanceQuery
             }
         });
         if (!student) return res.status(404).json({ message: 'Student not found' });
 
+        // ... existing staff logic ...
         // Fetch all teachers in this classroom
         const classroomTeachers = await prisma.teacherprofile.findMany({
             where: { classrooms: { some: { id: student.classroomId } } },
@@ -228,7 +234,6 @@ exports.getStudentById = async (req, res, next) => {
         ];
 
         // Calculate Summary for the requested month (or current month if none)
-        // Note: use Prisma aggregate for efficiency in real app, but filter here is fine for now
         const summaryContextDate = month ? dayjs(`${month}-01`) : dayjs();
         const summaryAttendance = await prisma.attendance.findMany({
             where: {
@@ -244,18 +249,37 @@ exports.getStudentById = async (req, res, next) => {
         const totalDays = summaryAttendance.length;
         const attendancePercentage = totalDays > 0 ? Math.round((presentCount / totalDays) * 100) : 0;
 
+        // Transcode assessments to old progress format for legacy UI support
+        const legacyProgress = {};
+        const latestAssessment = student.assessments?.[0];
+        if (latestAssessment && latestAssessment.scores) {
+            latestAssessment.scores.forEach(s => {
+                const name = s.subSkill?.name?.toLowerCase() || '';
+                if (name.includes('reading')) legacyProgress.reading = s.score;
+                if (name.includes('writing')) legacyProgress.writing = s.score;
+                if (name.includes('speaking')) legacyProgress.speaking = s.score;
+                if (name.includes('listening')) legacyProgress.listening = s.score;
+                if (name.includes('math')) legacyProgress.mathematics = s.score;
+                if (name.includes('social')) legacyProgress.social = s.score;
+            });
+            legacyProgress.remarks = latestAssessment.remarks;
+            legacyProgress.updatedAt = latestAssessment.updatedAt;
+            legacyProgress.user = latestAssessment.user;
+        }
+
         res.json({
             ...student,
             parent: student.parent_student_parentIdToparent,
             secondParent: student.parent_student_secondParentIdToparent,
-            progress: student.studentprogress, // Now returns array
+            progress: legacyProgress, // Transcoded for old UI
+            assessments: student.assessments, // New detailed data
             attendanceHistory: student.attendance,
             attendanceSummary: {
                 present: presentCount,
                 total: totalDays,
                 percentage: attendancePercentage
             },
-            availableStaff // Added for teacher selection
+            availableStaff
         });
     } catch (error) {
         next(error);
@@ -344,10 +368,23 @@ exports.updateStudent = async (req, res, next) => {
     }
 };
 
+exports.getSkillMetadata = async (req, res, next) => {
+    try {
+        const categories = await prisma.skill_category.findMany({
+            include: { skills: true },
+            orderBy: { id: 'asc' }
+        });
+        res.json(categories);
+    } catch (error) {
+        next(error);
+    }
+};
+
 exports.updateStudentProgress = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { reading, writing, speaking, listening, mathematics, social, remarks } = req.body;
+        const { term, remarks, scores } = req.body; // scores: [{ subSkillId, score }]
+
         const student = await prisma.student.findUnique({ where: { id: parseInt(id) } });
         if (!student) return res.status(404).json({ message: 'Student not found' });
 
@@ -356,29 +393,82 @@ exports.updateStudentProgress = async (req, res, next) => {
                 where: { teacherId: req.user.id },
                 include: { classrooms: true }
             });
-
             const isAssigned = teacherProfile?.classrooms.some(c => c.id === student.classroomId);
-
-            if (!isAssigned) {
-                return res.status(403).json({ message: 'Forbidden: Unauthorized classroom' });
-            }
+            if (!isAssigned) return res.status(403).json({ message: 'Forbidden: Unauthorized' });
         }
 
-        const progress = await prisma.studentprogress.create({
-            data: {
+        // 1. Check for existing assessment for this term
+        const existingAssessment = await prisma.assessment.findFirst({
+            where: {
                 studentId: parseInt(id),
-                reading: parseInt(reading) || 0,
-                writing: parseInt(writing) || 0,
-                speaking: parseInt(speaking) || 0,
-                listening: parseInt(listening) || 0,
-                mathematics: parseInt(mathematics) || 0,
-                social: parseInt(social) || 0,
-                remarks: remarks || '',
-                updatedById: req.user.id
+                term: parseInt(term) || 1
             }
         });
-        res.json(progress);
+
+        let assessment;
+        if (existingAssessment) {
+            // Update existing
+            assessment = await prisma.assessment.update({
+                where: { id: existingAssessment.id },
+                data: {
+                    remarks: remarks || '',
+                    updatedById: req.user.id,
+                    scores: {
+                        deleteMany: {}, // Clear old scores
+                        create: (scores || []).map(s => ({
+                            subSkillId: s.subSkillId,
+                            score: s.score
+                        }))
+                    }
+                },
+                include: { scores: true }
+            });
+        } else {
+            // Create new
+            assessment = await prisma.assessment.create({
+                data: {
+                    studentId: parseInt(id),
+                    term: parseInt(term) || 1,
+                    remarks: remarks || '',
+                    updatedById: req.user.id,
+                    scores: {
+                        create: (scores || []).map(s => ({
+                            subSkillId: s.subSkillId,
+                            score: s.score
+                        }))
+                    }
+                },
+                include: { scores: true }
+            });
+        }
+
+        await logAction(req.user.id, `${existingAssessment ? 'UPDATE' : 'CREATE'}_PROGRESS: Assessment for student ${student.studentUniqueId} (Term ${term})`);
+
+        res.json(assessment);
     } catch (error) {
         next(error);
     }
 };
+
+exports.createSubSkill = async (req, res, next) => {
+    try {
+        const { categoryId } = req.params;
+        const { name } = req.body;
+
+        if (!name) return res.status(400).json({ message: 'Sub-skill name is required' });
+
+        const subSkill = await prisma.sub_skill.create({
+            data: {
+                categoryId: parseInt(categoryId),
+                name
+            }
+        });
+
+        await logAction(req.user.id, `CREATE_SUBSKILL: Added ${name} to category ${categoryId}`);
+        res.status(201).json(subSkill);
+    } catch (error) {
+        next(error);
+    }
+};
+
+module.exports = exports;

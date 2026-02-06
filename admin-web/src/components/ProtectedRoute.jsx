@@ -15,8 +15,12 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-    if (allowedRoles && !allowedRoles.includes(user.role)) {
-        return <div style={{ padding: 20 }}>Access Denied: You do not have permission to view this page.</div>;
+    if (allowedRoles) {
+        const userRole = user.role?.toUpperCase().trim();
+        const roles = allowedRoles.map(r => r.toUpperCase().trim());
+        if (!roles.includes(userRole)) {
+            return <div style={{ padding: 20 }}>Access Denied: You do not have permission to view this page.</div>;
+        }
     }
 
     return children;

@@ -23,7 +23,13 @@ import {
     Heart,
     Sparkles,
     Sun,
-    Moon
+    Moon,
+    TrendingUp,
+    TrendingDown,
+    Minus,
+    Palette,
+    Globe,
+    Zap
 } from 'lucide-react-native';
 import { requestMeeting } from '../services/meeting.service';
 import api from '../config/api';
@@ -46,6 +52,8 @@ const StudentProfileScreen = ({ route, navigation }) => {
     const [loading, setLoading] = useState(true);
     const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
     const [attendanceSummary, setAttendanceSummary] = useState(null);
+    const [selectedTerm, setSelectedTerm] = useState(1);
+    const [skillMetadata, setSkillMetadata] = useState([]);
 
     // Meeting State
     const [modalVisible, setModalVisible] = useState(false);
@@ -81,6 +89,11 @@ const StudentProfileScreen = ({ route, navigation }) => {
             setStudent(mergedStudent);
             setDetails(mergedStudent);
             setAttendanceSummary(attendanceData);
+
+            // Fetch metadata if not loaded
+            if (skillMetadata.length === 0) {
+                api.get('/students/metadata/skills').then(res => setSkillMetadata(res.data)).catch(() => { });
+            }
 
             // Set initial selected teacher
             if (mergedStudent.availableStaff && mergedStudent.availableStaff.length > 0) {
@@ -365,54 +378,164 @@ const StudentProfileScreen = ({ route, navigation }) => {
     };
 
     const renderProgress = () => {
-        const progressHistory = details?.progress || [];
-        const latestProgress = (details?.progress && details.progress.length > 0)
-            ? details.progress[0]
-            : (details?.latestProgress || { remarks: details?.latestRemarks });
+        const assessments = details?.assessments || [];
+        const currentAssessment = assessments.find(a => a.term === selectedTerm);
+        const prevAssessment = assessments.find(a => a.term === selectedTerm - 1);
+
+        const getStatusTheme = (percentage) => {
+            if (percentage >= 85) return { label: 'Well Developed', color: '#22C55E', bgColor: '#F0FDF4' };
+            if (percentage >= 45) return { label: 'Progressing', color: '#3B82F6', bgColor: '#EFF6FF' };
+            return { label: 'Emerging', color: '#EF4444', bgColor: '#FEF2F2' };
+        };
+
+        const calculateCategoryStats = (assessment, catId) => {
+            if (!assessment || !skillMetadata.length) return 0;
+            const category = skillMetadata.find(c => c.id === catId);
+            if (!category) return 0;
+
+            const scores = assessment.scores.filter(s => s.subSkill?.categoryId === catId);
+            const maxScore = category.skills.length * 3;
+            const actualScore = scores.reduce((sum, s) => sum + s.score, 0);
+            return maxScore > 0 ? Math.round((actualScore / maxScore) * 100) : 0;
+        };
+
+        const renderTermSelector = () => (
+            <View style={styles.termSelector}>
+                {[1, 2, 3].map(t => (
+                    <TouchableOpacity
+                        key={t}
+                        style={[styles.termButton, selectedTerm === t && styles.activeTermButton]}
+                        onPress={() => setSelectedTerm(t)}
+                    >
+                        <Text style={[styles.termButtonText, selectedTerm === t && styles.activeTermButtonText]}>Term {t}</Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
+        );
+
+        if (!skillMetadata.length) {
+            return (
+                <View style={styles.loaderContainer}>
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                </View>
+            );
+        }
 
         return (
             <View style={styles.tabContent}>
-                <View style={styles.infoSection}>
-                    <Text style={styles.sectionHeading}>Skills Development</Text>
-                    {latestProgress?.id ? (
-                        <>
-                            <SkillBar label="Reading" percentage={latestProgress.reading || 0} color="#9D5BF0" />
-                            <SkillBar label="Writing" percentage={latestProgress.writing || 0} color="#3B82F6" />
-                            <SkillBar label="Listening" percentage={latestProgress.listening || 0} color="#22C55E" />
-                            <SkillBar label="Speaking" percentage={latestProgress.speaking || 0} color="#F97316" />
-                            <SkillBar label="Mathematics" percentage={latestProgress.mathematics || 0} color="#EF4444" />
-                            <SkillBar label="Social Skills" percentage={latestProgress.social || 0} color="#A855F7" />
-                        </>
-                    ) : (
-                        <Text style={{ color: '#64748B', fontStyle: 'italic' }}>No skills assessed yet.</Text>
-                    )}
-                </View>
+                {renderTermSelector()}
 
-                <View style={[styles.infoSection, { backgroundColor: '#F8FAFC' }]}>
-                    <Text style={styles.sectionHeading}>Teacher Notes</Text>
-                    <View style={styles.noteBox}>
-                        <Text style={styles.noteContent}>{latestProgress?.remarks || 'No notes added.'}</Text>
+                {!currentAssessment ? (
+                    <View style={styles.emptyProgress}>
+                        <Info size={40} color="#CBD5E1" />
+                        <Text style={styles.emptyProgressText}>No assessment recorded for Term {selectedTerm}.</Text>
                     </View>
-                </View>
+                ) : (
+                    <>
+                        <View style={styles.infoSection}>
+                            <Text style={styles.sectionHeading}>Developmental Performance</Text>
+                            {skillMetadata.map(cat => {
+                                const catScores = currentAssessment.scores.filter(s => s.subSkill?.categoryId === cat.id);
+                                const totalSkills = cat.skills.length;
+                                const markedSkills = catScores.length;
 
-                <View style={{ marginTop: 10 }}>
-                    <Text style={styles.sectionHeading}>Progress History</Text>
-                    {progressHistory.length > 0 ? (
-                        progressHistory.map((item, index) => (
-                            <TimelineItem
-                                key={item.id}
-                                date={dayjs(item.updatedAt).format('MMM DD, YYYY')}
-                                teacher={item.user?.fullName || 'Teacher'}
-                                status="Updated"
-                                content={item.remarks}
-                                tags={[]}
-                                isLast={index === progressHistory.length - 1}
-                            />
-                        ))
-                    ) : (
-                        <Text style={{ color: '#94A3B8', marginTop: 10 }}>No history available.</Text>
-                    )}
-                </View>
+                                let label, color, bgColor, percentage, percentageDisplay;
+                                let TrendIcon = Minus;
+                                let trendColor = '#94A3B8';
+
+                                const CATEGORY_COLORS = {
+                                    'Language Development Skills': '#1890ff', // Blue
+                                    'Logical & Mathematical Skills': '#ff4d4f', // Red
+                                    'Physical Development Skills': '#52c41a', // Green
+                                    'Aesthetic & Creative Skills': '#faad14', // Orange
+                                    'Living & Non-Living World': '#7b57e4', // Purple
+                                    'Healthy Living Habits': '#2dd4bf', // Teal (Changed from Deep Purple)
+                                    'Cultural Heritage & Values': '#eb2f96' // Magenta
+                                };
+                                const barColor = CATEGORY_COLORS[cat.name] || '#7b57e4';
+
+                                if (markedSkills === 0) {
+                                    label = 'Pending';
+                                    color = '#64748B';
+                                    bgColor = '#F1F5F9';
+                                    percentage = 0;
+                                    percentageDisplay = '--';
+                                } else {
+                                    const maxMarkedPossible = markedSkills * 3;
+                                    const actualScore = catScores.reduce((sum, s) => sum + s.score, 0);
+                                    percentage = Math.round((actualScore / maxMarkedPossible) * 100);
+                                    percentageDisplay = `${percentage}%`;
+
+                                    if (markedSkills < totalSkills) {
+                                        label = 'In Progress';
+                                        color = COLORS.primary;
+                                        bgColor = '#F3EFFF';
+                                    } else {
+                                        if (percentage >= 85) { label = 'Well Developed'; color = '#22C55E'; bgColor = '#F0FDF4'; }
+                                        else if (percentage >= 45) { label = 'Progressing'; color = '#3B82F6'; bgColor = '#EFF6FF'; }
+                                        else { label = 'Emerging'; color = '#EF4444'; bgColor = '#FEF2F2'; }
+                                    }
+
+                                    // Trend Logic (Relative comparison)
+                                    const prevCatScores = prevAssessment?.scores.filter(s => s.subSkill?.categoryId === cat.id) || [];
+                                    if (prevCatScores.length > 0) {
+                                        const prevMaxMarkedPossible = prevCatScores.length * 3;
+                                        const prevActual = prevCatScores.reduce((sum, s) => sum + s.score, 0);
+                                        const prevPercentage = Math.round((prevActual / prevMaxMarkedPossible) * 100);
+                                        if (percentage > prevPercentage) { TrendIcon = TrendingUp; trendColor = '#22C55E'; }
+                                        else if (percentage < prevPercentage) { TrendIcon = TrendingDown; trendColor = '#EF4444'; }
+                                    }
+                                }
+
+                                return (
+                                    <View key={cat.id} style={[styles.categoryCard, markedSkills === 0 && { opacity: 0.8 }]}>
+                                        <View style={styles.categoryHeader}>
+                                            <View style={[styles.themeBadge, { backgroundColor: bgColor }]}>
+                                                <Text style={[styles.themeBadgeText, { color: color }]}>{label}</Text>
+                                            </View>
+                                            <View style={styles.trendBox}>
+                                                <TrendIcon size={16} color={trendColor} />
+                                            </View>
+                                        </View>
+                                        <View style={styles.categoryMain}>
+                                            <Text numberOfLines={1} style={[styles.categoryTitle, markedSkills === 0 && { color: '#64748B' }]}>{cat.name}</Text>
+                                            <Text style={[styles.categoryPercent, { color: barColor }]}>{percentageDisplay}</Text>
+                                        </View>
+                                        <View style={styles.customProgressBar}>
+                                            <View style={[styles.customProgressFill, { width: `${percentage}%`, backgroundColor: barColor, opacity: markedSkills === 0 ? 0.2 : 1 }]} />
+                                        </View>
+                                    </View>
+                                );
+                            })}
+                        </View>
+
+                        <View style={styles.infoSection}>
+                            <Text style={styles.sectionHeading}>Focus Areas</Text>
+                            <View style={styles.focusContainer}>
+                                {currentAssessment.scores.filter(s => s.score === 1).length > 0 ? (
+                                    currentAssessment.scores.filter(s => s.score === 1).map((s, idx) => (
+                                        <View key={idx} style={styles.focusBadge}>
+                                            <Zap size={12} color="#F97316" />
+                                            <Text style={styles.focusText}>{s.subSkill?.name}</Text>
+                                        </View>
+                                    ))
+                                ) : (
+                                    <Text style={styles.emptyFocusText}>Child is performing well across all areas!</Text>
+                                )}
+                            </View>
+                        </View>
+
+                        <View style={[styles.infoSection, { backgroundColor: '#F8FAFC' }]}>
+                            <Text style={styles.sectionHeading}>Teacher's Summary</Text>
+                            <View style={styles.noteBox}>
+                                <Text style={styles.noteContent}>{currentAssessment.remarks || 'No summary notes added for this term.'}</Text>
+                            </View>
+                            <View style={styles.assessedBy}>
+                                <Text style={styles.assessedByText}>Assessed by {currentAssessment.user?.fullName}</Text>
+                            </View>
+                        </View>
+                    </>
+                )}
             </View>
         );
     };
@@ -908,7 +1031,31 @@ const styles = StyleSheet.create({
     emptyMealTitle: { fontSize: 18, fontWeight: 'bold', color: '#1E293B', marginBottom: 8 },
     emptyMealDesc: { fontSize: 14, color: '#64748B', textAlign: 'center', lineHeight: 20 },
     nutritionNote: { flexDirection: 'row', alignItems: 'center', padding: 15, backgroundColor: '#FFF1F2', borderRadius: 20, marginTop: 10, gap: 12 },
-    nutritionNoteText: { fontSize: 12, color: '#E11D48', fontWeight: '500', flex: 1, lineHeight: 18 }
+    nutritionNoteText: { fontSize: 12, color: '#E11D48', fontWeight: '500', flex: 1, lineHeight: 18 },
+    emptyProgress: { alignItems: 'center', padding: 40, backgroundColor: '#F8FAFC', borderRadius: 12, margin: 16 },
+    emptyProgressText: { marginTop: 12, color: '#64748B', textAlign: 'center' },
+    termSelector: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 8, padding: 4, marginHorizontal: 16, marginBottom: 16 },
+    termButton: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
+    activeTermButton: { backgroundColor: '#fff', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
+    termButtonText: { color: '#64748B', fontWeight: '500', fontSize: 13 },
+    activeTermButtonText: { color: '#9D5BF0', fontWeight: '700' },
+    categoryCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#F1F5F9' },
+    categoryHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+    themeBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
+    themeBadgeText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
+    trendBox: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center' },
+    categoryMain: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 },
+    categoryTitle: { fontSize: 14, fontWeight: '600', color: '#1E293B', flex: 1 },
+    categoryPercent: { fontSize: 18, fontWeight: '800' },
+    customProgressBar: { height: 6, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden' },
+    customProgressFill: { height: '100%', borderRadius: 3 },
+    focusContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    focusBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF7ED', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#FFEDD5' },
+    focusText: { marginLeft: 4, fontSize: 12, color: '#C2410C', fontWeight: '500' },
+    emptyFocusText: { color: '#22C55E', fontStyle: 'italic', fontSize: 13 },
+    assessedBy: { marginTop: 12, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
+    assessedByText: { fontSize: 11, color: '#94A3B8', textAlign: 'right' },
+    loaderContainer: { height: 200, justifyContent: 'center', alignItems: 'center' }
 });
 
 export default StudentProfileScreen;

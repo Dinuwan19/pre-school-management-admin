@@ -32,6 +32,7 @@ const MainLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { logout, user } = useAuth();
+    const userRole = user?.role?.toUpperCase().trim();
 
     const handleLogout = () => {
         logout();
@@ -66,7 +67,7 @@ const MainLayout = () => {
             icon: <UserOutlined />,
             label: 'Students',
         },
-        ...(user?.role !== 'PARENT' ? [
+        ...(userRole !== 'PARENT' ? [
             {
                 key: '/parents',
                 icon: <TeamOutlined />,
@@ -78,12 +79,12 @@ const MainLayout = () => {
                 label: 'Classrooms',
             }
         ] : []),
-        ...(user?.role === 'SUPER_ADMIN' ? [{
+        ...(userRole === 'SUPER_ADMIN' ? [{
             key: '/staff',
             icon: <IdcardOutlined />,
             label: 'Staff',
         }] : []),
-        ...(user?.role !== 'PARENT' ? [
+        ...(userRole !== 'PARENT' ? [
             {
                 key: '/attendance',
                 icon: <CalendarOutlined />,
@@ -106,7 +107,7 @@ const MainLayout = () => {
         // Only Admin and Super Admin can see Billing (except parents see their own student billing? 
         // User said: "role base access not working properly staff part no need to billing part also"
         // I take this as: Teacher doesn't need Billing. Admin/SuperAdmin do.
-        ...((user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') ? [{
+        ...((userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') ? [{
             key: 'billing-sub',
             icon: <FileTextOutlined />,
             label: 'Billing',
@@ -121,7 +122,7 @@ const MainLayout = () => {
             icon: <ScheduleOutlined />,
             label: 'Events',
         },
-        ...((user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') ? [{
+        ...((userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') ? [{
             key: '/reports',
             icon: <BarChartOutlined />,
             label: 'Reports',

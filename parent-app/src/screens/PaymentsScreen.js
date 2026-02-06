@@ -214,7 +214,9 @@ const PaymentsScreen = ({ navigation }) => {
                             <View key={bill.id} style={styles.detailCard}>
                                 <View style={styles.detailRow}>
                                     <View>
-                                        <Text style={styles.detailMonth}>{bill.billingMonth}</Text>
+                                        <Text style={styles.detailMonth}>
+                                            {bill.billingCategory ? bill.billingCategory.name : bill.billingMonth}
+                                        </Text>
                                         <Text style={styles.detailDue}>Issued: {dayjs(bill.createdAt).format('MMM DD, YYYY')}</Text>
                                     </View>
                                 </View>

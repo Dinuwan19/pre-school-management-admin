@@ -97,10 +97,8 @@ exports.getAllEvents = async (req, res, next) => {
 
         if (status && status !== 'All Events') {
             where.status = status.toUpperCase();
-        } else if (req.user.role === 'TEACHER') {
-            // Teachers should see their own Pending/Draft events? 
-            // Or maybe just show UPCOMING/COMPLETED by default?
-            // For now, keep existing logic but allow filtering.
+        } else if (req.user.role === 'PARENT') {
+            where.status = { in: ['UPCOMING', 'PUBLISHED', 'APPROVED'] };
         }
 
         const events = await prisma.event.findMany({

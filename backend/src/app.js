@@ -15,6 +15,7 @@ const staffRoutes = require('./routes/staff.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const homeworkRoutes = require('./routes/homework.routes');
 const billingRoutes = require('./routes/billing.routes');
+const billingCategoryRoutes = require('./routes/billingCategory.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const expenseRoutes = require('./routes/expense.routes'); // Placeholder for now
 const dashboardRoutes = require('./routes/dashboard.routes');
@@ -53,6 +54,7 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/homework', homeworkRoutes);
 app.use('/api/billing', billingRoutes);
+app.use('/api/billing-categories', billingCategoryRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/dashboard', dashboardRoutes);
@@ -72,7 +74,23 @@ app.get('/', (req, res) => {
 
 const { initCronJobs } = require('./services/cron.service');
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
     console.log(`Server is running on port ${PORT}`);
     initCronJobs(); // Initialize Scheduled Jobs
+
+    // Catch-up logic: If server starts after 9:30 AM, run the attendance check once
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+
+    // If it's 9:30 AM or later, trigger the check
+    if (currentHour > 9 || (currentHour === 9 && currentMinute >= 30)) {
+        const { markAbsentStudents } = require('./services/cron.service');
+        console.log('[Server Startup] Past 9:30 AM, running attendance catch-up check...');
+        try {
+            await markAbsentStudents();
+        } catch (err) {
+            console.error('[Server Startup] Catch-up attendance failed:', err);
+        }
+    }
 });

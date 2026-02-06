@@ -155,7 +155,7 @@ exports.manualAttendance = async (req, res, next) => {
         let attendance;
 
         const updateData = {
-            status,
+            status: status ? status.toUpperCase() : 'PRESENT',
             method: 'MANUAL',
             markedById,
             checkInTime: checkInTime ? new Date(checkInTime) : undefined,

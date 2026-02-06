@@ -7,9 +7,10 @@ const prisma = require('../config/prisma');
 exports.checkClassroomScope = async (req, res, next) => {
     try {
         const user = req.user;
+        const role = user?.role?.toUpperCase().trim();
 
         // If not a teacher/staff, no mandatory scoping (Admin/SuperAdmin can see all)
-        if (user.role !== 'TEACHER' && user.role !== 'STAFF') {
+        if (role !== 'TEACHER' && role !== 'STAFF') {
             return next();
         }
 

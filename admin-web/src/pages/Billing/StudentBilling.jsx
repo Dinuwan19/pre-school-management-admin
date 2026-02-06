@@ -4,6 +4,7 @@ import { PlusOutlined, EyeOutlined, BellOutlined, CheckCircleOutlined, CloseCirc
 import dayjs from 'dayjs';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import CategoryManagementModal from '../../components/Billing/CategoryManagementModal';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -14,13 +15,16 @@ const StudentBilling = () => {
     const [overdueBillings, setOverdueBillings] = useState([]);
     const [historyPayments, setHistoryPayments] = useState([]);
     const [pendingPayments, setPendingPayments] = useState([]);
+    const [categories, setCategories] = useState([]);
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(false);
     const [filterCurrentMonth, setFilterCurrentMonth] = useState(false);
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+    const [isManageCategoriesVisible, setIsManageCategoriesVisible] = useState(false);
     const [isVerifyModalVisible, setIsVerifyModalVisible] = useState(false);
     const [form] = Form.useForm();
     const selectedStudentId = Form.useWatch('studentId', form);
+    const selectedCategoryId = Form.useWatch('categoryId', form);
 
     const billedMonthsForSelected = billings
         .filter(b => b.studentId === selectedStudentId)
@@ -33,16 +37,18 @@ const StudentBilling = () => {
         setLoading(true);
         try {
             // Critical Data
-            const [billRes, payRes, stuRes, overdueRes] = await Promise.all([
+            const [billRes, payRes, stuRes, overdueRes, catRes] = await Promise.all([
                 api.get('/billing'),
                 api.get('/payments/pending'),
                 api.get('/students'),
-                api.get('/billing/overdue')
+                api.get('/billing/overdue'),
+                api.get('/billing-categories?activeOnly=true')
             ]);
             setBillings(billRes.data);
             setPendingPayments(payRes.data);
             setStudents(stuRes.data);
             setOverdueBillings(overdueRes.data);
+            setCategories(catRes.data);
 
             // Non-Critical Data (History) - Fetch separately to avoid blocking
             try {
@@ -129,7 +135,8 @@ const StudentBilling = () => {
             setLoading(true);
             const payload = {
                 ...values,
-                billingMonths: values.billingMonths // Now passing array of strings
+                categoryId: values.categoryId === 'monthly' ? null : values.categoryId,
+                billingMonths: values.billingMonths
             };
             await api.post('/billing/generate', payload);
             message.success('Billing record generated');
@@ -140,6 +147,18 @@ const StudentBilling = () => {
             message.error(error.response?.data?.message || 'Failed to generate billing');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const onCategoryChange = (catId) => {
+        if (catId === 'monthly') {
+            form.setFieldsValue({ amount: 15000, categoryId: null });
+            return;
+        }
+        if (!catId) return;
+        const category = categories.find(c => c.id === catId);
+        if (category) {
+            form.setFieldsValue({ amount: parseFloat(category.amount) });
         }
     };
 
@@ -239,6 +258,11 @@ const StudentBilling = () => {
                                 const display = isValidDate ? dayjs(m).format('MMMM') : m;
                                 return <Tag color="blue" key={idx} style={{ borderRadius: 6 }}>{display}</Tag>;
                             })}
+                            {record.billingCategory ? (
+                                <Tag color="purple" style={{ borderRadius: 6 }}>{record.billingCategory.name}</Tag>
+                            ) : (
+                                <Tag color="default" style={{ borderRadius: 6 }}>Monthly Fee</Tag>
+                            )}
                         </Space>
                     );
                 } else {
@@ -416,6 +440,15 @@ const StudentBilling = () => {
                     >
                         Generate Billing
                     </Button>
+                    {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+                        <Button
+                            onClick={() => setIsManageCategoriesVisible(true)}
+                            style={{ borderRadius: 8 }}
+                            size="large"
+                        >
+                            Manage Fee Categories
+                        </Button>
+                    )}
                 </Space>
             </div>
 
@@ -461,6 +494,19 @@ const StudentBilling = () => {
                     <Form.Item name="studentId" label="Select Student" rules={[{ required: true }]}>
                         <Select placeholder="Choose student" showSearch optionFilterProp="children">
                             {students.map(s => <Option key={s.id} value={s.id}>{s.fullName} ({s.studentUniqueId})</Option>)}
+                        </Select>
+                    </Form.Item>
+                    <Form.Item name="categoryId" label="Fee Category" initialValue="monthly">
+                        <Select
+                            placeholder="Select category"
+                            onChange={onCategoryChange}
+                        >
+                            <Select.Option value="monthly">Monthly Fee (Standard)</Select.Option>
+                            {categories.map(c => (
+                                <Option key={c.id} value={c.id}>
+                                    {c.name} - Rs. {parseFloat(c.amount).toLocaleString()}
+                                </Option>
+                            ))}
                         </Select>
                     </Form.Item>
                     <Form.Item
@@ -581,6 +627,13 @@ const StudentBilling = () => {
                     locale={{ emptyText: 'No pending payments to verify' }}
                 />
             </Modal>
+
+            {/* Category Management Modal */}
+            <CategoryManagementModal
+                open={isManageCategoriesVisible}
+                onCancel={() => setIsManageCategoriesVisible(false)}
+                onSuccess={fetchData}
+            />
         </div>
     );
 };

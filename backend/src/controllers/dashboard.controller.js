@@ -69,7 +69,7 @@ exports.getStats = async (req, res, next) => {
 
             billingStats = {
                 paid: currentMonthBillings.filter(b => b.status === 'PAID').length,
-                pending: currentMonthBillings.filter(b => b.status === 'PENDING').length,
+                pending: currentMonthBillings.filter(b => b.status === 'UNPAID' || b.status === 'PENDING').length,
                 overdue: currentMonthBillings.filter(b => b.status === 'OVERDUE').length,
                 total: currentMonthBillings.length,
                 progress: 0
@@ -224,20 +224,16 @@ exports.getParentStats = async (req, res, next) => {
             const presentInMonth = monthAttendance.filter(a => ['PRESENT', 'LATE', 'COMPLETED'].includes(a.status)).length;
             const attendanceRate = monthAttendance.length > 0 ? Math.round((presentInMonth / monthAttendance.length) * 100) : 0;
 
-            // 4. Progress Average (Latest)
-            const progress = await prisma.studentprogress.findFirst({
+            // 4. Progress Average (Latest from Assessments)
+            const assessment = await prisma.assessment.findFirst({
                 where: { studentId: child.id },
-                orderBy: { updatedAt: 'desc' }
+                orderBy: { updatedAt: 'desc' },
+                include: { scores: true }
             });
             let progressAvg = 0;
-            if (progress) {
-                const scores = [
-                    progress.reading, progress.writing, progress.speaking,
-                    progress.listening, progress.mathematics, progress.social
-                ].filter(s => s !== null);
-                if (scores.length > 0) {
-                    progressAvg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-                }
+            if (assessment && assessment.scores && assessment.scores.length > 0) {
+                const totalScore = assessment.scores.reduce((sum, s) => sum + s.score, 0);
+                progressAvg = Math.round(totalScore / assessment.scores.length);
             }
 
             return {
@@ -252,7 +248,7 @@ exports.getParentStats = async (req, res, next) => {
                 feeStatus,
                 balance: totalBalance,
                 progress: progressAvg,
-                latestRemarks: progress?.remarks
+                latestRemarks: assessment?.remarks
             };
         }));
 

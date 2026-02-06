@@ -1,0 +1,802 @@
+🔷 PHASE-WISE DEVELOPMENT PLAN
+
+(Progress Tracking Module)
+
+🔵 PHASE 1: REQUIREMENT FINALIZATION (Foundation)
+1.1 Objective
+
+To track preschool children’s developmental progress in a non-academic, skill-based, term-wise manner.
+
+1.2 Scope
+
+Track progress for 7 main skill areas
+
+Each main skill has sub-skills
+
+Progress tracked for 3 terms (T1, T2, T3)
+
+Only teachers/admins can mark
+
+Parents can only view
+
+1.3 Assessment Scale (Fixed)
+Level	Meaning	Internal Value
+Achieved	Performs independently and consistently	3
+Approaching	Performs with guidance	2
+Needs Support	Requires frequent assistance	1
+
+⚠️ Numeric values are internal only, never shown to parents.
+
+1.4 Progress Calculation Rule
+Progress % = (Sum of sub-skill scores) / (Total sub-skills × 3) × 100
+
+Display Rule (Parent View)
+% Range	Display Label
+0–49	Emerging
+50–74	Progressing
+75–100	Well Developed
+🔵 PHASE 2: SKILL ARCHITECTURE DESIGN
+2.1 Skill Hierarchy Model
+Main Skill
+ └── Sub Skills
+      └── Term-wise Progress
+           └── Teacher Remarks
+
+🔵 PHASE 3: FULL SKILL & SUB-SKILL DOCUMENTATION
+
+(This is what you asked explicitly — here it is clean & professional)
+
+📘 3.4 SKILL CATEGORY 01: LANGUAGE DEVELOPMENT SKILLS
+Purpose
+
+To assess the child’s ability to understand language, communicate ideas, listen, and interact socially using verbal and non-verbal communication.
+
+Sub-Skills
+
+Follows instructions
+
+Expresses ideas clearly
+
+Engages in friendly conversation
+
+Answers questions correctly
+
+Delivers a simple message
+
+Describes something that has been seen
+
+States own name clearly
+
+Participates actively in conversations
+
+Recites a poem or sings a children’s song
+
+Matches picture parts to create a simple story
+
+Solves simple riddles
+
+Shares information about family
+
+Recognizes and names environmental sounds
+
+Tells a story from memory
+
+Listens attentively
+
+Uses polite and kind words
+
+Says “thank you” when helped
+
+Apologizes when a mistake is made
+
+Pronounces words correctly
+
+Recognizes simple picture symbols
+
+Interprets pictures meaningfully
+
+Addresses friends by name
+
+Expresses ideas using clues or hints
+
+Sings while keeping rhythm
+
+Describes a personal experience
+
+Names vegetables and fruits
+
+📘 3.5 SKILL CATEGORY 02: PHYSICAL DEVELOPMENT SKILLS
+Purpose
+
+To assess the development of gross motor skills, fine motor skills, coordination, balance, and physical independence.
+
+Sub-Skills
+
+Walks on tiptoes
+
+Walks along a straight line
+
+Walks on a raised surface
+
+Climbs stairs upright
+
+Jumps down from a small height
+
+Jumps forward twice
+
+Jumps on one leg
+
+Runs in a circle with others
+
+Runs along a straight line
+
+Walks in a circular path
+
+Walks backward without falling
+
+Walks with balance
+
+Balances an object on head while walking
+
+Buttons own clothes
+
+Dresses independently
+
+Attaches flowers to a pattern
+
+Throws a ball at a target
+
+Bounces a ball
+
+Rides a swing independently
+
+Kicks a ball
+
+Eats food properly
+
+Inflates a balloon
+
+Wears shoes and socks
+
+Carries own school bag
+
+Carries water in a container
+
+Hits a ball using a bat
+
+Cleans own lunch box
+
+Cleans eating area
+
+Holds crayons or brushes correctly
+
+Tears paper
+
+Blows soap bubbles
+
+📘 3.6 SKILL CATEGORY 03: AESTHETIC & CREATIVE SKILLS
+Purpose
+
+To assess creativity, imagination, artistic expression, movement, and participation in creative activities.
+
+Sub-Skills
+
+Draws what is observed
+
+Colors within boundaries
+
+Expresses ideas through drawings
+
+Participates in dance
+
+Maintains rhythm while singing
+
+Creates using clay or sand
+
+Cuts shapes with scissors
+
+Creates designs with leaves
+
+Imitates animal movements
+
+Acts out characters
+
+Plays simple instruments
+
+Scribbles freely
+
+Colors freely
+
+Draws animals
+
+Draws independently
+
+Creates foot-stamp patterns
+
+Creates traditional items
+
+Leaf dye artwork
+
+Creates cardboard vehicles
+
+Creates rainbows
+
+Participates in free movement
+
+Creates new items
+
+Performs hand puppets
+
+Colors a flower
+
+Presents costumes
+
+📘 3.7 SKILL CATEGORY 04: LOGICAL & MATHEMATICAL SKILLS
+Purpose
+
+To assess early numeracy, logical thinking, classification, and basic problem-solving skills.
+
+Sub-Skills
+
+Counts from 1 to 5
+
+Sorts objects by height
+
+Sorts objects by size
+
+Sorts objects by length
+
+Identifies top and bottom
+
+Differentiates colors
+
+Sorts objects by material
+
+Differentiates sizes
+
+Differentiates shapes
+
+Identifies positions
+
+Identifies day and night
+
+Names colors
+
+Names shapes
+
+Identifies texture
+
+Performs one-to-one matching
+
+📘 3.8 SKILL CATEGORY 05: LIVING & NON-LIVING WORLD
+Purpose
+
+To assess environmental awareness, basic scientific observation, and understanding of living and non-living things.
+
+Sub-Skills
+
+Names important places
+
+Names animals
+
+Names pets
+
+Names trees and leaves
+
+Plants and cares for trees
+
+Uses water responsibly
+
+Names sky objects
+
+Observes sunrise changes
+
+Describes a moonlit night
+
+Names flowers
+
+Names community helpers
+
+Identifies East
+
+Observes shadows
+
+Observes animal behavior
+
+Identifies day and night animals
+
+Washes and dries cloth
+
+Demonstrates air movement activity
+
+Makes paper boats
+
+Performs drying leaves activity
+
+Observes rain
+
+Flies kites
+
+Imitates animals
+
+Identifies plants by leaves
+
+Creates clay art
+
+Recognizes natural sounds
+
+Uses natural materials
+
+Feeds animals
+
+Creates nut or seed items
+
+Identifies floating and sinking objects
+
+Creates a rainbow using water
+
+Creates a honeycomb model
+
+Practices proper waste disposal
+
+Maintains classroom cleanliness
+
+Prepares leaf porridge
+
+Closes water tap properly
+
+Helps needy individuals
+
+Performs polythene experiment
+
+Observes ice melting
+
+Identifies flower texture
+
+Measures rainfall
+
+Identifies fruit taste
+
+📘 3.9 SKILL CATEGORY 06: HEALTHY LIVING HABITS
+Purpose
+
+To assess hygiene, safety, emotional well-being, discipline, and healthy daily habits.
+
+Sub-Skills
+
+Washes hands properly
+
+Eats neatly
+
+Eats without spilling
+
+Follows healthy eating habits
+
+Welcomes parents
+
+Speaks politely
+
+Speaks kindly
+
+Encourages others
+
+Helps others
+
+Follows group rules
+
+Loves animals
+
+Loves plants
+
+Picks items without damage
+
+Plays friendly games
+
+Displays joyful behavior
+
+Completes assigned tasks
+
+Follows teacher instructions
+
+Comes to school happily
+
+Waits for turn
+
+Practices self-care
+
+Shares with others
+
+Makes friends
+
+Plays safely
+
+Cleans learning materials
+
+Uses tools safely
+
+Follows road safety rules
+
+Avoids animal cruelty
+
+Drinks water regularly
+
+Eats fruits
+
+Avoids food waste
+
+Eats nutritious food
+
+Avoids soft drinks
+
+Avoids junk food
+
+Listens attentively
+
+Respects opinions
+
+Practices religious activities
+
+Accepts responsibility
+
+Handles personal belongings
+
+Works confidently
+
+Practices personal safety
+
+📘 3.10 SKILL CATEGORY 07: CULTURAL HERITAGE & VALUES
+Purpose
+
+To assess moral development, cultural awareness, cooperation, and social responsibility.
+
+Sub-Skills
+
+Works cooperatively with others
+
+Listens patiently
+
+Communicates respectfully
+
+Respects others’ feelings
+
+Prevents conflicts
+
+Tells own stories
+
+Demonstrates self-discipline
+
+Respects opinions
+
+Displays religious behavior
+
+Respects elders
+
+Uses kind words
+
+Shows temple awareness
+
+Shares historical stories
+
+Shares belongings
+
+Waits for turn
+
+Participates in New Year traditions
+
+Controls emotions
+
+Cares for personal items
+
+Protects belongings
+
+Protects public property
+
+Displays age-appropriate behavior
+
+🔵 PHASE 4: SYSTEM IMPLEMENTATION STEPS
+4.1 Database
+
+MainSkill
+
+SubSkill
+
+StudentSubSkillProgress
+
+Term
+
+TeacherRemark
+
+4.2 Teacher Workflow
+
+Select class
+
+Select student
+
+Select term
+
+Mark sub-skills
+
+Add summary remark
+
+Save
+
+4.3 Parent View
+
+Progress bars (label-based)
+
+Assessment status
+
+Trend arrows
+
+Focus areas
+
+Teacher remarks
+
+🔵 PHASE 1: REQUIREMENT DEFINITION & RULE SETTING
+
+(WHAT the system must do – no coding yet)
+
+1.1 Why this phase is needed
+
+Before coding or UI design, you must freeze the rules of assessment.
+If rules change later → system breaks.
+
+1.2 Functional Requirements (Progress Module)
+
+The system shall:
+
+Allow teachers/admins to assess sub-skills only
+
+Track progress for 7 main skill categories
+
+Support term-wise assessment (T1, T2, T3)
+
+Use 3 qualitative levels:
+
+Achieved
+
+Approaching
+
+Needs Support
+
+Automatically calculate main skill progress
+
+Allow parents to view only (no editing)
+
+Generate progress indicators, not exam marks
+
+👉 Output of Phase 1:
+✔ Clear rules
+✔ No confusion during development
+✔ Ready for SRS chapter
+
+1.3 Non-Functional Requirements (Important)
+
+Easy for teachers to use
+
+No numeric pressure on parents
+
+Works on web & mobile
+
+Fast auto-calculation
+
+Secure (role-based access)
+
+1.4 Fixed Assessment Logic (Locked)
+Level	Meaning	Internal Value
+Achieved	Independent & consistent	3
+Approaching	With guidance	2
+Needs Support	Requires assistance	1
+
+⚠️ Numbers never shown to parents.
+
+📌 End of Phase 1 Output
+
+Assessment rules document
+
+SRS section: Progress Tracking Requirements
+
+🔵 PHASE 2: DATA & STRUCTURE DESIGN
+
+(HOW data is stored and connected)
+
+2.1 Why this phase is critical
+
+If database design is weak:
+
+Calculations break
+
+Reports become wrong
+
+System won’t scale
+
+2.2 Data Structure (Very Clear)
+1️⃣ Main Skill Table
+
+Stores the 7 main skills
+
+main_skill
+
+id
+
+name
+
+description
+
+Example:
+
+Language Development
+
+Physical Development
+
+2️⃣ Sub Skill Table
+
+Stores all sub-skills under each main skill
+
+sub_skill
+
+id
+
+main_skill_id (FK)
+
+name
+
+display_order
+
+3️⃣ Student Progress Table (Core)
+
+student_sub_skill_progress
+
+student_id
+
+sub_skill_id
+
+term (T1/T2/T3)
+
+score (1/2/3)
+
+remark (optional)
+
+updated_by
+
+updated_date
+
+2.3 What NOT to store
+
+❌ Do NOT store percentages
+❌ Do NOT store progress bars
+✔ Calculate dynamically
+
+📌 End of Phase 2 Output
+
+ER Diagram
+
+Database tables
+
+Ready for backend logic
+
+🔵 PHASE 3: SKILL & SUB-SKILL DEFINITION
+
+✅ Already fully completed and documented
+(You can directly use it in your report.)
+
+🔵 PHASE 4: BUSINESS LOGIC & CALCULATION
+
+(HOW the system thinks)
+
+4.1 Progress Calculation Logic
+Step-by-step:
+
+Count total sub-skills in a main skill
+
+Multiply by 3 → Maximum Score
+
+Sum marked sub-skill scores → Actual Score
+
+Calculate percentage internally
+
+progress = (actual / maximum) × 100
+
+4.2 Interpretation Layer (Very Important)
+
+Parents never see percentages.
+
+Internal %	Parent Label
+0–49	Emerging
+50–74	Progressing
+75–100	Well Developed
+4.3 Assessment Coverage Logic
+coverage = assessed_sub_skills / total_sub_skills
+
+Coverage	Display
+< 50%	Not Yet Fully Assessed
+50–79%	Partially Assessed
+≥ 80%	Fully Assessed
+4.4 Focus Area Logic
+
+Rule:
+
+Any sub-skill marked Needs Support
+→ Automatically shown under Focus Areas
+
+4.5 Trend Logic (Term Comparison)
+
+Compare:
+
+Average score T1 → T2 → T3
+
+Display:
+
+⬆ Improving
+
+➡ Maintaining
+
+⬇ Needs More Support
+
+📌 End of Phase 4 Output
+
+Calculation formulas
+
+Business rules
+
+Ready for backend implementation
+
+🔵 PHASE 5: USER INTERFACE & WORKFLOW DESIGN
+
+(HOW users interact with the system)
+
+5.1 Teacher / Admin Workflow
+
+Login
+
+Select class
+
+Select student
+
+Select term
+
+Mark sub-skills (dropdown)
+
+Add summary remark
+
+Save
+
+✔ Auto-save
+✔ Minimal typing
+✔ Low workload
+
+5.2 Parent View Design
+
+Parents see:
+
+Main skill cards
+
+Progress label
+
+Progress bar
+
+Assessment status
+
+Trend arrow
+
+Expand → sub-skills (read-only)
+
+Focus areas
+
+Teacher comment
+
+❌ No marks
+❌ No ranking
+
+5.3 Access Control
+Role	Access
+Admin	View + Edit
+Teacher	View + Edit
+Parent	View only
+📌 End of Phase 5 Output
+
+UI wireframes
+
+User flow diagrams
+
+Ready for frontend work
