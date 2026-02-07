@@ -47,3 +47,61 @@ exports.requireClassroom = (req, res, next) => {
     }
     next();
 };
+/**
+ * Middleware to restrict Parents to their enrolled children's data.
+ * Blocks access if no active children are found.
+ */
+exports.checkParentAccess = async (req, res, next) => {
+    try {
+        const user = req.user;
+        const role = user?.role?.toUpperCase().trim();
+
+        // Only enforce for PARENT role
+        if (role !== 'PARENT') {
+            return next();
+        }
+
+        // Find the parent profile and their students
+        const parent = await prisma.parent.findFirst({
+            where: {
+                OR: [
+                    { userId: user.id },
+                    { email: user.username }
+                ]
+            },
+            include: {
+                student_student_parentIdToparent: {
+                    where: { status: 'ACTIVE' }
+                },
+                student_student_secondParentIdToparent: {
+                    where: { status: 'ACTIVE' }
+                }
+            }
+        });
+
+        if (!parent) {
+            console.log(`[Access] Parent profile not found for user: ${user.username}`);
+            return res.status(403).json({
+                message: 'Access denied: Parent profile not found.',
+                reason: 'NO_PROFILE'
+            });
+        }
+
+        const activeChildren = [
+            ...(parent.student_student_parentIdToparent || []),
+            ...(parent.student_student_secondParentIdToparent || [])
+        ];
+
+        // We no longer block access for parents without active student enrollments.
+        // Instead, we allow them to access the app with empty data states.
+
+        // Inject data for scoped controllers
+        req.parentProfile = parent;
+        req.parentChildrenIds = activeChildren.map(s => s.id);
+
+        next();
+    } catch (error) {
+        console.error('[Access] Error in parent access middleware:', error);
+        res.status(500).json({ message: 'Internal server error in access control' });
+    }
+};

@@ -66,8 +66,6 @@ const PaymentsScreen = ({ navigation }) => {
             const billingList = Array.isArray(data) ? data : (data.billings || []);
             const filtered = billingList.filter(b => b.studentId === studentId);
             setBillings(filtered);
-
-            // If data has stats, we could use them, but this screen calculates locally for the specific month view
         } catch (error) {
             console.error(error);
         }
@@ -84,21 +82,72 @@ const PaymentsScreen = ({ navigation }) => {
 
     useEffect(() => {
         if (!selectedChild) return;
-        // Filter by month
+
+        // --- 1. Autolock Logic ---
+        const enrollmentDate = selectedChild.enrollmentDate ? dayjs(selectedChild.enrollmentDate) : null;
+        const isPreEnrollment = enrollmentDate ? selectedMonth.isBefore(enrollmentDate, 'month') : false;
+
+        if (isPreEnrollment) {
+            setFilteredBillings([]);
+            return;
+        }
+
         const currentMonthStr = selectedMonth.format('MMMM YYYY');
-        // Flexible matching: exact match OR date parsing match
+
+        // --- 2. Hybrid Display Logic ---
         const filtered = billings.filter(b => {
-            // Try strict match first
-            if (b.billingMonth === currentMonthStr) return true;
-            // Try parsing b.billingMonth
-            return dayjs(b.billingMonth).isSame(selectedMonth, 'month');
+            // A. Monthly Fees (Standard) -> Show in their specific Billing Month
+            if (!b.categoryId && !b.billingCategory) {
+                // Try strict match first then loose match
+                if (b.billingMonth === currentMonthStr) return true;
+                return dayjs(b.billingMonth).isSame(selectedMonth, 'month');
+            }
+
+            // B. Extra Payments (Uniforms, etc.)
+            // Logic: If PAID, show in Payment Month. If UNPAID, show in Issued Month.
+            // Note: We need payment date. Using 'updatedAt' as proxy for Payment Date if status is PAID.
+            // Ideally backend should provide 'paidAt' or we check linked payments.
+
+            if (b.status === 'PAID') {
+                return dayjs(b.updatedAt).isSame(selectedMonth, 'month');
+            } else {
+                return dayjs(b.createdAt).isSame(selectedMonth, 'month');
+            }
         });
+
+        // 3. Rename Logic (Item Naming) happens at render time
         setFilteredBillings(filtered);
     }, [billings, selectedMonth, selectedChild]);
 
     const handleMonthChange = (direction) => {
         setSelectedMonth(prev => direction === 'next' ? prev.add(1, 'month') : prev.subtract(1, 'month'));
     };
+
+    // --- Payment Modal State ---
+    const [paymentType, setPaymentType] = useState('MONTHLY'); // 'MONTHLY' | 'EXTRA'
+    const [unpaidExtras, setUnpaidExtras] = useState([]);
+
+    // Refresh unpaid extras when opening modal or changing type
+    useEffect(() => {
+        if (modalVisible && paymentType === 'EXTRA') {
+            const extras = billings.filter(b =>
+                (b.categoryId || b.billingCategory) && b.status !== 'PAID'
+            );
+            setUnpaidExtras(extras);
+            setSelectedBilling(null); // Reset selection
+        } else if (modalVisible && paymentType === 'MONTHLY') {
+            // Find current month's monthly fee if unpaid
+            const currentMonthStr = selectedMonth.format('MMMM'); // Just Month name usually stored?
+            // Logic to find relevant monthly bill
+            const monthlyBill = billings.find(b =>
+                !b.categoryId && !b.billingCategory &&
+                b.status !== 'PAID' &&
+                (b.billingMonth?.includes(currentMonthStr) || dayjs(b.billingMonth).isSame(selectedMonth, 'month'))
+            );
+            setSelectedBilling(monthlyBill || null);
+        }
+    }, [modalVisible, paymentType, billings, selectedMonth]);
+
 
     const pickImage = async () => {
         let result = await ImagePicker.launchImageLibraryAsync({
@@ -120,25 +169,28 @@ const PaymentsScreen = ({ navigation }) => {
 
         setUploading(true);
         try {
-            // Prepare file object
             const file = {
                 uri: image,
                 type: 'image/jpeg',
                 name: 'payment_receipt.jpg'
             };
 
+            // Dynamic Description based on Type
+            const descType = selectedBilling.billingCategory?.name || 'Monthly Fee';
+            const description = `[Student: ${selectedChild?.fullName || 'Unknown'}] [Type: ${descType}] [Month: ${selectedBilling.billingMonth}]`;
+
             await uploadPaymentReceipt(
-                [selectedBilling.id], // Send as array
+                [selectedBilling.id],
                 selectedBilling.amount,
                 'ONLINE_TRANSFER',
                 file,
-                `[Student: ${selectedChild?.fullName || 'Unknown'}] [Student ID: ${selectedChild?.studentUniqueId || 'N/A'}] [Months: ${selectedBilling.billingMonth}] Monthly Fee`
+                description
             );
 
             Alert.alert('Success', 'Payment slip submitted for approval');
             setModalVisible(false);
             setImage(null);
-            fetchData(); // Refresh list to show status change if any
+            fetchData();
         } catch (error) {
             console.error(error);
             Alert.alert('Error', 'Failed to submit payment');
@@ -148,6 +200,10 @@ const PaymentsScreen = ({ navigation }) => {
     };
 
     if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#9D5BF0" animating={true} /></View>;
+
+    // Autolock Check for Render
+    const enrollmentDate = selectedChild?.enrollmentDate ? dayjs(selectedChild.enrollmentDate) : null;
+    const isPreEnrollment = enrollmentDate ? selectedMonth.isBefore(enrollmentDate, 'month') : false;
 
     return (
         <View style={styles.container}>
@@ -185,84 +241,97 @@ const PaymentsScreen = ({ navigation }) => {
                         </TouchableOpacity>
                     </View>
 
-                    {/* Summary Card - Calculate totals */}
-                    {(() => {
-                        const paidTotal = billings.filter(b => b.status === 'PAID').reduce((sum, b) => sum + parseFloat(b.amount), 0);
-                        return (
-                            <LinearGradient colors={['#22C55E', '#16A34A']} style={styles.summaryCard}>
-                                <View style={styles.summaryInfo}>
-                                    <Text style={styles.summaryLabel}>Paid Total</Text>
-                                    <Text style={styles.summaryValue}>LKR {paidTotal.toLocaleString()}</Text>
-                                    <View style={styles.statusRowHeader}>
-                                        <CheckCircle2 size={16} color="#fff" />
-                                        <Text style={styles.statusTextHeader}>All clear</Text>
-                                    </View>
-                                </View>
-                                <View style={styles.checkCircleLarge}>
-                                    <CheckCircle2 size={40} color="#fff" />
-                                </View>
-                            </LinearGradient>
-                        );
-                    })()}
-
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Invoice History</Text>
-                    </View>
-
-                    {filteredBillings.length > 0 ? (
-                        filteredBillings.map((bill) => (
-                            <View key={bill.id} style={styles.detailCard}>
-                                <View style={styles.detailRow}>
-                                    <View>
-                                        <Text style={styles.detailMonth}>
-                                            {bill.billingCategory ? bill.billingCategory.name : bill.billingMonth}
-                                        </Text>
-                                        <Text style={styles.detailDue}>Issued: {dayjs(bill.createdAt).format('MMM DD, YYYY')}</Text>
-                                    </View>
-                                </View>
-                                <Text style={styles.detailAmount}>LKR {parseFloat(bill.amount).toLocaleString()}</Text>
-                                <View style={styles.detailBadgeRow}>
-                                    {bill.status === 'PAID' ? (
-                                        <View style={styles.paidBadge}>
-                                            <CheckCircle2 size={12} color="#16A34A" />
-                                            <Text style={styles.paidText}>Paid</Text>
-                                        </View>
-                                    ) : (
-                                        <TouchableOpacity
-                                            style={[styles.paidBadge, { backgroundColor: '#FEF2F2' }]}
-                                            onPress={() => {
-                                                setSelectedBilling(bill);
-                                                setModalVisible(true);
-                                            }}
-                                        >
-                                            <AlertCircle size={12} color="#EF4444" />
-                                            <Text style={[styles.paidText, { color: '#EF4444' }]}>Pay Now</Text>
-                                        </TouchableOpacity>
-                                    )}
-
-                                    <TouchableOpacity style={styles.receiptBtn}>
-                                        <Download size={14} color="#9D5BF0" />
-                                        <Text style={styles.receiptText}>Invoice</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        ))
-                    ) : (
+                    {/* Autolock State */}
+                    {isPreEnrollment ? (
                         <View style={styles.caughtUpCard}>
-                            <View style={styles.checkCircleBlue}>
-                                <CheckCircle2 size={32} color="#3B82F6" />
+                            <View style={[styles.checkCircleBlue, { backgroundColor: '#F3F4F6' }]}>
+                                <Clock size={32} color="#9CA3AF" />
                             </View>
-                            <Text style={styles.caughtUpTitle}>No Invoices Found</Text>
-                            <Text style={styles.caughtUpSub}>Check back later for new fees</Text>
+                            <Text style={[styles.caughtUpTitle, { color: '#6B7280' }]}>Not Enrolled Yet</Text>
+                            <Text style={styles.caughtUpSub}>
+                                Enrollment Date: {enrollmentDate?.format('MMM DD, YYYY')}
+                            </Text>
                         </View>
+                    ) : (
+                        <>
+                            {/* Summary Card */}
+                            {(() => {
+                                const paidTotal = billings.filter(b => b.status === 'PAID' && dayjs(b.updatedAt).isSame(selectedMonth, 'month')).reduce((sum, b) => sum + parseFloat(b.amount), 0);
+                                return (
+                                    <LinearGradient colors={['#22C55E', '#16A34A']} style={styles.summaryCard}>
+                                        <View style={styles.summaryInfo}>
+                                            <Text style={styles.summaryLabel}>Total Paid (This Month)</Text>
+                                            <Text style={styles.summaryValue}>LKR {paidTotal.toLocaleString()}</Text>
+                                            <View style={styles.statusRowHeader}>
+                                                <CheckCircle2 size={16} color="#fff" />
+                                                <Text style={styles.statusTextHeader}>Tracked Payments</Text>
+                                            </View>
+                                        </View>
+                                        <View style={styles.checkCircleLarge}>
+                                            <CheckCircle2 size={40} color="#fff" />
+                                        </View>
+                                    </LinearGradient>
+                                );
+                            })()}
+
+                            <View style={styles.sectionHeader}>
+                                <Text style={styles.sectionTitle}>Invoice History</Text>
+                            </View>
+
+                            {filteredBillings.length > 0 ? (
+                                filteredBillings.map((bill) => {
+                                    // Naming Logic
+                                    const isMonthly = !bill.categoryId && !bill.billingCategory;
+                                    const displayName = isMonthly
+                                        ? `Monthly Fee (${bill.billingMonth})`
+                                        : (bill.billingCategory?.name || 'Extra Payment');
+
+                                    return (
+                                        <View key={bill.id} style={styles.detailCard}>
+                                            <View style={styles.detailRow}>
+                                                <View>
+                                                    <Text style={styles.detailMonth}>{displayName}</Text>
+                                                    <Text style={styles.detailDue}>Issued: {dayjs(bill.createdAt).format('MMM DD, YYYY')}</Text>
+                                                </View>
+                                            </View>
+                                            <Text style={styles.detailAmount}>LKR {parseFloat(bill.amount).toLocaleString()}</Text>
+                                            <View style={styles.detailBadgeRow}>
+                                                {bill.status === 'PAID' ? (
+                                                    <View style={styles.paidBadge}>
+                                                        <CheckCircle2 size={12} color="#16A34A" />
+                                                        <Text style={styles.paidText}>Paid</Text>
+                                                    </View>
+                                                ) : (
+                                                    <View style={[styles.paidBadge, { backgroundColor: '#FEF2F2' }]}>
+                                                        <AlertCircle size={12} color="#EF4444" />
+                                                        <Text style={[styles.paidText, { color: '#EF4444' }]}>Unpaid</Text>
+                                                    </View>
+                                                )}
+
+                                                <TouchableOpacity style={styles.receiptBtn}>
+                                                    <Download size={14} color="#9D5BF0" />
+                                                    <Text style={styles.receiptText}>Invoice</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+                                    );
+                                })
+                            ) : (
+                                <View style={styles.caughtUpCard}>
+                                    <View style={styles.checkCircleBlue}>
+                                        <CheckCircle2 size={32} color="#3B82F6" />
+                                    </View>
+                                    <Text style={styles.caughtUpTitle}>No Invoices Found</Text>
+                                    <Text style={styles.caughtUpSub}>Check other months or add payment</Text>
+                                </View>
+                            )}
+                        </>
                     )}
                 </View>
 
                 <View style={{ height: 120 }} />
             </ScrollView>
 
-            {/* Floating Action Button */}
-            {/* Fixed Bottom Button (Resized) */}
             <View style={styles.bottomContainer}>
                 <TouchableOpacity style={styles.paymentButton} onPress={() => setModalVisible(true)}>
                     <Plus size={20} color="#fff" />
@@ -275,10 +344,62 @@ const PaymentsScreen = ({ navigation }) => {
                     <View style={styles.modalView}>
                         <View style={styles.modalHeader}>
                             <View style={styles.modalIndicator} />
-                            <Text style={styles.modalTitle}>Upload Payment Slip</Text>
-                            <Text style={styles.modalSubtitle}>Please upload your bank transfer or deposit slip.</Text>
+                            <Text style={styles.modalTitle}>Make a Payment</Text>
                         </View>
 
+                        {/* Payment Type Toggle */}
+                        <View style={styles.toggleContainer}>
+                            <TouchableOpacity
+                                style={[styles.toggleBtn, paymentType === 'MONTHLY' && styles.toggleBtnActive]}
+                                onPress={() => setPaymentType('MONTHLY')}
+                            >
+                                <Text style={[styles.toggleText, paymentType === 'MONTHLY' && styles.toggleTextActive]}>Monthly Fee</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.toggleBtn, paymentType === 'EXTRA' && styles.toggleBtnActive]}
+                                onPress={() => setPaymentType('EXTRA')}
+                            >
+                                <Text style={[styles.toggleText, paymentType === 'EXTRA' && styles.toggleTextActive]}>Other Payments</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Context / Selection Area */}
+                        <View style={styles.contextContainer}>
+                            {paymentType === 'MONTHLY' ? (
+                                <View style={styles.selectionCard}>
+                                    <Text style={styles.selectionLabel}>Paying for</Text>
+                                    <Text style={styles.selectionValue}>Month: {selectedMonth.format('MMMM YYYY')}</Text>
+                                    {!selectedBilling && (
+                                        <Text style={styles.warningText}>No unpaid bill found for this month.</Text>
+                                    )}
+                                </View>
+                            ) : (
+                                <View style={styles.extrasList}>
+                                    <Text style={styles.selectionLabel}>Select Bill to Pay:</Text>
+                                    {unpaidExtras.length > 0 ? (
+                                        <ScrollView style={{ maxHeight: 120 }}>
+                                            {unpaidExtras.map(item => (
+                                                <TouchableOpacity
+                                                    key={item.id}
+                                                    style={[styles.extraItem, selectedBilling?.id === item.id && styles.extraItemActive]}
+                                                    onPress={() => setSelectedBilling(item)}
+                                                >
+                                                    <View>
+                                                        <Text style={styles.extraItemTitle}>{item.billingCategory?.name || 'Extra Payment'}</Text>
+                                                        <Text style={styles.extraItemSub}>{dayjs(item.createdAt).format('MMM DD')}</Text>
+                                                    </View>
+                                                    <Text style={styles.extraItemAmount}>LKR {parseFloat(item.amount).toLocaleString()}</Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </ScrollView>
+                                    ) : (
+                                        <Text style={styles.emptyText}>No pending extra payments found.</Text>
+                                    )}
+                                </View>
+                            )}
+                        </View>
+
+                        <Text style={styles.uploadLabel}>Upload Payment Slip</Text>
                         <TouchableOpacity style={styles.uploadBox} onPress={pickImage}>
                             {image ? (
                                 <Image source={{ uri: image }} style={styles.previewImage} />
@@ -297,9 +418,9 @@ const PaymentsScreen = ({ navigation }) => {
                                 <Text style={styles.cancelText}>Cancel</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={[styles.submitBtn, !image && { opacity: 0.5 }]}
+                                style={[styles.submitBtn, (!image || !selectedBilling) && { opacity: 0.5 }]}
                                 onPress={handlePaymentSubmit}
-                                disabled={!image || uploading}
+                                disabled={!image || !selectedBilling || uploading}
                             >
                                 {uploading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Submit Slip</Text>}
                             </TouchableOpacity>
@@ -428,15 +549,37 @@ const styles = StyleSheet.create({
 
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     modalView: { backgroundColor: '#fff', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 30 },
-    modalHeader: { alignItems: 'center', marginBottom: 24 },
+    modalHeader: { alignItems: 'center', marginBottom: 20 },
     modalIndicator: { width: 40, height: 4, backgroundColor: '#E2E8F0', borderRadius: 2, marginBottom: 20 },
-    modalTitle: { fontSize: 22, fontWeight: 'bold', color: '#1E293B' },
-    modalSubtitle: { fontSize: 14, color: '#64748B', textAlign: 'center', marginTop: 8 },
-    uploadBox: { height: 200, backgroundColor: '#F5F3FF', borderRadius: 24, borderStyle: 'dashed', borderWidth: 2, borderColor: '#9D5BF0', justifyContent: 'center', alignItems: 'center', marginBottom: 30, overflow: 'hidden' },
+    modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#1E293B' },
+
+    toggleContainer: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 12, padding: 4, marginBottom: 20 },
+    toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
+    toggleBtnActive: { backgroundColor: '#fff', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 },
+    toggleText: { fontWeight: '600', color: '#64748B' },
+    toggleTextActive: { color: '#9D5BF0', fontWeight: 'bold' },
+
+    contextContainer: { marginBottom: 20 },
+    selectionCard: { backgroundColor: '#F8FAFC', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' },
+    selectionLabel: { fontSize: 12, color: '#64748B', fontWeight: 'bold', marginBottom: 4 },
+    selectionValue: { fontSize: 16, color: '#1E293B', fontWeight: 'bold' },
+    warningText: { color: '#EF4444', fontSize: 12, marginTop: 4, fontWeight: '500' },
+
+    extrasList: { backgroundColor: '#F8FAFC', padding: 10, borderRadius: 12 },
+    extraItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderRadius: 8, marginBottom: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: 'transparent' },
+    extraItemActive: { borderColor: '#9D5BF0', backgroundColor: '#F5F3FF' },
+    extraItemTitle: { fontWeight: 'bold', color: '#1E293B' },
+    extraItemSub: { fontSize: 12, color: '#64748B' },
+    extraItemAmount: { fontWeight: 'bold', color: '#9D5BF0' },
+    emptyText: { textAlign: 'center', color: '#94A3B8', padding: 10 },
+
+    uploadLabel: { fontSize: 14, fontWeight: 'bold', color: '#1E293B', marginBottom: 10 },
+    uploadBox: { height: 140, backgroundColor: '#F5F3FF', borderRadius: 20, borderStyle: 'dashed', borderWidth: 2, borderColor: '#9D5BF0', justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
     uploadPlaceholder: { alignItems: 'center' },
-    uploadCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', elevation: 2 },
-    uploadText: { marginTop: 12, fontWeight: 'bold', color: '#1E293B' },
-    previewImage: { width: '100%', height: '100%' },
+    uploadCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', elevation: 2 },
+    uploadText: { marginTop: 8, fontWeight: 'bold', color: '#1E293B', fontSize: 12 },
+    previewImage: { width: '100%', height: '100%', borderRadius: 18 },
+
     modalActions: { flexDirection: 'row', gap: 12 },
     cancelBtn: { flex: 1, paddingVertical: 18, alignItems: 'center' },
     cancelText: { color: '#94A3B8', fontWeight: 'bold' },

@@ -143,6 +143,7 @@ exports.getStats = async (req, res, next) => {
 
 exports.getParentStats = async (req, res, next) => {
     try {
+        console.log(`[Dashboard] getParentStats - User ID: ${req.user?.id}, Username: ${req.user?.username}`);
         const { id, username } = req.user;
         const parent = await prisma.parent.findFirst({
             where: {
@@ -180,8 +181,11 @@ exports.getParentStats = async (req, res, next) => {
         });
 
         if (!parent) {
+            console.log(`[Dashboard] Parent profile not found for user: ${username}`);
             return res.status(404).json({ message: 'Parent profile not found' });
         }
+
+        console.log(`[Dashboard] Found parent: ${parent.fullName} (ID: ${parent.id})`);
 
         // Combine children from both relationships
         const children = [
@@ -189,7 +193,11 @@ exports.getParentStats = async (req, res, next) => {
             ...(parent.student_student_secondParentIdToparent || [])
         ].filter(s => s.status === 'ACTIVE');
 
+        console.log(`[Dashboard] Found ${children.length} active children`);
+
         const childrenStats = await Promise.all(children.map(async (child) => {
+            console.log(`[Dashboard] Processing stats for child: ${child.fullName} (ID: ${child.id})`);
+
             // 1. Today's Attendance
             const todayStr = dayjs().format('YYYY-MM-DD');
             const attendance = await prisma.attendance.findFirst({
@@ -205,7 +213,7 @@ exports.getParentStats = async (req, res, next) => {
                 where: { studentId: child.id }
             });
             const pendingBillings = allBillings.filter(b => b.status !== 'PAID');
-            const totalBalance = pendingBillings.reduce((sum, b) => sum + parseFloat(b.amount), 0);
+            const totalBalance = pendingBillings.reduce((sum, b) => sum + parseFloat(b.amount || 0), 0);
 
             const currentMonthStr = dayjs().format('MMMM');
             const currentBilling = allBillings.find(b => b.billingMonth.includes(currentMonthStr));
@@ -248,14 +256,35 @@ exports.getParentStats = async (req, res, next) => {
                 feeStatus,
                 balance: totalBalance,
                 progress: progressAvg,
-                latestRemarks: assessment?.remarks
+                latestRemarks: assessment?.remarks,
+                gender: child.gender
             };
         }));
 
+        console.log(`[Dashboard] Mapped children stats`);
+
         // 4. Upcoming Events (Meetings + School Events)
-        // 5. Recent Updates (Notifications tailored to children's classrooms)
         const classroomIds = children.map(c => c.classroomId);
 
+        // If no children, return empty state
+        if (children.length === 0) {
+            console.log(`[Dashboard] Returning empty status (no children)`);
+            return res.json({
+                children: [],
+                upcomingEvents: [],
+                updates: [],
+                profile: {
+                    fullName: parent.fullName,
+                    email: parent.email,
+                    phone: parent.phone,
+                    nic: parent.nationalId,
+                    address: parent.address,
+                    relationship: parent.relationship
+                }
+            });
+        }
+
+        console.log(`[Dashboard] Fetching events, meetings, notifications...`);
         const [meetings, schoolEvents, notifications, homeworkItems] = await Promise.all([
             prisma.meeting_request.findMany({
                 where: { parentId: parent.id, status: 'APPROVED', requestDate: { gte: new Date() } },
@@ -288,6 +317,8 @@ exports.getParentStats = async (req, res, next) => {
             })
         ]);
 
+        console.log(`[Dashboard] Processing updates and events`);
+
         // Combine and Sort Updates (Notifications + Homework)
         const combinedUpdates = [
             ...notifications.map(u => {
@@ -301,7 +332,7 @@ exports.getParentStats = async (req, res, next) => {
                     title: u.title,
                     message: u.message,
                     createdAt: u.createdAt,
-                    type: isFee ? 'ALERT' : 'NOTICE' // ALERT for fees (Red), NOTICE for general (Purple)
+                    type: isFee ? 'ALERT' : 'NOTICE'
                 };
             }),
             ...homeworkItems.map(h => ({
@@ -309,15 +340,15 @@ exports.getParentStats = async (req, res, next) => {
                 title: `New Homework: ${h.title}`,
                 message: `${h.description || 'New assignment posted.'}\nDue: ${h.dueDate ? dayjs(h.dueDate).format('MMM DD') : 'No date'}`,
                 createdAt: h.createdAt,
-                type: 'HOMEWORK' // Blue color
+                type: 'HOMEWORK'
             }))
         ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
 
-        // Better sorting: sort before mapping
         const sortedCombined = [
             ...schoolEvents.map(e => ({ ...e, sortDate: e.eventDate, uiType: 'EVENT' }))
         ].sort((a, b) => new Date(a.sortDate) - new Date(b.sortDate)).slice(0, 5);
 
+        console.log(`[Dashboard] Sending final response`);
         res.json({
             children: childrenStats,
             upcomingEvents: sortedCombined.map(ev => ({
@@ -346,11 +377,13 @@ exports.getParentStats = async (req, res, next) => {
                 email: parent.email,
                 phone: parent.phone,
                 nic: parent.nationalId,
-                address: parent.address
+                address: parent.address,
+                relationship: parent.relationship
             }
         });
 
     } catch (error) {
+        console.error('[Dashboard] Error in getParentStats:', error);
         next(error);
     }
 };

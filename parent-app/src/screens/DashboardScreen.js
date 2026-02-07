@@ -22,7 +22,8 @@ import {
     X,
     Download,
     Camera,
-    ChevronLeft
+    ChevronLeft,
+    Users
 } from 'lucide-react-native';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
@@ -71,6 +72,9 @@ const DashboardScreen = ({ navigation }) => {
             }
         } catch (error) {
             console.error(error);
+            if (error.reason === 'NO_ACTIVE_ENROLLMENT') {
+                setStats({ noEnrollment: true, message: error.message });
+            }
         } finally {
             setLoading(false);
         }
@@ -161,7 +165,7 @@ const DashboardScreen = ({ navigation }) => {
                             <View style={styles.childCardHeader}>
                                 <View style={styles.mainAvatarContainer}>
                                     <Image
-                                        source={getAvatarSource(selectedChild?.photoUrl, 'CHILD')}
+                                        source={getAvatarSource(selectedChild?.photoUrl, 'CHILD', null, selectedChild?.gender)}
                                         style={styles.mainAvatar}
                                     />
                                 </View>
@@ -278,6 +282,7 @@ const DashboardScreen = ({ navigation }) => {
                     )}
                 </View>
 
+
                 <View style={{ height: 100 }} />
             </ScrollView>
 
@@ -313,7 +318,7 @@ const DashboardScreen = ({ navigation }) => {
                                     }}
                                 >
                                     <Image
-                                        source={getAvatarSource(child.photoUrl, 'CHILD')}
+                                        source={getAvatarSource(child.photoUrl, 'CHILD', null, child.gender)}
                                         style={styles.optionAvatar}
                                     />
                                     <View style={{ flex: 1 }}>
@@ -451,7 +456,7 @@ const DashboardScreen = ({ navigation }) => {
                     </TouchableOpacity>
                 </View>
             </Modal>
-        </View>
+        </View >
     );
 };
 
@@ -804,6 +809,37 @@ const styles = StyleSheet.create({
     imageDownloadText: {
         color: '#fff',
         fontSize: 16,
+        fontWeight: 'bold'
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 40,
+        marginTop: 100
+    },
+    errorTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#1E293B',
+        marginTop: 20
+    },
+    errorText: {
+        fontSize: 15,
+        color: '#64748B',
+        textAlign: 'center',
+        marginTop: 12,
+        lineHeight: 22
+    },
+    logoutBtnSmall: {
+        marginTop: 30,
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 12
+    },
+    logoutBtnText: {
+        color: '#EF4444',
         fontWeight: 'bold'
     }
 });

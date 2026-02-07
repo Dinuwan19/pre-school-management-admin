@@ -8,8 +8,8 @@ exports.authenticateToken = (req, res, next) => {
 
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
-            console.error(`[Auth] JWT Verification Failed: ${err.message}`);
-            return res.sendStatus(403);
+            console.error(`[Auth] JWT Verification Failed: ${err.message}. Token: ${token.substring(0, 10)}...`);
+            return res.status(403).json({ message: `Token Error: ${err.message}` });
         }
         console.log(`[Auth] Token verified for: ${user.username} (${user.role})`);
         req.user = user;

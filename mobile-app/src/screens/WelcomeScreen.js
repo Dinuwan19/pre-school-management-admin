@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, SafeAreaView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
+import { logout } from '../services/auth.service';
+
 const { width, height } = Dimensions.get('window');
 
 const WelcomeScreen = ({ navigation }) => {
@@ -43,6 +45,16 @@ const WelcomeScreen = ({ navigation }) => {
                         activeOpacity={0.8}
                     >
                         <Text style={styles.buttonText}>Open Scanner</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.logoutButton}
+                        onPress={async () => {
+                            await logout();
+                            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+                        }}
+                    >
+                        <Text style={styles.logoutText}>Logout</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -187,6 +199,17 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 18,
         fontWeight: 'bold',
+    },
+    logoutButton: {
+        marginTop: 15,
+        height: 50,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    logoutText: {
+        color: '#EF4444',
+        fontSize: 16,
+        fontWeight: '600',
     },
 });
 

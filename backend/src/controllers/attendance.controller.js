@@ -24,7 +24,11 @@ exports.scanAttendance = async (req, res, next) => {
 
         // Scoping check for Teacher/Staff
         if (req.classroomScope && !req.classroomScope.includes(student.classroomId)) {
-            return res.status(403).json({ message: 'Forbidden: Student is not in your assigned classrooms', status: 'ERROR' });
+            console.log(`[Attendance] 403 REJECT: Student ${studentId} is in classroom ${student.classroomId}, but teacher ${req.user.username} is scoped to [${req.classroomScope}]`);
+            return res.status(403).json({
+                message: `Forbidden: This student belongs to ${student.classroom?.name || 'another classroom'}. Your assigned classrooms are: ${req.classroomScope.join(', ') || 'None'}`,
+                status: 'ERROR'
+            });
         }
 
         // 2. Find existing record for today
@@ -45,16 +49,13 @@ exports.scanAttendance = async (req, res, next) => {
         if (forceMode === 'CHECK_IN') mode = 'IN';
         else if (forceMode === 'CHECK_OUT') mode = 'OUT';
         else {
-            if (!attendance) mode = 'IN';
+            // If no record OR existing record is ABSENT, we should Check-In
+            if (!attendance || attendance.status === 'ABSENT') mode = 'IN';
             else mode = 'OUT';
         }
 
         if (mode === 'IN') {
-            if (attendance && !forceMode) {
-                // If it's auto and we already have a record, it should have gone to mode 'OUT'
-                // This block is mostly for safety if logic changes
-            }
-
+            // Case 1: No record yet -> Create new
             if (!attendance) {
                 const isLate = dayjs(now).isAfter(lateThreshold);
                 const newRecord = await prisma.attendance.create({
@@ -69,7 +70,23 @@ exports.scanAttendance = async (req, res, next) => {
                     }
                 });
                 result = { message: isLate ? 'Checked In (LATE)' : 'Checked In Successfully', type: 'CHECK_IN', data: newRecord };
-            } else {
+            }
+            // Case 2: Record exists but is ABSENT -> Update the existing record instead of createMany/create unique conflict
+            else if (attendance.status === 'ABSENT') {
+                const isLate = dayjs(now).isAfter(lateThreshold);
+                const updatedRecord = await prisma.attendance.update({
+                    where: { id: attendance.id },
+                    data: {
+                        checkInTime: now,
+                        status: isLate ? 'LATE' : 'PRESENT',
+                        method: 'QR',
+                        markedById,
+                        deviceId: req.body.deviceId || 'UNKNOWN'
+                    }
+                });
+                result = { message: isLate ? 'Checked In (LATE - was ABSENT)' : 'Checked In Successfully', type: 'CHECK_IN', data: updatedRecord };
+            }
+            else {
                 return res.json({
                     message: 'Already checked in for today',
                     type: 'ALREADY_IN',
@@ -85,7 +102,7 @@ exports.scanAttendance = async (req, res, next) => {
 
             if (attendance.checkOutTime && !forceMode) {
                 return res.json({
-                    message: 'Already checked out for today',
+                    message: `Already checked out today at ${dayjs(attendance.checkOutTime).format('hh:mm A')}`,
                     type: 'ALREADY_OUT',
                     data: attendance,
                     student: { fullName: student.fullName, photoUrl: student.photoUrl, id: student.studentUniqueId }

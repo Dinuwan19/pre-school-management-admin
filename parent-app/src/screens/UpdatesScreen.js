@@ -33,6 +33,7 @@ const UpdatesScreen = ({ navigation }) => {
     const [meetings, setMeetings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [enrollmentError, setEnrollmentError] = useState(null);
 
     // UI State
     const [activeTab, setActiveTab] = useState('announcements'); // 'announcements' | 'events' | 'meetings'
@@ -64,11 +65,12 @@ const UpdatesScreen = ({ navigation }) => {
 
         } catch (error) {
             console.error('Fetch Updates Error full:', error);
-            if (error.response) {
-                console.error('Fetch Updates Error data:', error.response.data);
-                console.error('Fetch Updates Error status:', error.response.status);
+            const errData = error.response?.data || error;
+            if (errData.reason === 'NO_ACTIVE_ENROLLMENT') {
+                setEnrollmentError(errData.message);
+            } else {
+                Alert.alert('Error', 'Failed to load updates. Please pull down to refresh.');
             }
-            Alert.alert('Error', 'Failed to load updates. Please pull down to refresh.');
         } finally {
             setLoading(false);
         }
@@ -803,6 +805,37 @@ const styles = StyleSheet.create({
     },
     homeworkBadgeText: {
         color: '#9D5BF0',
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 40,
+        marginTop: 60
+    },
+    errorTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#1E293B',
+        marginTop: 20
+    },
+    errorText: {
+        fontSize: 15,
+        color: '#64748B',
+        textAlign: 'center',
+        marginTop: 12,
+        lineHeight: 22
+    },
+    logoutBtnSmall: {
+        marginTop: 30,
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 12
+    },
+    logoutBtnText: {
+        color: '#EF4444',
+        fontWeight: 'bold'
     }
 });
 

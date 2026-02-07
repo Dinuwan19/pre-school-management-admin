@@ -70,6 +70,31 @@ exports.submitPayment = async (req, res, next) => {
                 }
             });
 
+            // Ad-hoc Flow: If categoryId provided, create a new Billing first
+            if (req.body.categoryId) {
+                const catId = parseInt(req.body.categoryId);
+                const sId = parseInt(req.body.studentId);
+
+                // Fetch category details for amount validation or description
+                const category = await tx.billingCategory.findUnique({ where: { id: catId } });
+
+                // Create Ad-hoc Billing
+                const newBilling = await tx.billing.create({
+                    data: {
+                        studentId: sId,
+                        billingMonth: 'Adhoc',
+                        amount: parseFloat(amountPaid), // Use paid amount or category amount
+                        status: paymentMethod === 'CASH' ? 'PAID' : 'PENDING',
+                        categoryId: catId
+                    }
+                });
+
+                // Add to billingIds list for linking
+                if (!billingIds.includes(newBilling.id)) {
+                    billingIds.push(newBilling.id);
+                }
+            }
+
             // Link to Billings
             const billingPaymentData = billingIds.map(id => ({
                 billingId: parseInt(id),

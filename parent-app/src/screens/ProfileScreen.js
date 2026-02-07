@@ -114,7 +114,7 @@ const ProfileScreen = ({ navigation }) => {
                             onPress={() => setIsAvatarModalVisible(true)}
                         >
                             <Image
-                                source={getAvatarSource(profile?.photoUrl, 'PARENT')}
+                                source={getAvatarSource(profile?.photoUrl, 'PARENT', profile?.relationship)}
                                 style={styles.avatar}
                             />
                             <View style={styles.editBadge}>

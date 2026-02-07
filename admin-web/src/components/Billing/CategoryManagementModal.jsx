@@ -106,6 +106,15 @@ const CategoryManagementModal = ({ open, onCancel, onSuccess }) => {
             render: (text) => <Text strong>{text}</Text>
         },
         {
+            title: 'Frequency',
+            dataIndex: 'frequency',
+            render: (freq) => {
+                const color = freq === 'ONE_TIME' ? 'purple' : 'cyan';
+                const label = freq === 'ONE_TIME' ? 'One-Time' : 'Recurring';
+                return <Tag color={color}>{label}</Tag>;
+            }
+        },
+        {
             title: 'Scope',
             dataIndex: 'classrooms',
             render: (classes) => (
@@ -215,13 +224,23 @@ const CategoryManagementModal = ({ open, onCancel, onSuccess }) => {
                     </Form.Item>
                     <Row gutter={12}>
                         <Col span={12}>
-                            <Form.Item name="amount" label="Amount (Rs.)" rules={[{ required: true }]}>
-                                <Input type="number" prefix="Rs." />
+                            <Form.Item name="frequency" label="Frequency" rules={[{ required: true }]} initialValue="RECURRING">
+                                <Select>
+                                    <Option value="RECURRING">Recurring (Payable Multiple Times)</Option>
+                                    <Option value="ONE_TIME">One-Time (Payable Once per Student)</Option>
+                                </Select>
                             </Form.Item>
                         </Col>
                         <Col span={12}>
                             <Form.Item name="validUntil" label="Valid Until" rules={[{ required: true }]}>
                                 <DatePicker style={{ width: '100%' }} disabledDate={(c) => c && c < dayjs().endOf('day')} />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    <Row gutter={12}>
+                        <Col span={24}>
+                            <Form.Item name="amount" label="Amount (Rs.)" rules={[{ required: true }]}>
+                                <Input type="number" prefix="Rs." />
                             </Form.Item>
                         </Col>
                     </Row>

@@ -1,0 +1,11 @@
+--- Teacher & Classroom Audit ---
+User: priyangani.hettiarachchi93 (ID: 2)
+  Classrooms: [sunshine  (ID: 1)]
+User: wasana.perera10 (ID: 3)
+  Classrooms: [sunshine  (ID: 1), rainbow (ID: 2)]
+
+--- Sample Students ---
+Student: lavindu binuwara (ID: 1, UID: S0001) -> Classroom: sunshine  (ID: 1)
+Student: nethmi dilshara (ID: 2, UID: S0002) -> Classroom: rainbow (ID: 2)
+Student: oshini nethsara (ID: 3, UID: S0003) -> Classroom: rainbow (ID: 2)
+Student: dilmi nethsara (ID: 4, UID: S0004) -> Classroom: sunshine  (ID: 1)

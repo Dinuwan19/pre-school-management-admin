@@ -24,7 +24,7 @@ import { BASE_URL } from '../config/api'; // Added BASE_URL import
 import CommonHeader from '../components/CommonHeader'; // Added CommonHeader import
 import { AVATARS, getAvatarSource } from '../constants/avatars';
 import { getChildBillings, getLinkedChildren } from '../services/child.service';
-import { uploadPaymentReceipt } from '../services/payment.service';
+import { uploadPaymentReceipt, getBillingCategories } from '../services/payment.service';
 import * as DocumentPicker from 'expo-document-picker';
 import dayjs from 'dayjs';
 
@@ -41,10 +41,14 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
     const [paymentAmount, setPaymentAmount] = useState('15000');
     const [paymentNote, setPaymentNote] = useState('');
     const [paymentFor, setPaymentFor] = useState('Monthly Fee');
+    const [paymentType, setPaymentType] = useState('MONTHLY'); // 'MONTHLY' | 'EXTRA'
 
     const [paymentStep, setPaymentStep] = useState(1);
     const [selectedMonths, setSelectedMonths] = useState([]);
     const [availableStudents, setAvailableStudents] = useState([]);
+    const [availableCategories, setAvailableCategories] = useState([]);
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
@@ -60,18 +64,17 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
     const [selectedBilling, setSelectedBilling] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [isStudentSwitcherVisible, setIsStudentSwitcherVisible] = useState(false);
-    const [selectedPayment, setSelectedPayment] = useState(null); // Added selectedPayment state
+    const [selectedPayment, setSelectedPayment] = useState(null);
 
-    useEffect(() => {
-        (async () => {
-            if (Platform.OS !== 'web') {
-                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                if (status !== 'granted') {
-                    Alert.alert('Permission Denied', 'We need access to your gallery to upload payment slips.');
-                }
-            }
-        })();
-    }, []);
+    // Derived State for Extras
+    const unpaidExtras = allBillings.filter(b =>
+        (b.categoryId || b.billingCategory) &&
+        b.status !== 'PAID' &&
+        b.status !== 'APPROVED' &&
+        b.status !== 'SUCCESS'
+    );
+
+
 
     useEffect(() => {
         if (routeStudentId) {
@@ -97,15 +100,20 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
             }
 
             if (selectedStudent) {
+                // Fetch basic data for the month view
                 const data = await getChildBillings(selectedStudent.id, month.format('MM'), month.format('YYYY'));
                 setBillings(data.billings || []);
 
-
-                // Fetch all history (billings + payments) to help with multi-month mapping
+                // Fetch ALL history for Unpaid Extras/Locking
                 const allData = await getChildBillings(selectedStudent.id);
                 setAllBillings(allData.billings || []);
                 setAllPayments(allData.payments || []);
             }
+
+            // Only fetch categories if needed
+            const cats = await getBillingCategories(true);
+            setAvailableCategories(cats || []);
+
         } catch (error) {
             console.error(error);
         } finally {
@@ -136,31 +144,83 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
         }
 
         let billingIds = [];
-        if (selectedBilling) {
-            billingIds = [selectedBilling.id];
-        } else if (selectedMonths.length > 0) {
+        let descType = 'Monthly Fee';
+
+        if (paymentType === 'EXTRA') {
+            // Check if Category or Bill is selected
+            if (!selectedBilling && !selectedCategory) {
+                Alert.alert('Error', 'Please select a bill to pay or choose a category');
+                return;
+            }
+
+            if (selectedBilling) {
+                billingIds = [selectedBilling.id];
+                descType = selectedBilling.billingCategory?.name || 'Extra Payment';
+            } else if (selectedCategory) {
+                // Ad-hoc new payment
+                // Backend handles creation. We send categoryId.
+                descType = selectedCategory.name;
+            }
+        } else {
+            // Monthly Fee Logic
+            // We assume paying for the SELECTED MONTH in the UI context (or logic needs to change)
+            // Or stick to the "Select Months" logic?
+            // The REQUIREMENT was: "Remove month selection... automatic skip past... handle monthly fee"
+
+            if (selectedMonths.length === 0) {
+                Alert.alert('Error', 'Please select at least one month to pay');
+                return;
+            }
+
             const targetCodes = selectedMonths.map(name => {
                 const idx = months.indexOf(name);
                 return `${selectedPaymentYear}-${String(idx + 1).padStart(2, '0')}`;
             });
+
+            // Find matching billings (unpaid) to link
             billingIds = allBillings
-                .filter(b => targetCodes.includes(b.billingMonth))
+                .filter(b => targetCodes.includes(b.billingMonth) && !b.categoryId && (b.status !== 'PAID' && b.status !== 'APPROVED'))
                 .map(b => b.id);
 
+            descType = `Monthly Fee (${selectedMonths.join(', ')})`;
+
+            // Allow generic payment if no ID found
             if (billingIds.length === 0) {
-                Alert.alert(
-                    'Notice',
-                    'No matching invoices found for selected months. This will be recorded as a generic payment on account. Admin will reconcile manually.',
-                    [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Proceed', onPress: () => processSubmission(billingIds) }
-                    ]
-                );
-                return;
+                // No specific behavior defined, proceeding as generic payment
             }
         }
 
-        processSubmission(billingIds);
+        const description = `[Student: ${selectedStudent?.fullName || 'Unknown'}] [Type: ${descType}] ${paymentNote ? `[Note: ${paymentNote}]` : ''}`;
+
+        setUploading(true);
+        try {
+            const file = {
+                uri: image.uri,
+                type: image.mimeType || 'image/jpeg',
+                name: image.name || 'payment_receipt.jpg'
+            };
+
+            await uploadPaymentReceipt(
+                billingIds,
+                parseFloat(paymentAmount || 0).toString(),
+                'ONLINE_TRANSFER',
+                file,
+                description,
+                selectedCategory?.id, // Pass categoryId if any
+                selectedStudent?.id   // Pass studentId 
+            );
+
+            Alert.alert('Success', 'Payment slip submitted for approval');
+            setModalVisible(false);
+            setImage(null);
+            setSelectedBilling(null);
+            fetchData();
+        } catch (error) {
+            console.log('Submission Error:', error);
+            Alert.alert('Error', JSON.stringify(error) || error.message || 'Failed to submit payment');
+        } finally {
+            setUploading(false);
+        }
     };
 
     const processSubmission = async (billingIds) => {
@@ -272,7 +332,11 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
         let monthSubtitle = '';
 
         if (isBilling) {
-            displayTitle = item.billingMonth ? dayjs(item.billingMonth).format('MMMM') : 'Monthly Fee';
+            if (item.billingCategory?.name) {
+                displayTitle = item.billingCategory.name;
+            } else {
+                displayTitle = item.billingMonth ? dayjs(item.billingMonth).format('MMMM') : 'Monthly Fee';
+            }
             monthSubtitle = item.billingMonth ? dayjs(item.billingMonth).year() : '';
         } else if (item.transactionRef) {
             // Try [Months: ...] tag first
@@ -420,6 +484,22 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                     {loading ? (
                         <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 20 }} />
                     ) : (() => {
+                        // Autolock Check
+                        const enrollmentDate = selectedStudent?.enrollmentDate ? dayjs(selectedStudent.enrollmentDate) : null;
+                        const isPreEnrollment = enrollmentDate ? selectedMonth.isBefore(enrollmentDate, 'month') : false;
+
+                        if (isPreEnrollment) {
+                            return (
+                                <View style={styles.caughtUpCard}>
+                                    <View style={styles.checkCircleBlue}>
+                                        <Lock size={32} color="#3B82F6" />
+                                    </View>
+                                    <Text style={styles.caughtUpTitle}>Not Enrolled Yet</Text>
+                                    <Text style={styles.caughtUpSub}>Student was not enrolled during this period.</Text>
+                                </View>
+                            );
+                        }
+
                         const currentMonthName = selectedMonth.format('MMMM'); // "January"
                         const currentYearStr = selectedMonth.format('YYYY');   // "2026"
                         const currentMonthCode = selectedMonth.format('YYYY-MM'); // "2026-01"
@@ -508,7 +588,7 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                             <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalBackBtn}>
                                 <ChevronLeft size={24} color="#000" />
                             </TouchableOpacity>
-                            <Text style={styles.modalTitleBlack}>Make Payment</Text>
+                            <Text style={styles.modalTitleBlack}>Make a Payment</Text>
                             <View style={{ width: 24 }} />
                         </View>
 
@@ -517,141 +597,232 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                             contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
                             keyboardShouldPersistTaps="always"
                         >
-                            <Text style={styles.inputLabel}>Payment For</Text>
-                            <TextInput
-                                style={styles.styledInput}
-                                placeholder="e.g., Monthly Fee"
-                                value={paymentFor}
-                                onChangeText={setPaymentFor}
-                            />
-
-                            <Text style={styles.inputLabel}>Description (Optional)</Text>
-                            <TextInput
-                                style={[styles.styledInput, { height: 80, textAlignVertical: 'top' }]}
-                                placeholder="Any additional details..."
-                                multiline
-                                value={paymentNote}
-                                onChangeText={setPaymentNote}
-                            />
-
-                            <View style={styles.yearSelectorRowRefined}>
-                                <Text style={styles.inputLabelNoMargin}>Select Year</Text>
-                                <View style={styles.yearControlsRefined}>
-                                    <TouchableOpacity onPress={() => { setSelectedPaymentYear(selectedPaymentYear - 1); setSelectedMonths([]); }}>
-                                        <ChevronLeft size={20} color="#9D5BF0" />
-                                    </TouchableOpacity>
-                                    <Text style={styles.yearValueTextRefined}>{selectedPaymentYear}</Text>
-                                    <TouchableOpacity onPress={() => { setSelectedPaymentYear(selectedPaymentYear + 1); setSelectedMonths([]); }}>
-                                        <ChevronRight size={20} color="#9D5BF0" />
-                                    </TouchableOpacity>
-                                </View>
+                            {/* Payment Type Toggle */}
+                            <View style={styles.toggleContainer}>
+                                <TouchableOpacity
+                                    style={[styles.toggleBtn, paymentType === 'MONTHLY' && styles.toggleBtnActive]}
+                                    onPress={() => setPaymentType('MONTHLY')}
+                                >
+                                    <Text style={[styles.toggleText, paymentType === 'MONTHLY' && styles.toggleTextActive]}>Monthly Fee</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.toggleBtn, paymentType === 'EXTRA' && styles.toggleBtnActive]}
+                                    onPress={() => setPaymentType('EXTRA')}
+                                >
+                                    <Text style={[styles.toggleText, paymentType === 'EXTRA' && styles.toggleTextActive]}>Other Payments</Text>
+                                </TouchableOpacity>
                             </View>
 
-                            <Text style={styles.inputLabel}>Select Months to Pay</Text>
-                            <View style={styles.monthsGridRefined}>
-                                {months.map((m, idx) => {
-                                    const targetBillingMonth = `${selectedPaymentYear}-${String(idx + 1).padStart(2, '0')}`;
+                            {/* Context / Selection Area */}
+                            <View style={styles.contextContainer}>
+                                {paymentType === 'MONTHLY' ? (
+                                    <View>
+                                        <View style={styles.yearSelectorRowRefined}>
+                                            <Text style={styles.inputLabelNoMargin}>Select Year</Text>
+                                            <View style={styles.yearControlsRefined}>
+                                                <TouchableOpacity onPress={() => { setSelectedPaymentYear(selectedPaymentYear - 1); setSelectedMonths([]); }}>
+                                                    <ChevronLeft size={20} color="#9D5BF0" />
+                                                </TouchableOpacity>
+                                                <Text style={styles.yearValueTextRefined}>{selectedPaymentYear}</Text>
+                                                <TouchableOpacity onPress={() => { setSelectedPaymentYear(selectedPaymentYear + 1); setSelectedMonths([]); }}>
+                                                    <ChevronRight size={20} color="#9D5BF0" />
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
 
-                                    // Logic: Only block if fully PAID or APPROVED. 
-                                    // PENDING/REJECTED should remain clickable.
-                                    const isPaid = allBillings.some(b => {
-                                        const monthMatch = (b.billingMonth || '').includes(targetBillingMonth) || (b.billingMonth || '').includes(m);
-                                        const statusMatch = (b.status === 'PAID' || b.status === 'SUCCESS' || b.status === 'APPROVED');
-                                        return monthMatch && statusMatch;
-                                    }) || allPayments.some(p => {
-                                        const ref = p.transactionRef || '';
-                                        // 1. Check Status
-                                        const isValidStatus = p.status === 'APPROVED' || p.status === 'PAID' || p.status === 'SUCCESS';
-                                        if (!isValidStatus) return false;
+                                        <Text style={styles.inputLabel}>Select Months to Pay</Text>
+                                        <View style={styles.monthsGridRefined}>
+                                            {months.map((m, idx) => {
+                                                const targetBillingMonth = `${selectedPaymentYear}-${String(idx + 1).padStart(2, '0')}`;
 
-                                        // 2. Check Year
-                                        const createdYear = dayjs(p.createdAt).year();
-                                        const hasYearInRef = ref.includes(String(selectedPaymentYear));
-                                        const isYearMatch = hasYearInRef || (createdYear === selectedPaymentYear);
-                                        if (!isYearMatch) return false;
+                                                // Logic: Only block if fully PAID or APPROVED. 
+                                                // PENDING/REJECTED should remain clickable.
+                                                const isPaid = allBillings.some(b => {
+                                                    const monthMatch = (b.billingMonth || '').includes(targetBillingMonth) || (b.billingMonth || '').includes(m);
+                                                    const statusMatch = (b.status === 'PAID' || b.status === 'SUCCESS' || b.status === 'APPROVED');
+                                                    return monthMatch && statusMatch;
+                                                }) || allPayments.some(p => {
+                                                    const ref = p.transactionRef || '';
+                                                    // 1. Check Status
+                                                    const isValidStatus = p.status === 'APPROVED' || p.status === 'PAID' || p.status === 'SUCCESS';
+                                                    if (!isValidStatus) return false;
 
-                                        // 3. Check Month
-                                        const monthMatch = ref.match(/\[Months:\s(.*?)\]/);
-                                        if (monthMatch) {
-                                            return monthMatch[1].includes(m);
-                                        } else {
-                                            return ref.includes(m);
-                                        }
-                                    });
+                                                    // 2. Check Year
+                                                    const createdYear = dayjs(p.createdAt).year();
+                                                    const hasYearInRef = ref.includes(String(selectedPaymentYear));
+                                                    const isYearMatch = hasYearInRef || (createdYear === selectedPaymentYear);
+                                                    if (!isYearMatch) return false;
 
-                                    const isSelected = selectedMonths.includes(m);
+                                                    // 3. Check Month
+                                                    const monthMatch = ref.match(/\[Months:\s(.*?)\]/);
+                                                    if (monthMatch) {
+                                                        return monthMatch[1].includes(m);
+                                                    } else {
+                                                        return ref.includes(m);
+                                                    }
+                                                });
 
-                                    return (
+                                                // Strict Enrollment Lock
+                                                const enrollmentDate = selectedStudent?.enrollmentDate ? dayjs(selectedStudent.enrollmentDate) : null;
+                                                const monthDate = dayjs(`${selectedPaymentYear}-${String(idx + 1).padStart(2, '0')}-01`);
+
+                                                const isPreEnrollment = enrollmentDate ? monthDate.isBefore(enrollmentDate, 'month') : false;
+                                                const isBlocked = isPaid || isPreEnrollment;
+                                                const isSelected = selectedMonths.includes(m); // Restored Line
+
+                                                return (
+                                                    <TouchableOpacity
+                                                        key={m}
+                                                        disabled={isBlocked}
+                                                        style={[
+                                                            styles.monthCard,
+                                                            isPaid && styles.monthCardPaid,
+                                                            isPreEnrollment && { opacity: 0.3, backgroundColor: '#F1F5F9' },
+                                                            isSelected && styles.monthCardSelected,
+                                                            !isBlocked && !isSelected && styles.monthCardAvailable
+                                                        ]}
+                                                        onPress={() => {
+                                                            let newSelection = [...selectedMonths];
+                                                            if (isSelected) {
+                                                                const monthIndices = newSelection.map(name => months.indexOf(name)).sort((a, b) => a - b);
+                                                                const monthIdx = months.indexOf(m);
+                                                                if (monthIdx === monthIndices[0] || monthIdx === monthIndices[monthIndices.length - 1]) {
+                                                                    newSelection = newSelection.filter(x => x !== m);
+                                                                } else {
+                                                                    Alert.alert("Notice", "Please unselect months from the start or end of your range to maintain continuity.");
+                                                                    return;
+                                                                }
+                                                            } else {
+                                                                if (newSelection.length === 0) {
+                                                                    newSelection.push(m);
+                                                                } else {
+                                                                    const monthIndices = newSelection.map(name => months.indexOf(name)).sort((a, b) => a - b);
+                                                                    const minIdx = monthIndices[0];
+                                                                    const maxIdx = monthIndices[monthIndices.length - 1];
+                                                                    const currentIdx = idx;
+
+                                                                    if (currentIdx === minIdx - 1 || currentIdx === maxIdx + 1) {
+                                                                        newSelection.push(m);
+                                                                    } else {
+                                                                        Alert.alert("Notice", "Please select months in sequence (e.g., January then February).");
+                                                                        return;
+                                                                    }
+                                                                }
+                                                            }
+                                                            setSelectedMonths(newSelection);
+                                                        }}
+                                                    >
+                                                        {/* Top Icon */}
+                                                        <View style={styles.monthCardIcon}>
+                                                            {isPaid ? (
+                                                                <Lock size={16} color="#15803d" />
+                                                            ) : isSelected ? (
+                                                                <Check size={16} color="#ffffff" />
+                                                            ) : (
+                                                                <View style={styles.monthCardCircle} />
+                                                            )}
+                                                        </View>
+
+                                                        {/* Month Name */}
+                                                        <Text style={[
+                                                            styles.monthCardText,
+                                                            isPaid && styles.monthCardTextPaid,
+                                                            isSelected && styles.monthCardTextSelected,
+                                                        ]}>{m.slice(0, 3)}</Text>
+                                                    </TouchableOpacity>
+                                                );
+                                            })}
+                                        </View>
+
+                                        <Text style={styles.inputLabel}>Amount (Rs.)</Text>
+                                        <TextInput
+                                            style={styles.styledInput}
+                                            placeholder="e.g., 15000"
+                                            keyboardType="numeric"
+                                            value={paymentAmount}
+                                            onChangeText={setPaymentAmount}
+                                        />
+                                    </View>
+                                ) : (
+                                    <View style={styles.extrasList}>
+                                        {/* 1. New Payment Selection */}
+                                        <View style={styles.sectionHeader}>
+                                            <Text style={styles.sectionTitle}>Start New Payment</Text>
+                                        </View>
+
                                         <TouchableOpacity
-                                            key={m}
-                                            disabled={isPaid}
-                                            style={[
-                                                styles.monthCard,
-                                                isPaid && styles.monthCardPaid,
-                                                isSelected && styles.monthCardSelected,
-                                                !isPaid && !isSelected && styles.monthCardAvailable
-                                            ]}
-                                            onPress={() => {
-                                                let newSelection = [...selectedMonths];
-                                                if (isSelected) {
-                                                    const monthIndices = newSelection.map(name => months.indexOf(name)).sort((a, b) => a - b);
-                                                    const monthIdx = months.indexOf(m);
-                                                    if (monthIdx === monthIndices[0] || monthIdx === monthIndices[monthIndices.length - 1]) {
-                                                        newSelection = newSelection.filter(x => x !== m);
-                                                    } else {
-                                                        Alert.alert("Notice", "Please unselect months from the start or end of your range to maintain continuity.");
-                                                        return;
-                                                    }
-                                                } else {
-                                                    if (newSelection.length === 0) {
-                                                        newSelection.push(m);
-                                                    } else {
-                                                        const monthIndices = newSelection.map(name => months.indexOf(name)).sort((a, b) => a - b);
-                                                        const minIdx = monthIndices[0];
-                                                        const maxIdx = monthIndices[monthIndices.length - 1];
-                                                        const currentIdx = idx;
-
-                                                        if (currentIdx === minIdx - 1 || currentIdx === maxIdx + 1) {
-                                                            newSelection.push(m);
-                                                        } else {
-                                                            Alert.alert("Notice", "Please select months in sequence (e.g., January then February).");
-                                                            return;
-                                                        }
-                                                    }
-                                                }
-                                                setSelectedMonths(newSelection);
-                                            }}
+                                            style={styles.dropdownSelector}
+                                            onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
                                         >
-                                            {/* Top Icon */}
-                                            <View style={styles.monthCardIcon}>
-                                                {isPaid ? (
-                                                    <Lock size={16} color="#15803d" />
-                                                ) : isSelected ? (
-                                                    <Check size={16} color="#ffffff" />
-                                                ) : (
-                                                    <View style={styles.monthCardCircle} />
+                                            <Text style={{ color: selectedCategory ? '#1E293B' : '#64748B', fontWeight: '600' }}>
+                                                {selectedCategory ? `${selectedCategory.name} (Rs. ${selectedCategory.amount})` : 'Select Payment Category'}
+                                            </Text>
+                                            <ChevronDown size={20} color="#64748B" />
+                                        </TouchableOpacity>
+
+                                        {showCategoryDropdown && (
+                                            <View style={styles.dropdownList}>
+                                                {availableCategories.length > 0 ? availableCategories.map(cat => (
+                                                    <TouchableOpacity
+                                                        key={cat.id}
+                                                        style={styles.dropdownItem}
+                                                        onPress={() => {
+                                                            setSelectedCategory(cat);
+                                                            setPaymentAmount(cat.amount.toString());
+                                                            setSelectedBilling(null); // Clear bill selection
+                                                            setShowCategoryDropdown(false);
+                                                        }}
+                                                    >
+                                                        <Text style={{ fontWeight: '600', color: '#334155' }}>{cat.name}</Text>
+                                                        <Text style={{ fontSize: 12, color: '#64748B' }}>Rs. {parseFloat(cat.amount).toLocaleString()}</Text>
+                                                    </TouchableOpacity>
+                                                )) : (
+                                                    <View style={{ padding: 12 }}><Text style={{ color: '#94A3B8' }}>No categories available</Text></View>
                                                 )}
                                             </View>
+                                        )}
 
-                                            {/* Month Name */}
-                                            <Text style={[
-                                                styles.monthCardText,
-                                                isPaid && styles.monthCardTextPaid,
-                                                isSelected && styles.monthCardTextSelected,
-                                            ]}>{m.slice(0, 3)}</Text>
-                                        </TouchableOpacity>
-                                    );
-                                })}
+                                        {selectedCategory && (
+                                            <View style={{ marginBottom: 20 }}>
+                                                <Text style={styles.inputLabel}>Amount (Rs.)</Text>
+                                                <TextInput
+                                                    style={styles.styledInput}
+                                                    value={paymentAmount}
+                                                    onChangeText={setPaymentAmount}
+                                                    keyboardType="numeric"
+                                                />
+                                            </View>
+                                        )}
+
+                                        {/* 2. Pending Bills Selection */}
+                                        <View style={[styles.sectionHeader, { marginTop: 10 }]}>
+                                            <Text style={styles.sectionTitle}>OR Pay Pending Bill</Text>
+                                        </View>
+
+                                        {unpaidExtras.length > 0 ? (
+                                            unpaidExtras.map(item => (
+                                                <TouchableOpacity
+                                                    key={item.id}
+                                                    style={[styles.extraItem, selectedBilling?.id === item.id && styles.extraItemActive]}
+                                                    onPress={() => {
+                                                        setSelectedBilling(item);
+                                                        setSelectedCategory(null); // Clear category
+                                                        setPaymentAmount(item.amount.toString());
+                                                    }}
+                                                >
+                                                    <View>
+                                                        <Text style={styles.extraItemTitle}>{item.billingCategory?.name || 'Extra Payment'}</Text>
+                                                        <Text style={styles.extraItemSub}>{dayjs(item.createdAt).format('MMM DD')}</Text>
+                                                    </View>
+                                                    <Text style={styles.extraItemAmount}>LKR {parseFloat(item.amount).toLocaleString()}</Text>
+                                                </TouchableOpacity>
+                                            ))
+                                        ) : (
+                                            <Text style={[styles.emptyText, { textAlign: 'left', paddingLeft: 0 }]}>No pending extra payments found.</Text>
+                                        )}
+                                    </View>
+                                )}
                             </View>
-
-                            <Text style={styles.inputLabel}>Amount (Rs.)</Text>
-                            <TextInput
-                                style={styles.styledInput}
-                                placeholder="e.g., 15000"
-                                keyboardType="numeric"
-                                value={paymentAmount}
-                                onChangeText={setPaymentAmount}
-                            />
 
                             <Text style={styles.inputLabel}>Upload Payment Slip</Text>
                             <TouchableOpacity
@@ -688,9 +859,9 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                                     <Text style={styles.cancelBtnText}>Cancel</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
-                                    style={styles.submitBtnRefined}
+                                    style={[styles.submitBtnRefined, (!image || (paymentType === 'EXTRA' && !selectedBilling && !selectedCategory)) && { opacity: 0.5 }]}
                                     onPress={handlePaymentSubmit}
-                                    disabled={uploading || selectedMonths.length === 0}
+                                    disabled={uploading || (paymentType === 'EXTRA' && !selectedBilling && !selectedCategory)}
                                 >
                                     {uploading ? (
                                         <ActivityIndicator color="#fff" />
@@ -1391,6 +1562,36 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: COLORS.white,
     },
+    // New Styles for Payment Toggle & Extras
+    toggleContainer: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 12, padding: 4, marginBottom: 20 },
+    toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
+    toggleBtnActive: { backgroundColor: '#fff', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 },
+    toggleText: { fontWeight: '600', color: '#64748B' },
+    toggleTextActive: { color: '#9D5BF0', fontWeight: 'bold' },
+
+    contextContainer: { marginBottom: 20 },
+    selectionCard: { backgroundColor: '#F8FAFC', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' },
+    selectionLabel: { fontSize: 12, color: '#64748B', fontWeight: 'bold', marginBottom: 4 },
+    selectionValue: { fontSize: 16, color: '#1E293B', fontWeight: 'bold' },
+    infoLabel: { fontSize: 12, color: '#64748B', fontWeight: 'bold', marginBottom: 4 },
+
+    extrasList: { backgroundColor: '#F8FAFC', padding: 10, borderRadius: 12 },
+    extraItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderRadius: 8, marginBottom: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: 'transparent' },
+    extraItemActive: { borderColor: '#9D5BF0', backgroundColor: '#F5F3FF' },
+    extraItemTitle: { fontWeight: 'bold', color: '#1E293B' },
+    extraItemSub: { fontSize: 12, color: '#64748B' },
+    extraItemAmount: { fontWeight: 'bold', color: '#9D5BF0' },
+    extraItemAmount: { fontWeight: 'bold', color: '#9D5BF0' },
+    emptyText: { textAlign: 'center', color: '#94A3B8', padding: 10 },
+
+    // Dropdown Styles
+    dropdownSelector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#CBD5E1', marginBottom: 12 },
+    dropdownList: { backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 16, maxHeight: 200 },
+    dropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+    sectionHeader: { marginBottom: 8, marginTop: 4 },
+    sectionTitle: { fontWeight: 'bold', color: '#64748B', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
+    styledInput: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 8, padding: 12, fontSize: 16, color: '#1E293B' },
+
     // New Card Styles
     monthCard: {
         width: '30%',

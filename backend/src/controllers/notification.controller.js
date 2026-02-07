@@ -93,6 +93,10 @@ exports.getAllNotifications = async (req, res, next) => {
                 ];
             }
 
+            if (classroomIds.length === 0) {
+                return res.json([]);
+            }
+
             where = {
                 OR: [
                     { targetRole: 'ALL' },

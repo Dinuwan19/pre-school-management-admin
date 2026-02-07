@@ -564,7 +564,7 @@ const StudentProfileScreen = ({ route, navigation }) => {
                                 onPress={() => setIsAvatarModalVisible(true)}
                             >
                                 <Image
-                                    source={getAvatarSource(student?.photoUrl, 'CHILD')}
+                                    source={getAvatarSource(student?.photoUrl, 'CHILD', null, student?.gender)}
                                     style={styles.profileImg}
                                 />
                                 <View style={styles.editBadge}>

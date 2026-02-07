@@ -98,6 +98,25 @@ exports.getAllEvents = async (req, res, next) => {
         if (status && status !== 'All Events') {
             where.status = status.toUpperCase();
         } else if (req.user.role === 'PARENT') {
+            const { id, username } = req.user;
+            // Check if parent has any active children
+            const parent = await prisma.parent.findFirst({
+                where: { OR: [{ userId: id }, { email: username }] },
+                include: {
+                    student_student_parentIdToparent: { where: { status: 'ACTIVE' } },
+                    student_student_secondParentIdToparent: { where: { status: 'ACTIVE' } }
+                }
+            });
+
+            const activeChildren = [
+                ...(parent?.student_student_parentIdToparent || []),
+                ...(parent?.student_student_secondParentIdToparent || [])
+            ];
+
+            if (activeChildren.length === 0) {
+                return res.json([]);
+            }
+
             where.status = { in: ['UPCOMING', 'PUBLISHED', 'APPROVED'] };
         }
 

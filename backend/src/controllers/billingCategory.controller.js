@@ -6,7 +6,7 @@ const prisma = require('../config/prisma');
  */
 exports.createCategory = async (req, res, next) => {
     try {
-        const { name, reason, amount, validUntil, classroomIds } = req.body;
+        const { name, reason, amount, validUntil, classroomIds, frequency } = req.body;
 
         const category = await prisma.billingCategory.create({
             data: {
@@ -14,6 +14,7 @@ exports.createCategory = async (req, res, next) => {
                 reason,
                 amount: parseFloat(amount),
                 validUntil: new Date(validUntil),
+                frequency: frequency || 'RECURRING',
                 classrooms: {
                     connect: classroomIds.map(id => ({ id: parseInt(id) }))
                 }
@@ -30,13 +31,9 @@ exports.createCategory = async (req, res, next) => {
     }
 };
 
-/**
- * Get all billing categories.
- * For selection: can filter by validUntil > now.
- */
 exports.getAllCategories = async (req, res, next) => {
     try {
-        const { activeOnly } = req.query;
+        const { activeOnly, studentId } = req.query;
         let where = {};
 
         if (activeOnly === 'true') {
@@ -74,6 +71,34 @@ exports.getAllCategories = async (req, res, next) => {
             include: { classrooms: true },
             orderBy: { createdAt: 'desc' }
         });
+
+        // Use 'studentId' param to filter out ONE_TIME items already paid
+        if (studentId) {
+            const hasHistory = await prisma.billing.findMany({
+                where: {
+                    studentId: parseInt(studentId),
+                    categoryId: { not: null },
+                    OR: [
+                        { status: 'PAID' },
+                        { status: 'PENDING' }, // Also hide pending to prevent double pay
+                        { status: 'APPROVED' }
+                    ]
+                },
+                select: { categoryId: true }
+            });
+
+            const paidCategoryIds = new Set(hasHistory.map(b => b.categoryId));
+
+            // Filter out ONE_TIME categories that are already in paid history
+            const filtered = categories.filter(c => {
+                if (c.frequency === 'ONE_TIME' && paidCategoryIds.has(c.id)) {
+                    return false;
+                }
+                return true;
+            });
+
+            return res.json(filtered);
+        }
 
         res.json(categories);
     } catch (error) {

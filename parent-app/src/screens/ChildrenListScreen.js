@@ -9,7 +9,8 @@ import {
     CheckCircle2,
     Phone,
     BarChart3,
-    CalendarCheck2
+    CalendarCheck2,
+    Users
 } from 'lucide-react-native';
 
 import { COLORS } from '../constants/theme';
@@ -78,7 +79,7 @@ const ChildrenListScreen = ({ navigation }) => {
                                     <View style={styles.avatarColumn}>
                                         <View style={styles.avatarWrapper}>
                                             <Image
-                                                source={getAvatarSource(child?.photoUrl, 'CHILD')}
+                                                source={getAvatarSource(child?.photoUrl, 'CHILD', null, child?.gender)}
                                                 style={styles.avatar}
                                             />
                                         </View>

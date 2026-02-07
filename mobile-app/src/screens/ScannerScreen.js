@@ -69,10 +69,19 @@ const ScannerScreen = ({ navigation }) => {
             });
 
         } catch (error) {
+            console.log('[Scan Error]', error.response?.data || error.message || error);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+            let errorMsg = 'Network Error';
+            if (error.response) {
+                errorMsg = error.response.data?.message || `Server Error (${error.response.status})`;
+            } else if (error.request) {
+                errorMsg = 'No response from server. Check IP & Firewall.';
+            }
+
             setResult({
                 type: 'ERROR',
-                message: error.response?.data?.message || 'Network Error',
+                message: errorMsg,
                 student: null
             });
         }
@@ -100,6 +109,12 @@ const ScannerScreen = ({ navigation }) => {
             {/* Overlay Viewfinder */}
             <View style={styles.overlay}>
                 <View style={styles.header}>
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={() => navigation.goBack()}
+                    >
+                        <Text style={styles.backButtonText}>✕</Text>
+                    </TouchableOpacity>
                     <Text style={styles.headerText}>Staff Scanner</Text>
                 </View>
 
@@ -134,7 +149,12 @@ const ScannerScreen = ({ navigation }) => {
             {/* Verification Result Overlay */}
             {result && (
                 <View style={[styles.resultOverlay, { backgroundColor: result.type === 'SUCCESS' ? 'rgba(16, 185, 129, 0.95)' : result.type === 'WARNING' ? 'rgba(245, 158, 11, 0.95)' : 'rgba(239, 68, 68, 0.95)' }]}>
-                    <Text style={styles.resultTitle}>{result.scanType?.replace('_', ' ') || result.type}</Text>
+                    <Text style={styles.resultTitle}>
+                        {result.scanType === 'ALREADY_OUT' ? 'Already Checked-Out' :
+                            result.scanType === 'ALREADY_IN' ? 'Already In' :
+                                result.scanType === 'IGNORED' ? 'Scanned' :
+                                    result.scanType?.replace('_', ' ') || result.type}
+                    </Text>
 
                     {result.student && (
                         <View style={styles.studentCard}>
@@ -173,6 +193,22 @@ const styles = StyleSheet.create({
     headerText: {
         color: '#fff',
         fontSize: 18,
+        fontWeight: 'bold',
+    },
+    backButton: {
+        position: 'absolute',
+        left: -60,
+        top: 0,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    backButtonText: {
+        color: '#fff',
+        fontSize: 20,
         fontWeight: 'bold',
     },
     modeContainer: {

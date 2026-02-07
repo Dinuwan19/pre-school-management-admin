@@ -345,7 +345,9 @@ exports.getLinkedChildren = async (req, res, next) => {
                 attendanceRate,
                 progress: progressAvg,
                 lastAttendance: child.attendance[0],
-                latestProgress: lastAssessment // Updated field mapping
+                latestProgress: lastAssessment, // Updated field mapping
+                gender: child.gender,
+                enrollmentDate: child.enrollmentDate
             };
         }));
 
@@ -383,6 +385,7 @@ exports.getParentBillings = async (req, res, next) => {
             where: { studentId: { in: studentIds } },
             include: {
                 student: { select: { fullName: true } },
+                billingCategory: true, // Added to fetch category details
                 billingpayment: {
                     include: {
                         payment: true

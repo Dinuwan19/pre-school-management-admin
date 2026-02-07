@@ -25,10 +25,14 @@ export const AVATARS = {
     }
 };
 
-export const getAvatarSource = (photoUrl, type = 'CHILD') => {
-    // 1. If no photoUrl, return default for that type
+export const getAvatarSource = (photoUrl, type = 'CHILD', relationship = null, gender = null) => {
+    // 1. If no photoUrl, return default for that type and gender/relationship
     if (!photoUrl) {
-        return type === 'CHILD' ? AVATARS.CHILD.C1 : AVATARS.PARENT.P1;
+        if (type === 'CHILD') {
+            return gender === 'FEMALE' ? AVATARS.CHILD.C7 : AVATARS.CHILD.C1;
+        } else {
+            return (relationship === 'MOTHER' || gender === 'FEMALE') ? AVATARS.PARENT.P7 : AVATARS.PARENT.P1;
+        }
     }
 
     // 2. If it's a URL (external or absolute)
@@ -37,11 +41,7 @@ export const getAvatarSource = (photoUrl, type = 'CHILD') => {
             return { uri: photoUrl };
         }
         if (photoUrl.startsWith('/uploads')) {
-            // Let's do two edits.
-            // Wait, I can only do one replacement per tool call unless I use multi_replace.
-            // I will use multi_replace or just assume I can edit top.
-            // Let's use multi_replace for avatars.js to add import and fix logic.
-            return { uri: `http://192.168.1.3:5000${photoUrl}` }; // Fallback to hardcoded if import is messy, but I should try to be clean.
+            return { uri: `${BASE_URL}${photoUrl}` };
         }
     }
 
@@ -51,6 +51,10 @@ export const getAvatarSource = (photoUrl, type = 'CHILD') => {
         return localSet[photoUrl];
     }
 
-    // 4. Fallback
-    return type === 'CHILD' ? AVATARS.CHILD.C1 : AVATARS.PARENT.P1;
+    // 4. Fallback logic if photoUrl is invalid but we have gender/rel context
+    if (type === 'CHILD') {
+        return gender === 'FEMALE' ? AVATARS.CHILD.C7 : AVATARS.CHILD.C1;
+    } else {
+        return (relationship === 'MOTHER' || gender === 'FEMALE') ? AVATARS.PARENT.P7 : AVATARS.PARENT.P1;
+    }
 };
