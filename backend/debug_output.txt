@@ -1,9 +1,13 @@
---- Checking Last 5 Notifications ---
-[ID: 11] Title: Fee Reminder, Role: PARENT, TargetParentID: 3
-[ID: 2] Title: holiday, Role: ALL, TargetParentID: null
+--- Finding Student ---
+Student: dilmi nethsara (ID: 4)
 
---- Checking Billing Controller Logic Simulation ---
-Test Billing ID: 1
-Student: student 04
-Parent: Pasindu dinuwan
-Parent UserID: 3
+  -- Billings --
+
+  -- Recent Payments (Last 5 linked) --
+    [Linked Payments]
+
+  -- Unallocated Payments (Checking top 10 for name match) --
+      MATCH FOUND -> ID: 12, Ref: "[Student: dilmi nethsara] [Type: Monthly Fee (February)] ", Amount: 15000, Status: APPROVED
+      MATCH FOUND -> ID: 11, Ref: "[Student: dilmi nethsara] [Type: Monthly Fee (February)] ", Amount: 15000, Status: REJECTED
+      MATCH FOUND -> ID: 10, Ref: "[Student: dilmi nethsara] [Type: Monthly Fee (February)] ", Amount: 15000, Status: REJECTED
+      ? ID: 4, Ref: "[Student: oshini nethsara] [Student ID: S0003] [Monthly Fee] [Months: February] Payment", Amount: 15000, Status: APPROVED

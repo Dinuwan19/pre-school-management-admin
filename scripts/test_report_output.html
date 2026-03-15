@@ -1,0 +1,334 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Financial Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #7B57E4; /* Royal Purple */
+            --secondary: #6C5CE7; /* Soft Violet */
+            --accent: #A29BFE; /* Light Violet */
+            --dark: #2D3436;
+            --slate: #636E72;
+            --border: #DFE6E9;
+            --bg: #FFFFFF;
+            --success: #00B894;
+            --danger: #FF7675;
+            --warning: #FDCB6E;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: var(--dark);
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+        }
+        
+        /* Layout Handling */
+        .page {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            min-height: 100vh;
+            page-break-after: always;
+        }
+        .page:last-child {
+            page-break-after: avoid;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            background: #F8F9FA;
+            border-right: 2px solid var(--primary);
+            padding: 40px 25px;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-brand {
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--primary);
+            margin-bottom: 40px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 20px;
+        }
+        .metric-group {
+            margin-bottom: 35px;
+        }
+        .metric-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--slate);
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        .metric-card {
+            margin-bottom: 15px;
+        }
+        .metric-value {
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--dark);
+        }
+        .metric-label {
+            font-size: 11px;
+            color: var(--slate);
+        }
+
+        /* Main Content */
+        .main {
+            padding: 40px 50px;
+            background-image: radial-gradient(var(--border) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .header {
+            margin-bottom: 40px;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        .header h1 {
+            font-size: 32px;
+            font-weight: 900;
+            margin: 0;
+            color: var(--primary);
+            line-height: 1.1;
+        }
+        .header-meta {
+            text-align: right;
+            font-family: monospace;
+            font-size: 10px;
+            color: var(--slate);
+        }
+
+        /* Insights */
+        .insight-box {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 30px rgba(108, 92, 231, 0.15);
+        }
+        .insight-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            opacity: 0.8;
+            margin-bottom: 12px;
+            display: block;
+            font-weight: 700;
+        }
+        .insight-text {
+            font-size: 16px;
+            font-weight: 500;
+            line-height: 1.6;
+        }
+
+        /* Charts */
+        .section-title {
+            font-size: 14px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: var(--primary);
+            margin: 40px 0 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .section-title::after {
+            content: "";
+            flex-grow: 1;
+            height: 1px;
+            background: var(--border);
+        }
+        
+        .chart-wrapper {
+            background: #fff;
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+            margin-bottom: 40px;
+            height: 350px;
+            position: relative;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-bottom: 40px;
+        }
+        th {
+            text-align: left;
+            padding: 12px 15px;
+            background: #F8F9FA;
+            color: var(--slate);
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 10px;
+            border-bottom: 2px solid var(--border);
+        }
+        td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            color: var(--dark);
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Utilities */
+        .tag {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .tag.success { background: rgba(0, 184, 148, 0.1); color: var(--success); }
+        .tag.danger { background: rgba(255, 118, 117, 0.1); color: var(--danger); }
+        .tag.warning { background: rgba(253, 203, 110, 0.1); color: var(--warning); }
+        .tag.primary { background: rgba(108, 92, 231, 0.1); color: var(--primary); }
+
+        .footer {
+            margin-top: auto;
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: var(--slate);
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="page">
+        <div class="sidebar">
+            <div class="sidebar-brand">Pre-School Manager</div>
+            
+            
+                <div class="metric-group">
+                    <div class="metric-title">Liquidity</div>
+                    
+                        <div class="metric-card">
+                            <div class="metric-value">LKR 50,000</div>
+                            <div class="metric-label">Net Position</div>
+                        </div>
+                    
+                        <div class="metric-card">
+                            <div class="metric-value">25%</div>
+                            <div class="metric-label">Margin</div>
+                        </div>
+                    
+                </div>
+            
+                <div class="metric-group">
+                    <div class="metric-title">Collection</div>
+                    
+                        <div class="metric-card">
+                            <div class="metric-value">80%</div>
+                            <div class="metric-label">Efficiency</div>
+                        </div>
+                    
+                        <div class="metric-card">
+                            <div class="metric-value">5</div>
+                            <div class="metric-label">Pending Bills</div>
+                        </div>
+                    
+                </div>
+            
+            
+            <div style="margin-top: auto;">
+                <div class="metric-title">Generated By</div>
+                <div class="metric-label">Admin System</div>
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="header">
+                <h1>Financial Health Statement</h1>
+                <div class="header-meta">
+                    <div>DATE: 2/19/2026</div>
+                    <div>PAGE: 1/1</div>
+                    <div>REF: REF-3XCQBQ</div>
+                </div>
+            </div>
+
+            
+            <div class="insight-box">
+                <span class="insight-label">Executive Insight</span>
+                <div class="insight-text">Net position is positive.</div>
+            </div>
+            
+
+            
+            <div class="section-title">Visual Analysis</div>
+            <div class="charts-grid">
+                
+                    <div class="chart-wrapper">
+                        <canvas id="chart-0-cashflow"></canvas>
+                    </div>
+                
+            </div>
+            
+
+            
+                <div class="section-title">Collection Breakdown</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Source</th><th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                            <tr>
+                                
+                                    <td>
+                                        Tuition
+                                    </td>
+                                
+                                    <td>
+                                        LKR 1000
+                                    </td>
+                                
+                            </tr>
+                        
+                    </tbody>
+                </table>
+            
+
+            <div class="footer">
+                <span>CONFIDENTIAL // INTERNAL USE ONLY</span>
+                <span>2026 © SYSTEM GENERATED</span>
+            </div>
+        </div>
+    </div>
+    
+
+    <script>
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        Chart.defaults.font.size = 11;
+        Chart.defaults.color = '#636E72';
+        Chart.defaults.scale.grid.color = '#F0F0F0';
+        
+        
+                new Chart(document.getElementById('chart-0-cashflow'), {"type":"bar","data":{"labels":["A"],"datasets":[{"data":[100]}]}});
+            
+        
+        Chart.defaults.animation = false;
+    </script>
+</body>
+</html>
+  

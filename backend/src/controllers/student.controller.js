@@ -246,13 +246,26 @@ exports.getStudentById = async (req, res, next) => {
         });
 
         const presentCount = summaryAttendance.filter(a => ['PRESENT', 'LATE', 'COMPLETED'].includes(a.status)).length;
-        const totalDays = summaryAttendance.length;
-        const attendancePercentage = totalDays > 0 ? Math.round((presentCount / totalDays) * 100) : 0;
+        let workingDays = 0;
+        if (summaryAttendance.length > 0) {
+            const earliest = dayjs(summaryAttendance[summaryAttendance.length - 1].attendanceDate);
+            const latest = dayjs(summaryAttendance[0].attendanceDate);
+            const rangeDays = latest.diff(earliest, 'days') + 1;
+            for (let i = 0; i < rangeDays; i++) {
+                const d = earliest.add(i, 'day');
+                if (d.day() !== 0 && d.day() !== 6) workingDays++;
+            }
+        }
+        const attendancePercentage = workingDays > 0 ? Math.round((presentCount / workingDays) * 100) : 100;
 
-        // Transcode assessments to old progress format for legacy UI support
+        // Transcode assessments and calculate overall percentage
         const legacyProgress = {};
         const latestAssessment = student.assessments?.[0];
-        if (latestAssessment && latestAssessment.scores) {
+        let overallProgress = 0;
+        if (latestAssessment && latestAssessment.scores && latestAssessment.scores.length > 0) {
+            const totalScore = latestAssessment.scores.reduce((acc, s) => acc + s.score, 0);
+            overallProgress = Math.round((totalScore / (latestAssessment.scores.length * 3)) * 100);
+
             latestAssessment.scores.forEach(s => {
                 const name = s.subSkill?.name?.toLowerCase() || '';
                 if (name.includes('reading')) legacyProgress.reading = s.score;
@@ -271,13 +284,14 @@ exports.getStudentById = async (req, res, next) => {
             ...student,
             parent: student.parent_student_parentIdToparent,
             secondParent: student.parent_student_secondParentIdToparent,
-            progress: legacyProgress, // Transcoded for old UI
-            assessments: student.assessments, // New detailed data
+            progress: { ...legacyProgress, overall: overallProgress }, // Added overall
+            overallProgress,
+            assessments: student.assessments,
             attendanceHistory: student.attendance,
             attendanceSummary: {
-                present: presentCount,
-                total: totalDays,
-                percentage: attendancePercentage
+                presentDays: presentCount,
+                totalDays: workingDays || summaryAttendance?.length || 0, // Fix: use summaryAttendance instead of undefined weekdayAttendance
+                attendanceRate: attendancePercentage
             },
             availableStaff
         });

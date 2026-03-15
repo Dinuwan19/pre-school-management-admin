@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, Select, Card, Typography, message, Space, Tag, Row, Col, Divider, Descriptions, Alert } from 'antd';
+import { Table, Button, Modal, Form, Input, Select, Card, Typography, message, Space, Tag, Row, Col, Divider, Descriptions, Alert, theme } from 'antd';
 import { PlusOutlined, SearchOutlined, EyeOutlined, CopyOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -20,6 +20,10 @@ const Parents = () => {
     const [successModal, setSuccessModal] = useState({ visible: false, data: null });
     const [form] = Form.useForm();
     const [editForm] = Form.useForm();
+
+    const {
+        token: { colorBgContainer, colorBorder, colorText, colorTextSecondary, colorPrimary, colorPrimaryBg },
+    } = theme.useToken();
 
     const fetchParents = async () => {
         setLoading(true);
@@ -107,8 +111,8 @@ Instructions:
         document.body.removeChild(element);
     };
 
-    const filteredParents = parents.filter(p =>
-        p.fullName.toLowerCase().includes(searchText.toLowerCase()) ||
+    const filteredParents = (Array.isArray(parents) ? parents : []).filter(p =>
+        (p.fullName || '').toLowerCase().includes(searchText.toLowerCase()) ||
         (p.phone && p.phone.includes(searchText)) ||
         (p.parentUniqueId && p.parentUniqueId.toLowerCase().includes(searchText.toLowerCase())) ||
         (p.nationalId && p.nationalId.toLowerCase().includes(searchText.toLowerCase()))
@@ -116,85 +120,81 @@ Instructions:
 
     const columns = [
         {
-            title: 'Parent ID',
-            dataIndex: 'parentUniqueId',
-            key: 'pid',
-            render: (text) => <Tag color="blue">{text || 'Pending'}</Tag>
-        },
-        {
-            title: 'Parent Name',
-            dataIndex: 'fullName',
-            key: 'name',
-            render: (text) => <Text strong>{text}</Text>
-        },
-        {
-            title: 'NIC',
-            dataIndex: 'nationalId',
-            key: 'nic',
+            title: 'Parent',
+            key: 'parent',
+            width: '25%',
+            render: (_, record) => (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <Text strong style={{ fontSize: 15, color: colorText }}>{record.fullName}</Text>
+                    <Text type="secondary" style={{ fontSize: 12, marginTop: 2 }}>{record.parentUniqueId || 'ID Pending'}</Text>
+                </div>
+            )
         },
         {
             title: 'Relationship',
             dataIndex: 'relationship',
             key: 'rel',
+            render: (text) => (
+                <Tag
+                    color="cyan"
+                    style={{
+                        borderRadius: 6,
+                        border: 'none',
+                        padding: '2px 12px',
+                        fontSize: 11,
+                        textTransform: 'uppercase',
+                        fontWeight: 600
+                    }}
+                >
+                    {text}
+                </Tag>
+            )
         },
         {
             title: 'Phone',
             dataIndex: 'phone',
             key: 'phone',
+            render: (text) => <Text style={{ color: colorTextSecondary }}>{text || '-'}</Text>
         },
         {
             title: 'Children',
             key: 'children',
-            render: (_, record) => (
-                <Space direction="vertical" size={0}>
-                    {record.students?.map(s => <Text key={s.id} style={{ fontSize: 12 }}>{s.fullName}</Text>)}
-                    {(!record.students || record.students.length === 0) && <Text type="secondary" italic>No students</Text>}
-                </Space>
-            )
+            render: (_, record) => {
+                const students = record.students || record.student_student_parentIdToparent || [];
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {students.length > 0 ? (
+                            students.map(s => (
+                                <Text key={s.id} style={{ fontSize: 13, color: colorTextSecondary }}>{s?.fullName || 'Unknown Student'}</Text>
+                            ))
+                        ) : (
+                            <Text type="secondary" italic style={{ fontSize: 12 }}>No students</Text>
+                        )}
+                    </div>
+                );
+            }
         },
         {
             title: 'Actions',
             key: 'actions',
+            align: 'right',
             render: (_, record) => (
-                <Space>
-                    <Button
-                        icon={<EyeOutlined />}
-                        size="small"
-                        type="primary"
-                        ghost
-                        onClick={() => navigate(`/parents/${record.id}`)}
-                    >
-                        View
-                    </Button>
-                </Space>
+                <Button
+                    onClick={() => navigate(`/parents/${record.id}`)}
+                    style={{
+                        background: 'rgba(123, 87, 228, 0.1)',
+                        color: '#7B57E4',
+                        border: 'none',
+                        fontWeight: 600,
+                        borderRadius: 8
+                    }}
+                    size="small"
+                >
+                    View
+                </Button>
             )
         }
     ];
-
-    const PasswordStrength = ({ value }) => {
-        if (!value) return null;
-        let score = 0;
-        if (value.length >= 6) score++;
-        if (/[A-Z]/.test(value)) score++;
-        if (/[0-9]/.test(value)) score++;
-        if (/[^A-Za-z0-9]/.test(value)) score++;
-
-        const colors = ['#ff4d4f', '#faad14', '#52c41a', '#22c55e'];
-        const labels = ['Weak', 'Fair', 'Strong', 'Excellent'];
-        const currentColor = colors[Math.min(score - 1, 3)] || colors[0];
-        const currentLabel = labels[Math.min(score - 1, 3)] || labels[0];
-
-        return (
-            <div style={{ marginTop: -5, marginBottom: 15 }}>
-                <div style={{ display: 'flex', gap: 4, height: 4, marginBottom: 4 }}>
-                    {[1, 2, 3, 4].map(i => (
-                        <div key={i} style={{ flex: 1, backgroundColor: i <= score ? currentColor : '#f0f0f0', borderRadius: 2 }} />
-                    ))}
-                </div>
-                <Text style={{ fontSize: 11, color: currentColor }}>Strength: {currentLabel}</Text>
-            </div>
-        );
-    };
 
     const parentFormFields = (isEdit = false) => (
         <>
@@ -319,19 +319,25 @@ Instructions:
                         onChange={e => setSearchText(e.target.value)}
                     />
                     {user?.role !== 'TEACHER' && (
-                        <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setIsModalVisible(true); }} size="large" style={{ background: '#7B57E4' }}>
+                        <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setIsModalVisible(true); }} size="large" style={{ background: colorPrimary, height: 44, fontWeight: 600, borderRadius: 8 }}>
                             Add Parent
                         </Button>
                     )}
                 </div>
             </div>
 
-            <Card bordered={false} style={{ borderRadius: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+            <Card bordered={false} style={{ borderRadius: 16, boxShadow: 'none', background: colorBgContainer }} bodyStyle={{ padding: '0 24px' }}>
                 <Table
                     columns={columns}
                     dataSource={filteredParents}
                     rowKey="id"
                     loading={loading}
+                    pagination={{
+                        pageSize: 10,
+                        position: ['bottomRight'],
+                        showSizeChanger: false
+                    }}
+                    rowClassName="parent-table-row"
                 />
             </Card>
 

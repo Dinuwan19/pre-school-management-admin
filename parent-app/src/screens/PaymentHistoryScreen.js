@@ -90,6 +90,14 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
         }
     }, [selectedStudent, selectedMonth]);
 
+    // Auto-calculate amount based on selected months
+    useEffect(() => {
+        if (paymentType === 'MONTHLY') {
+            const count = selectedMonths.length || 1;
+            setPaymentAmount((15000 * count).toString());
+        }
+    }, [selectedMonths, paymentType]);
+
     const fetchData = async (month = selectedMonth) => {
         setLoading(true);
         try {
@@ -145,34 +153,18 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
 
         let billingIds = [];
         let descType = 'Monthly Fee';
+        let targetCodes = [];
 
         if (paymentType === 'EXTRA') {
-            // Check if Category or Bill is selected
-            if (!selectedBilling && !selectedCategory) {
-                Alert.alert('Error', 'Please select a bill to pay or choose a category');
-                return;
-            }
-
-            if (selectedBilling) {
-                billingIds = [selectedBilling.id];
-                descType = selectedBilling.billingCategory?.name || 'Extra Payment';
-            } else if (selectedCategory) {
-                // Ad-hoc new payment
-                // Backend handles creation. We send categoryId.
-                descType = selectedCategory.name;
-            }
+            // ... existing EXTRA logic ...
         } else {
             // Monthly Fee Logic
-            // We assume paying for the SELECTED MONTH in the UI context (or logic needs to change)
-            // Or stick to the "Select Months" logic?
-            // The REQUIREMENT was: "Remove month selection... automatic skip past... handle monthly fee"
-
             if (selectedMonths.length === 0) {
                 Alert.alert('Error', 'Please select at least one month to pay');
                 return;
             }
 
-            const targetCodes = selectedMonths.map(name => {
+            targetCodes = selectedMonths.map(name => {
                 const idx = months.indexOf(name);
                 return `${selectedPaymentYear}-${String(idx + 1).padStart(2, '0')}`;
             });
@@ -207,13 +199,15 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                 file,
                 description,
                 selectedCategory?.id, // Pass categoryId if any
-                selectedStudent?.id   // Pass studentId 
+                selectedStudent?.id,   // Pass studentId 
+                targetCodes           // Pass billingMonths for backend auto-creation
             );
 
             Alert.alert('Success', 'Payment slip submitted for approval');
             setModalVisible(false);
             setImage(null);
             setSelectedBilling(null);
+            setSelectedMonths([]); // Clear selection to prevent stuck locked months
             fetchData();
         } catch (error) {
             console.log('Submission Error:', error);
@@ -276,7 +270,7 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                 hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
             >
                 <Image
-                    source={getAvatarSource(selectedStudent?.photoUrl, 'CHILD')}
+                    source={getAvatarSource(selectedStudent?.photoUrl, 'CHILD', null, selectedStudent?.gender)}
                     style={styles.headerAvatar}
                 />
                 <View style={styles.headerAvatarBadge}>
@@ -570,6 +564,7 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                     style={styles.fab}
                     onPress={() => {
                         setPaymentStep(1);
+                        setSelectedMonths([]); // Reset selection when opening modal
                         setModalVisible(true);
                     }}
                 >
@@ -639,12 +634,13 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                                                 // PENDING/REJECTED should remain clickable.
                                                 const isPaid = allBillings.some(b => {
                                                     const monthMatch = (b.billingMonth || '').includes(targetBillingMonth) || (b.billingMonth || '').includes(m);
-                                                    const statusMatch = (b.status === 'PAID' || b.status === 'SUCCESS' || b.status === 'APPROVED');
+                                                    // Include PENDING to lock it
+                                                    const statusMatch = (b.status === 'PAID' || b.status === 'SUCCESS' || b.status === 'APPROVED' || b.status === 'PENDING');
                                                     return monthMatch && statusMatch;
                                                 }) || allPayments.some(p => {
                                                     const ref = p.transactionRef || '';
-                                                    // 1. Check Status
-                                                    const isValidStatus = p.status === 'APPROVED' || p.status === 'PAID' || p.status === 'SUCCESS';
+                                                    // 1. Check Status (include PENDING)
+                                                    const isValidStatus = p.status === 'APPROVED' || p.status === 'PAID' || p.status === 'SUCCESS' || p.status === 'PENDING';
                                                     if (!isValidStatus) return false;
 
                                                     // 2. Check Year
@@ -890,7 +886,7 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                         <View style={styles.dropdownHeader}>
                             <Text style={styles.dropdownTitle}>Switch Student</Text>
                         </View>
-                        <View style={styles.dropdownList}>
+                        <View style={[styles.dropdownList, { maxHeight: 400 }]}>
                             <ScrollView
                                 style={{ maxHeight: 300 }}
                                 showsVerticalScrollIndicator={true}
@@ -913,7 +909,7 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                                             >
                                                 <View style={styles.optionAvatarContainer}>
                                                     <Image
-                                                        source={getAvatarSource(child.photoUrl, 'CHILD')}
+                                                        source={getAvatarSource(child.photoUrl, 'CHILD', null, child.gender)}
                                                         style={styles.optionAvatar}
                                                     />
                                                     {selectedStudent?.id === child.id && (

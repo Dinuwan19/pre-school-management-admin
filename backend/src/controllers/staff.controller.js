@@ -13,7 +13,10 @@ exports.getAllStaff = async (req, res, next) => {
             },
             include: {
                 teacherprofile: {
-                    include: { classrooms: { select: { name: true } } }
+                    include: {
+                        classrooms: { select: { id: true, name: true } },
+                        qualifications: true
+                    }
                 }
             },
             orderBy: { createdAt: 'desc' }
@@ -26,7 +29,7 @@ exports.getAllStaff = async (req, res, next) => {
 
 exports.createStaff = async (req, res, next) => {
     try {
-        const { fullName, email, phone, role, address, nationalId, joiningDate, classroomIds, qualification, designation } = req.body;
+        const { fullName, email, phone, role, address, nationalId, joiningDate, classroomIds, qualification, designation, qualifications } = req.body;
 
         const prefix = role === 'TEACHER' ? 'T' : 'A';
         const count = await prisma.user.count({ where: { role: role } });
@@ -75,6 +78,17 @@ exports.createStaff = async (req, res, next) => {
                 }
             }
 
+            let teacherQualifications = [];
+            if (qualifications) {
+                try {
+                    const parsed = typeof qualifications === 'string' ? JSON.parse(qualifications) : qualifications;
+                    teacherQualifications = parsed.map(q => ({ title: q.title || q }));
+                } catch (e) {
+                    // Fallback to single string if parsing fails
+                    teacherQualifications = [{ title: qualifications }];
+                }
+            }
+
             await prisma.teacherprofile.create({
                 data: {
                     teacherId: user.id,
@@ -83,6 +97,9 @@ exports.createStaff = async (req, res, next) => {
                     designation: designation || 'ASSISTANT',
                     classrooms: {
                         connect: validClassroomIds.map(id => ({ id }))
+                    },
+                    qualifications: {
+                        create: teacherQualifications
                     }
                 }
             });
@@ -115,7 +132,10 @@ exports.getStaffById = async (req, res, next) => {
             where: { id: parseInt(id) },
             include: {
                 teacherprofile: {
-                    include: { classrooms: true }
+                    include: {
+                        classrooms: true,
+                        qualifications: true
+                    }
                 }
             }
         });
@@ -129,7 +149,7 @@ exports.getStaffById = async (req, res, next) => {
 exports.updateStaff = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { qualification, classroomIds, designation, ...userData } = req.body;
+        const { qualification, classroomIds, designation, qualifications, ...userData } = req.body;
 
         // RBAC: Only SUPER_ADMIN can edit staff profiles
         if (req.user.role !== 'SUPER_ADMIN') {
@@ -207,16 +227,46 @@ exports.updateStaff = async (req, res, next) => {
                 };
             }
 
+            // Handle Qualifications
+            let qualificationUpdate = {};
+            let qualificationCreate = {};
+            if (qualifications) {
+                try {
+                    const parsed = typeof qualifications === 'string' ? JSON.parse(qualifications) : qualifications;
+                    // Handle both array of strings and array of objects
+                    const qData = parsed.map(q => {
+                        const title = typeof q === 'string' ? q : (q.title || '');
+                        return { title };
+                    }).filter(q => q.title);
+
+                    qualificationUpdate = {
+                        qualifications: {
+                            deleteMany: {},
+                            create: qData
+                        }
+                    };
+                    qualificationCreate = {
+                        qualifications: {
+                            create: qData
+                        }
+                    };
+                } catch (e) {
+                    console.error('Failed to parse qualifications', e);
+                }
+            }
+
             await prisma.teacherprofile.upsert({
                 where: { teacherId: user.id },
                 update: {
                     ...profileUpdateData,
-                    ...classroomUpdateQuery
+                    ...classroomUpdateQuery,
+                    ...qualificationUpdate
                 },
                 create: {
                     teacherId: user.id,
                     ...profileUpdateData,
-                    ...classroomCreateQuery
+                    ...classroomCreateQuery,
+                    ...qualificationCreate
                 }
             });
         }

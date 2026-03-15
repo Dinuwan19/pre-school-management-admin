@@ -105,17 +105,14 @@ Instructions:
             title: 'Staff Member',
             key: 'member',
             render: (_, record) => (
-                <Space>
-                    <Avatar src={record.photoUrl} icon={<UserOutlined />} style={{ background: '#F0EAFB', color: '#7B57E4' }} />
-                    <Text strong>{record.fullName}</Text>
+                <Space size={12}>
+                    <Avatar src={record.photoUrl} size={42} style={{ background: '#F3EFFF', color: '#7B57E4' }}>{record.fullName[0]}</Avatar>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <Text strong style={{ fontSize: 14 }}>{record.fullName}</Text>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{record.employeeId || 'ID Pending'}</Text>
+                    </div>
                 </Space>
             )
-        },
-        {
-            title: 'ID',
-            dataIndex: 'employeeId',
-            key: 'id',
-            render: (id) => <Tag color="blue">{id || 'N/A'}</Tag>
         },
         {
             title: 'Role',
@@ -155,7 +152,21 @@ Instructions:
         {
             title: 'Action',
             key: 'action',
-            render: (_, record) => <Button type="link" onClick={() => navigate(`/staff/${record.id}`)}>View</Button>
+            render: (_, record) => (
+                <Button
+                    onClick={() => navigate(`/staff/${record.id}`)}
+                    style={{
+                        background: 'rgba(123, 87, 228, 0.1)',
+                        color: '#7B57E4',
+                        border: 'none',
+                        fontWeight: 600,
+                        borderRadius: 8
+                    }}
+                    size="small"
+                >
+                    View
+                </Button>
+            )
         }
     ];
 
@@ -255,7 +266,7 @@ Instructions:
 
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
                             <Button onClick={() => setView('list')}>Cancel</Button>
-                            <Button type="primary" htmlType="submit" loading={loading} style={{ background: '#7B57E4' }}>Add Staff Member</Button>
+                            <Button type="primary" htmlType="submit" loading={loading} style={{ background: '#7B57E4', fontWeight: 600, borderRadius: 8 }}>Add Staff Member</Button>
                         </div>
                     </Form>
                 </Card>
@@ -272,7 +283,7 @@ Instructions:
                     icon={<PlusOutlined />}
                     size="large"
                     onClick={() => setView('add')}
-                    style={{ background: '#7B57E4', borderRadius: 8, height: 44 }}
+                    style={{ background: '#7B57E4', borderRadius: 8, height: 44, fontWeight: 600 }}
                 >
                     Add Staff
                 </Button>

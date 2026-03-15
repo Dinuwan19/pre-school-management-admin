@@ -1,16 +1,15 @@
 const prisma = require('../config/prisma');
 const dayjs = require('dayjs');
-const fs = require('fs');
 const path = require('path');
 const { uploadFile } = require('../services/storage.service');
-
-// Note: In a real production app, use 'pdfkit' or similar to generate actual PDFs.
-// For this prototype, we'll confirm data fetching and mock the file path/download.
+const pdfService = require('../services/pdf.service');
+const reportService = require('../services/report.service');
 
 exports.generateReport = async (req, res, next) => {
     try {
-        const { type, dateRange } = req.body;
+        const { type, dateRange, studentId } = req.body;
         const generatedById = req.user.id;
+        const generatorName = req.user.fullName;
 
         // 1. Determine Date Range
         let startDate, endDate;
@@ -25,43 +24,109 @@ exports.generateReport = async (req, res, next) => {
                 startDate = now.subtract(1, 'month').startOf('month').toDate();
                 endDate = now.subtract(1, 'month').endOf('month').toDate();
                 break;
-            default: // Custom or Year to Date
+            case 'Year to Date':
                 startDate = now.startOf('year').toDate();
+                endDate = now.toDate();
+                break;
+            default:
+                startDate = now.startOf('month').toDate();
                 endDate = now.toDate();
         }
 
-        // 2. Fetch Data (Proof of Concept Logic)
-        let reportData = {};
+        let reportData;
 
-        if (type === 'Attendance Report') {
-            const attendance = await prisma.attendance.count({
-                where: { attendanceDate: { gte: startDate, lte: endDate } }
+        // 2. Logic Selection (Service Layer)
+        if (type === 'Fee Payment Report' || type === 'Financial Report') {
+            reportData = await reportService.getFinancialReportData(startDate, endDate, generatorName);
+        } else if (type === 'Attendance Report') {
+            // TODO: Move Attendance Report to reportService later
+            // Keeping original logic for now to ensure continuity
+            const globalStats = await prisma.attendance.groupBy({
+                by: ['status'],
+                where: { attendanceDate: { gte: startDate, lte: endDate } },
+                _count: { _all: true }
             });
-            reportData = { totalRecords: attendance };
-        } else if (type === 'Classroom Report') {
-            const classrooms = await prisma.classroom.count({ where: { status: 'ACTIVE' } });
-            reportData = { activeClassrooms: classrooms };
-        } else if (type === 'Financial Report') {
-            const income = await prisma.payment.aggregate({
-                _sum: { amountPaid: true },
-                where: { createdAt: { gte: startDate, lte: endDate }, status: 'APPROVED' }
+
+            let gPresent = 0, gAbsent = 0, gLate = 0;
+            globalStats.forEach(s => {
+                if (['PRESENT', 'COMPLETED'].includes(s.status)) gPresent += s._count._all;
+                if (['ABSENT'].includes(s.status)) gAbsent += s._count._all;
+                if (['LATE'].includes(s.status)) gLate += s._count._all;
             });
-            reportData = { totalIncome: income._sum.amountPaid || 0 };
+            const gTotal = gPresent + gAbsent + gLate;
+            const gRate = gTotal > 0 ? Math.round((gPresent / gTotal) * 100) : 0;
+
+            reportData = {
+                generatedBy: generatorName,
+                pages: [{
+                    title: 'Institutional Attendance Overview',
+                    sidebarMetrics: {
+                        'Overview': { 'Attendance Rate': `${gRate}%`, 'Total Records': gTotal },
+                        'Breakdown': { 'Present': gPresent, 'Absent': gAbsent, 'Late': gLate }
+                    },
+                    insight: `The institution maintained an average attendance rate of ${gRate}% for this period.`,
+                    charts: [{
+                        id: 'global-trend',
+                        config: JSON.stringify({
+                            type: 'doughnut',
+                            data: {
+                                labels: ['Present', 'Absent', 'Late'],
+                                datasets: [{ data: [gPresent, gAbsent, gLate], backgroundColor: ['#00B894', '#FF7675', '#FDCB6E'], borderWidth: 0 }]
+                            },
+                            options: { maintainAspectRatio: false, cutout: '70%' }
+                        })
+                    }],
+                    tables: []
+                }]
+            };
+        } else if (type === 'Student Progress Report') {
+            // Keeping original logic for now
+            if (studentId) {
+                const student = await prisma.student.findUnique({ where: { id: parseInt(studentId) } });
+                const assessment = await prisma.assessment.findFirst({
+                    where: { studentId: parseInt(studentId) },
+                    orderBy: { updatedAt: 'desc' },
+                    include: { scores: { include: { subSkill: true } } }
+                });
+
+                if (assessment) {
+                    const scoresList = assessment.scores.map(s => s.score);
+                    const avg = scoresList.reduce((a, b) => a + b, 0) / scoresList.length;
+                    reportData = {
+                        generatedBy: generatorName,
+                        pages: [{
+                            title: `Development Profile: ${student.fullName}`,
+                            sidebarMetrics: { 'Profile': { 'Growth Index': `${avg.toFixed(1)}/5.0`, 'Skills': scoresList.length } },
+                            insight: `${student.fullName} demonstrates a Growth Index of ${avg.toFixed(1)}.`,
+                            charts: [{
+                                id: 'radar-skill',
+                                config: JSON.stringify({
+                                    type: 'radar',
+                                    data: {
+                                        labels: assessment.scores.map(s => s.subSkill.name),
+                                        datasets: [{ data: scoresList, backgroundColor: 'rgba(123, 87, 228, 0.2)', borderColor: '#7B57E4' }]
+                                    },
+                                    options: { scales: { r: { min: 0, max: 5 } }, maintainAspectRatio: false }
+                                })
+                            }],
+                            tables: []
+                        }]
+                    };
+                }
+            }
         }
 
-        // 3. Log the Report
-        const mockFileName = `${type.replace(/\s/g, '_')}_${dayjs().format('YYYYMMDD_HHmm')}.pdf`;
+        if (!reportData) {
+            return res.status(400).json({ message: 'Could not generate report data for the selected type' });
+        }
 
-        // Create a mock PDF buffer (In real app, use PDFKit here)
-        const pdfContent = `Report: ${type}\nDate Range: ${dateRange}\nGenerated: ${new Date().toISOString()}\n\nDetails: ${JSON.stringify(reportData, null, 2)}`;
-        const pdfBuffer = Buffer.from(pdfContent);
+        // 3. Generate HTML and PDF
+        const html = pdfService.generateReportTemplate(type, reportData);
+        const pdfBuffer = await pdfService.generatePdfFromHtml(html);
 
-        // Upload to Supabase 'reports' bucket
-        const fileObj = {
-            originalname: mockFileName,
-            mimetype: 'application/pdf',
-            buffer: pdfBuffer
-        };
+        // 4. Upload and Log
+        const fileName = `${type.replace(/\s/g, '_')}_${dayjs().format('YYYYMMDD_HHmm')}.pdf`;
+        const fileObj = { originalname: fileName, mimetype: 'application/pdf', buffer: pdfBuffer, fieldname: 'report' };
 
         const publicUrl = await uploadFile(fileObj, 'reports');
 
@@ -74,13 +139,9 @@ exports.generateReport = async (req, res, next) => {
             }
         });
 
-        res.json({
-            message: 'Report generated successfully',
-            reportId: log.id,
-            details: reportData
-        });
-
+        res.json({ message: 'Advanced analytical report generated successfully', reportId: log.id, downloadUrl: publicUrl });
     } catch (error) {
+        console.error('Report Generation Error:', error);
         next(error);
     }
 };
@@ -89,7 +150,7 @@ exports.getRecentReports = async (req, res, next) => {
     try {
         const reports = await prisma.report_log.findMany({
             orderBy: { createdAt: 'desc' },
-            take: 10,
+            take: 15,
             include: { user: { select: { fullName: true } } }
         });
         res.json(reports);
@@ -105,8 +166,6 @@ exports.downloadReport = async (req, res, next) => {
 
         if (!report) return res.status(404).json({ message: 'Report not found' });
 
-        // In a real app, stream the file. 
-        // Here we just return the metadata to simulate 'download' action in frontend.
         res.json({
             downloadUrl: report.filePath,
             fileName: path.basename(report.filePath || 'report.pdf')

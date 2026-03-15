@@ -129,8 +129,21 @@ model teacherprofile {
   qualification       String?
   qualificationPdf    String?
   designation         teacher_designation @default(ASSISTANT)
+  qualifications      teacher_qualification[]
   classrooms          classroom[]
   user                user                @relation(fields: [teacherId], references: [id], map: "TeacherProfile_teacherId_fkey")
+}
+
+model teacher_qualification {
+  id              Int            @id @default(autoincrement())
+  teacherId       Int
+  title           String
+  fileName        String?        
+  fileUrl         String?
+  createdAt       DateTime       @default(now())
+  teacherProfile  teacherprofile @relation(fields: [teacherId], references: [teacherId])
+
+  @@index([teacherId], map: "TeacherQualification_teacherId_fkey")
 }
 
 // ... existing user ...

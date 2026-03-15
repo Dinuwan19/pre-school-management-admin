@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Typography, Row, Col, Modal, Form, Input, DatePicker, Select, message, Space, Tag, Empty, List, Avatar, Divider } from 'antd';
+import { Card, Button, Typography, Row, Col, Modal, Form, Input, DatePicker, Select, message, Space, Tag, Empty, List, Avatar, Divider, theme } from 'antd';
 import { PlusOutlined, BookOutlined, CalendarOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -10,6 +10,7 @@ const { Option } = Select;
 
 const Homework = () => {
     const { user } = useAuth();
+    const { token: { colorBgContainer, colorPrimaryBg, colorText, colorTextSecondary } } = theme.useToken();
     const [homework, setHomework] = useState([]);
     const [classrooms, setClassrooms] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -66,7 +67,7 @@ const Homework = () => {
         <div style={{ paddingBottom: 40 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
                 <div>
-                    <Title level={3} style={{ margin: 0 }}>Homework & Tasks</Title>
+                    <Title level={3} style={{ margin: 0, color: colorText }}>Homework & Tasks</Title>
                     <Text type="secondary">Manage classroom assignments and due dates</Text>
                 </div>
                 <Button
@@ -85,7 +86,7 @@ const Homework = () => {
                     <Col xs={24} md={12} lg={8} key={item.id}>
                         <Card
                             hoverable
-                            style={{ borderRadius: 16, border: '1px solid #f0f0f0', position: 'relative' }}
+                            style={{ borderRadius: 16, border: 'none', position: 'relative', background: colorBgContainer, boxShadow: 'none' }}
                             bodyStyle={{ padding: 20 }}
                         >
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -104,7 +105,7 @@ const Homework = () => {
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <Avatar size="small" icon={<UserOutlined />} style={{ background: '#F0EAFB', color: '#7B57E4' }} />
+                                    <Avatar size="small" icon={<UserOutlined />} style={{ background: colorPrimaryBg, color: '#7B57E4' }} />
                                     <Text style={{ fontSize: 12 }}>{item.user?.fullName}</Text>
                                 </div>
                                 <Button

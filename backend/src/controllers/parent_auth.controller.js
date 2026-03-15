@@ -277,6 +277,8 @@ exports.resendVerification = async (req, res, next) => {
     }
 };
 
+const dayjs = require('dayjs');
+
 exports.getLinkedChildren = async (req, res, next) => {
     try {
         const userId = req.user.id;
@@ -305,6 +307,27 @@ exports.getLinkedChildren = async (req, res, next) => {
                             include: { scores: true }
                         }
                     }
+                },
+                student_student_secondParentIdToparent: {
+                    include: {
+                        classroom: {
+                            include: {
+                                teacherprofiles: {
+                                    where: { designation: 'LEAD' },
+                                    include: { user: true }
+                                }
+                            }
+                        },
+                        attendance: {
+                            orderBy: { attendanceDate: 'desc' },
+                            take: 1
+                        },
+                        assessments: {
+                            orderBy: { updatedAt: 'desc' },
+                            take: 1,
+                            include: { scores: true }
+                        }
+                    }
                 }
             }
         });
@@ -313,25 +336,50 @@ exports.getLinkedChildren = async (req, res, next) => {
             return res.status(404).json({ message: 'Parent profile not found' });
         }
 
-        const children = await Promise.all(parentRecord.student_student_parentIdToparent.map(async (child) => {
-            // Calculate Attendance Rate (Last 30 days)
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        // Combine children from both primary and secondary roles
+        const allChildren = [
+            ...(parentRecord.student_student_parentIdToparent || []),
+            ...(parentRecord.student_student_secondParentIdToparent || [])
+        ];
 
-            const totalDays = await prisma.attendance.count({
-                where: { studentId: child.id, attendanceDate: { gte: thirtyDaysAgo } }
+        // Deduplicate by ID
+        const uniqueChildren = Array.from(new Map(allChildren.map(item => [item.id, item])).values());
+
+        const children = await Promise.all(uniqueChildren.map(async (child) => {
+            // Calculate Attendance Rate (Last 30 days)
+            const thirtyDaysAgo = dayjs().subtract(30, 'day').startOf('day').toDate();
+
+            const attendanceRecords = await prisma.attendance.findMany({
+                where: { studentId: child.id, attendanceDate: { gte: thirtyDaysAgo } },
+                orderBy: { attendanceDate: 'desc' }
             });
-            const presentDays = await prisma.attendance.count({
-                where: { studentId: child.id, attendanceDate: { gte: thirtyDaysAgo }, status: 'PRESENT' }
-            });
-            const attendanceRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 100;
+
+            let attendanceRate = 100;
+            let totalWeekdaysSpan = 0;
+            let presentCount = 0;
+
+            if (attendanceRecords.length > 0) {
+                const earliest = dayjs(attendanceRecords[attendanceRecords.length - 1].attendanceDate);
+                const latest = dayjs(attendanceRecords[0].attendanceDate);
+                const spanDays = latest.diff(earliest, 'days') + 1;
+
+                for (let i = 0; i < spanDays; i++) {
+                    const d = earliest.add(i, 'day');
+                    if (d.day() !== 0 && d.day() !== 6) totalWeekdaysSpan++;
+                }
+
+                presentCount = attendanceRecords.filter(a => ['PRESENT', 'LATE', 'COMPLETED'].includes(a.status)).length;
+                attendanceRate = totalWeekdaysSpan > 0 ? Math.round((presentCount / totalWeekdaysSpan) * 100) : 100;
+                if (attendanceRate > 100) attendanceRate = 100;
+            }
 
             // Calculate Progress Average from new assessments table
             const lastAssessment = child.assessments?.[0];
             let progressAvg = 0;
             if (lastAssessment && lastAssessment.scores && lastAssessment.scores.length > 0) {
                 const totalScore = lastAssessment.scores.reduce((acc, s) => acc + s.score, 0);
-                progressAvg = Math.round(totalScore / lastAssessment.scores.length);
+                // Formula: Percentage = (ActualSum / (Count * 3)) * 100
+                progressAvg = Math.round((totalScore / (lastAssessment.scores.length * 3)) * 100);
             }
 
             return {
@@ -339,6 +387,8 @@ exports.getLinkedChildren = async (req, res, next) => {
                 studentUniqueId: child.studentUniqueId,
                 fullName: child.fullName,
                 photoUrl: child.photoUrl,
+                classroomId: child.classroomId,
+                parentId: child.parentId,
                 classroom: child.classroom?.name,
                 teacherName: child.classroom?.teacherprofiles?.[0]?.user?.fullName || 'N/A',
                 attendance: child.attendance[0]?.status === 'PRESENT' ? 'Present' : 'Absent',
@@ -347,7 +397,8 @@ exports.getLinkedChildren = async (req, res, next) => {
                 lastAttendance: child.attendance[0],
                 latestProgress: lastAssessment, // Updated field mapping
                 gender: child.gender,
-                enrollmentDate: child.enrollmentDate
+                enrollmentDate: child.enrollmentDate,
+                parentUserId: parentRecord.userId
             };
         }));
 
@@ -368,7 +419,10 @@ exports.getParentBillings = async (req, res, next) => {
 
         const students = await prisma.student.findMany({
             where: {
-                parentId: parentRecord.id,
+                OR: [
+                    { parentId: parentRecord.id },
+                    { secondParentId: parentRecord.id }
+                ],
                 ...(studentId ? { id: parseInt(studentId) } : {})
             },
             select: { id: true, fullName: true, studentUniqueId: true }

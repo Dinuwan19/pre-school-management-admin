@@ -150,7 +150,7 @@ const Dashboard = () => {
                         <Col span={24}>
                             <Card
                                 title={<Space><BellOutlined style={{ color: '#7B57E4' }} /> Recent Announcements & Events</Space>}
-                                extra={<Button type="link" onClick={() => navigate('/announcements')}>View All <ArrowRightOutlined /></Button>}
+                                extra={<Button type="link" onClick={() => navigate('/announcements')} style={{ color: '#7B57E4', fontWeight: 600 }}>View All <ArrowRightOutlined /></Button>}
                                 style={{ borderRadius: 16, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}
                             >
                                 <List
@@ -205,17 +205,73 @@ const Dashboard = () => {
                         style={{ borderRadius: 16, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', marginBottom: 24 }}
                     >
                         <Space direction="vertical" style={{ width: '100%' }} size={16}>
-                            <Button block size="large" onClick={() => navigate('/attendance')} icon={<CalendarOutlined />} style={{ borderRadius: 12, height: 50, textAlign: 'left', fontWeight: 500 }}>
+                            <Button
+                                block
+                                size="large"
+                                onClick={() => navigate('/attendance')}
+                                icon={<CalendarOutlined />}
+                                style={{
+                                    borderRadius: 12,
+                                    height: 50,
+                                    textAlign: 'left',
+                                    fontWeight: 600,
+                                    background: 'rgba(123, 87, 228, 0.1)',
+                                    color: '#7B57E4',
+                                    border: 'none'
+                                }}
+                            >
                                 Mark Daily Attendance
                             </Button>
-                            <Button block size="large" onClick={() => navigate('/announcements')} icon={<BellOutlined />} style={{ borderRadius: 12, height: 50, textAlign: 'left', fontWeight: 500 }}>
+                            <Button
+                                block
+                                size="large"
+                                onClick={() => navigate('/announcements')}
+                                icon={<BellOutlined />}
+                                style={{
+                                    borderRadius: 12,
+                                    height: 50,
+                                    textAlign: 'left',
+                                    fontWeight: 600,
+                                    background: 'rgba(123, 87, 228, 0.1)',
+                                    color: '#7B57E4',
+                                    border: 'none'
+                                }}
+                            >
                                 Broadcast Announcement
                             </Button>
-                            <Button block size="large" onClick={() => navigate('/homework')} icon={<BookOutlined />} style={{ borderRadius: 12, height: 50, textAlign: 'left', fontWeight: 500 }}>
+                            <Button
+                                block
+                                size="large"
+                                onClick={() => navigate('/homework')}
+                                icon={<BookOutlined />}
+                                style={{
+                                    borderRadius: 12,
+                                    height: 50,
+                                    textAlign: 'left',
+                                    fontWeight: 600,
+                                    background: 'rgba(123, 87, 228, 0.1)',
+                                    color: '#7B57E4',
+                                    border: 'none'
+                                }}
+                            >
                                 Assign New Homework
                             </Button>
                             {(userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') && (
-                                <Button block size="large" onClick={() => navigate('/billing/overview')} icon={<DollarOutlined />} style={{ borderRadius: 12, height: 50, textAlign: 'left', fontWeight: 500 }}>
+                                <Button
+                                    block
+                                    size="large"
+                                    onClick={() => navigate('/billing/overview')}
+                                    icon={<DollarOutlined />}
+                                    style={{
+                                        borderRadius: 12,
+                                        height: 50,
+                                        textAlign: 'left',
+                                        fontWeight: 600,
+                                        background: 'rgba(123, 87, 228, 0.1)',
+                                        color: '#7B57E4',
+                                        border: 'none'
+                                    }}
+                                >
                                     Manage School Fees
                                 </Button>
                             )}

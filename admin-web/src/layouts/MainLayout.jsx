@@ -17,6 +17,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import DarkModeToggle from '../components/DarkModeToggle';
 import api from '../api/client';
 
 const { Header, Sider, Content } = Layout;
@@ -26,7 +27,7 @@ const MainLayout = () => {
     const [collapsed, setCollapsed] = useState(false);
     const [pendingMeetings, setPendingMeetings] = useState(0);
     const {
-        token: { colorBgContainer, borderRadiusLG },
+        token: { colorBgContainer, borderRadiusLG, colorBgLayout, colorText, colorTextSecondary, colorBorder },
     } = theme.useToken();
 
     const navigate = useNavigate();
@@ -132,19 +133,45 @@ const MainLayout = () => {
     // Helper to determine breadcrumbs
     const pathSnippets = location.pathname.split('/').filter((i) => i);
     const breadcrumbItems = [
-        { title: 'Home' },
-        ...pathSnippets.map(curr => ({ title: curr.charAt(0).toUpperCase() + curr.slice(1) }))
-    ];
+        { title: 'Home', path: '/dashboard' },
+        ...pathSnippets.map((snippet, index) => {
+            const url = `/${pathSnippets.slice(0, index + 1).join('/')}`;
+            return {
+                title: snippet.charAt(0).toUpperCase() + snippet.slice(1),
+                path: url
+            };
+        })
+    ].map(item => ({
+        title: <span style={{ cursor: 'pointer' }} onClick={() => navigate(item.path)}>{item.title}</span>
+    }));
+
+    // Logic for selected menu keys
+    const getSelectedKeys = () => {
+        const path = location.pathname;
+        if (path === '/dashboard') return ['/dashboard'];
+        if (path.startsWith('/students')) return ['/students'];
+        if (path.startsWith('/parents')) return ['/parents'];
+        if (path.startsWith('/staff')) return ['/staff'];
+        if (path.startsWith('/classrooms')) return ['/classrooms'];
+        if (path.startsWith('/attendance')) return ['/attendance'];
+        if (path.startsWith('/announcements')) return ['/announcements'];
+        if (path.startsWith('/meetings')) return ['/meetings'];
+        if (path.startsWith('/homework')) return ['/homework'];
+        if (path.startsWith('/billing')) return [path]; // Billing might need specific logic if we want to collapse it
+        if (path.startsWith('/events')) return ['/events'];
+        if (path.startsWith('/reports')) return ['/reports'];
+        return [path];
+    };
 
     return (
         <Layout style={{ minHeight: '100vh' }}>
-            <Sider trigger={null} collapsible collapsed={collapsed} theme="light" width={260} style={{ borderRight: '1px solid #f0f0f0' }}>
+            <Sider trigger={null} collapsible collapsed={collapsed} theme="light" width={260} style={{ borderRight: `1px solid ${colorBorder}`, backgroundColor: colorBgContainer }}>
                 <div style={{ height: 64, display: 'flex', alignItems: 'center', paddingLeft: 24, margin: '16px 0' }}>
                     <div style={{ width: 40, height: 40, background: '#7B57E4', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: 20 }}>M</div>
                     {!collapsed && (
                         <div style={{ marginLeft: 12, display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontWeight: 700, fontSize: 16, color: '#333', lineHeight: '1.2' }}>Malkakulu</span>
-                            <span style={{ fontSize: 12, color: '#888' }}>Future Mind</span>
+                            <span style={{ fontWeight: 700, fontSize: 16, color: colorText, lineHeight: '1.2' }}>Malkakulu</span>
+                            <span style={{ fontSize: 12, color: colorTextSecondary }}>Future Mind</span>
                         </div>
                     )}
                 </div>
@@ -152,7 +179,7 @@ const MainLayout = () => {
                     theme="light"
                     mode="inline"
                     defaultOpenKeys={['billing-sub', 'edu-comm-sub']}
-                    selectedKeys={[location.pathname]}
+                    selectedKeys={getSelectedKeys()}
                     onClick={({ key }) => {
                         if (key.includes('/add')) {
                             // If specific Add page logic needed, handle here. 
@@ -166,7 +193,7 @@ const MainLayout = () => {
                         }
                     }}
                     items={menuItems}
-                    style={{ borderRight: 0, paddingBottom: 80 }}
+                    style={{ borderRight: 0, paddingBottom: 80, backgroundColor: colorBgContainer }}
                 />
                 <div style={{ position: 'absolute', bottom: 20, width: '100%', padding: '0 24px' }}>
                     <Button
@@ -181,23 +208,24 @@ const MainLayout = () => {
                     </Button>
                 </div>
             </Sider>
-            <Layout style={{ background: '#FAFBFC' }}>
-                <Header style={{ padding: '0 24px', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 72, borderBottom: '1px solid #f0f0f0' }}>
+            <Layout style={{ background: colorBgLayout }}>
+                <Header style={{ padding: '0 24px', background: colorBgContainer, display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 72, borderBottom: `1px solid ${colorBorder}` }}>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                         <Button
                             type="text"
                             icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
                             onClick={() => setCollapsed(!collapsed)}
-                            style={{ fontSize: '18px', width: 44, height: 44, marginRight: 16 }}
+                            style={{ fontSize: '18px', width: 44, height: 44, marginRight: 16, color: colorText }}
                         />
-                        <Breadcrumb items={breadcrumbItems} />
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+                        <DarkModeToggle />
+
                         <Badge count={pendingMeetings} size="small" offset={[-2, 6]}>
                             <Button
                                 type="text"
-                                icon={<BellOutlined style={{ fontSize: 20, color: '#64748B' }} />}
+                                icon={<BellOutlined style={{ fontSize: 20, color: colorTextSecondary }} />}
                                 onClick={() => navigate('/meetings')}
                                 style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                             />
@@ -208,8 +236,8 @@ const MainLayout = () => {
                             onClick={() => navigate('/dashboard')}
                         >
                             <div style={{ textAlign: 'right', lineHeight: 1.2 }}>
-                                <div style={{ fontWeight: 600, color: '#333' }}>{user?.username}</div>
-                                <div style={{ fontSize: 11, color: '#888' }}>{user?.role}</div>
+                                <div style={{ fontWeight: 600, color: colorText }}>{user?.username}</div>
+                                <div style={{ fontSize: 11, color: colorTextSecondary }}>{user?.role}</div>
                             </div>
                             <Avatar style={{ backgroundColor: '#F0EAFB', color: '#7B57E4' }}>
                                 {user?.username?.substring(0, 2).toUpperCase() || 'AD'}

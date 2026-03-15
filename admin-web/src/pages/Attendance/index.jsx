@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Typography, Row, Col, Table, Tag, Button, Tabs, message, Spin, Space, Avatar, Badge, DatePicker, Modal, Form, Select, TimePicker } from 'antd';
 import {
-    ScanOutlined,
     CalendarOutlined,
     CheckCircleOutlined,
     ClockCircleOutlined,
@@ -10,8 +9,6 @@ import {
 } from '@ant-design/icons';
 import api from '../../api/client';
 import dayjs from 'dayjs';
-// Using html5-qrcode for scanner
-import { Html5QrcodeScanner } from 'html5-qrcode';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -61,38 +58,6 @@ const Attendance = () => {
         }
     }, [selectedDate, activeTab]);
 
-    useEffect(() => {
-        if (activeTab === '2') {
-            const scanner = new Html5QrcodeScanner("reader", {
-                fps: 10,
-                qrbox: { width: 250, height: 250 }
-            });
-
-            scanner.render(onScanSuccess, onScanFailure);
-
-            return () => {
-                scanner.clear().catch(error => console.error("Failed to clear scanner", error));
-            };
-        }
-    }, [activeTab]);
-
-    const onScanSuccess = async (decodedText) => {
-        try {
-            let studentId;
-            try {
-                const qrData = JSON.parse(decodedText);
-                studentId = qrData.id;
-            } catch (e) {
-                studentId = decodedText;
-            }
-
-            const res = await api.post('/attendance/scan', { studentId });
-            message.success(res.data.message);
-            fetchAttendance(selectedDate);
-        } catch (e) {
-            message.error(e.response?.data?.message || "Invalid QR Code");
-        }
-    };
 
     const handleBulkMark = async (status) => {
         if (!selectedClassroom) return;
@@ -277,21 +242,6 @@ const Attendance = () => {
                         loading={loading}
                         pagination={{ pageSize: 15 }}
                     />
-                </div>
-            )
-        },
-        {
-            key: '2',
-            label: <><ScanOutlined /> QR Scanner</>,
-            children: (
-                <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                    <Card style={{ maxWidth: 600, margin: '0 auto', borderRadius: 16 }}>
-                        <Title level={4}>Scan Student QR Code</Title>
-                        <Text type="secondary" style={{ display: 'block', marginBottom: 20 }}>
-                            Use the camera to scan the student's ID badge for check-in or check-out.
-                        </Text>
-                        <div id="reader" style={{ width: '100%', borderRadius: 12, overflow: 'hidden' }}></div>
-                    </Card>
                 </div>
             )
         }

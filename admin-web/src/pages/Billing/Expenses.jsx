@@ -74,9 +74,11 @@ const Expenses = () => {
         {
             title: 'Receipt',
             key: 'receipt',
-            render: (_, record) => record.receiptUrl ? (
-                <Button type="link" icon={<FileImageOutlined />} onClick={() => window.open(record.receiptUrl, '_blank')}>View</Button>
-            ) : <Text type="secondary">-</Text>
+            render: (_, record) => {
+                if (!record.receiptUrl) return <Text type="secondary">-</Text>;
+                const fullUrl = record.receiptUrl.startsWith('http') ? record.receiptUrl : `http://127.0.0.1:5000${record.receiptUrl}`;
+                return <Button type="link" icon={<FileImageOutlined />} onClick={() => window.open(fullUrl, '_blank')}>View</Button>;
+            }
         },
         { title: 'Action', key: 'action', render: () => <Button type="text" danger icon={<DeleteOutlined />} /> }
     ];

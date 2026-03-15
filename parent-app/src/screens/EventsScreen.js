@@ -55,7 +55,7 @@ const EventsScreen = ({ navigation }) => {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
-    const [filter, setFilter] = useState('UPCOMING'); // UPCOMING or COMPLETED
+    const [filter, setFilter] = useState('ALL'); // Default to ALL
     const [imageModalVisible, setImageModalVisible] = useState(false);
     const [selectedImageUrl, setSelectedImageUrl] = useState(null);
     const [isDownloading, setIsDownloading] = useState(false);
@@ -76,6 +76,8 @@ const EventsScreen = ({ navigation }) => {
         if (!path) return null;
         return path.startsWith('http') ? path : `${BASE_URL}${path}`;
     }, []);
+
+    // ... (Downloading & Modal logic remains same)
 
     const handleDownload = async () => {
         if (!selectedImageUrl) return;
@@ -121,19 +123,9 @@ const EventsScreen = ({ navigation }) => {
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
-            <CommonHeader title="School Events" showBack={false} />
+            <CommonHeader title="All School Events" showBack={false} />
 
-            <View style={styles.filterContainer}>
-                {['UPCOMING', 'COMPLETED'].map(f => (
-                    <TouchableOpacity
-                        key={f}
-                        style={[styles.filterBtn, filter === f && styles.filterBtnActive]}
-                        onPress={() => setFilter(f)}
-                    >
-                        <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>{f}</Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
+            {/* Filter Tabs Removed - Single List View */}
 
             <FlatList
                 data={events}
@@ -142,7 +134,7 @@ const EventsScreen = ({ navigation }) => {
                 contentContainerStyle={styles.list}
                 refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchEvents} colors={[COLORS.primary]} />}
                 ListEmptyComponent={
-                    !loading && <Text style={styles.emptyText}>No {filter.toLowerCase()} events found.</Text>
+                    !loading && <Text style={styles.emptyText}>No events found.</Text>
                 }
             />
 

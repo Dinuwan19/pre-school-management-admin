@@ -1,0 +1,338 @@
+1. REPORT FEATURE DEVELOPMENT
+
+(Based on your “Reports” UI screen)
+
+1.1 What Your Reports UI Is Doing (Functional View)
+
+From your UI, the Reports module has two main sections:
+
+A. Generate Report (Left Card)
+
+Report Type (dropdown)
+
+Classroom Report
+
+Attendance Report
+
+Student Progress Report
+
+Financial Report
+
+Date Range (dropdown)
+
+This Month
+
+Last Month
+
+Custom Range
+
+Generate Report button
+
+B. Recent Reports (Right Card)
+
+Previously generated reports
+
+Each report has:
+
+Name
+
+Date
+
+Download button (PDF)
+
+This tells the examiner clearly:
+
+Reports are generated on demand, not static files.
+
+1.2 Backend Design – Report Module
+1.2.1 Database Tables Used
+
+Your reports do not need a “report” table for data, only a report_log table.
+
+Core Data Tables
+
+students
+
+attendance
+
+payments
+
+expenses
+
+progress
+
+classrooms
+
+Report Log Table (Important)
+report_logs
+-----------
+report_id
+report_type
+date_range
+generated_by (admin_id)
+file_path
+created_at
+
+
+👉 This is why your Recent Reports list exists.
+
+1.3 Report Generation Flow (Step-by-Step)
+Step 1: Admin selects report options
+
+(UI)
+
+Report Type: Classroom Report
+Date Range: This Month
+
+Step 2: Frontend sends API request
+POST /api/reports/generate
+{
+  "type": "classroom",
+  "dateRange": "this_month"
+}
+
+Step 3: Backend applies business logic
+
+Example: Attendance Report
+
+Fetch attendance records
+
+SELECT student_id, date, status
+FROM attendance
+WHERE date BETWEEN startDate AND endDate;
+
+
+Calculate:
+
+Total present days
+
+Total absent days
+
+Attendance percentage
+
+This matches your system goal:
+
+No fake or dummy data, only real records.
+
+Step 4: Report formatting
+
+Backend converts data into:
+
+Structured table
+
+Summary section
+
+Then generates:
+
+PDF file (recommended for academic projects)
+
+Libraries (example):
+
+Node.js → pdfkit
+
+Laravel → dompdf
+
+Step 5: Save report history
+INSERT INTO report_logs
+(report_type, date_range, generated_by, file_path)
+VALUES (...)
+
+
+This is why Recent Reports appears automatically.
+
+Step 6: UI updates “Recent Reports”
+
+Frontend fetches:
+
+GET /api/reports/recent
+
+
+And displays:
+
+Attendance Report – June 2023
+
+Financial Summary – Q2 2023
+
+Student Progress – May 2023
+
+1.4 Download Report (UI → Backend)
+
+When admin clicks Download:
+
+GET /api/reports/download/{report_id}
+
+
+Backend:
+
+Verifies admin role
+
+Returns PDF file
+
+🔐 Security Rule
+Only admin can access all reports.
+
+1.5 How to Write This in Chapter 4 (Ready-to-Use)
+
+“The report generation module allows administrators to generate dynamic reports such as attendance, classroom, student progress, and financial summaries. Reports are generated based on real-time data retrieved from the system database using selected filters such as report type and date range. Once generated, reports are stored as downloadable PDF files and logged in the system for future reference under the Recent Reports section.”
+
+2. EVENT FEATURE DEVELOPMENT
+
+(Based on your “School Events” UI screen)
+
+2.1 What Your Events UI Shows (Very Important)
+
+Your UI clearly supports:
+
+Tabs
+
+All Events
+
+Upcoming
+
+Completed
+
+Event Cards
+
+Each event shows:
+
+Event title
+
+Date
+
+Time
+
+Number of attendees
+
+Status badge (Upcoming / Completed)
+
+View Details button
+
+Action Buttons
+
+Events
+
+Waiting List
+
+Add Event
+
+This is full CRUD + lifecycle management.
+
+2.2 Database Design – Event Module
+Events Table
+events
+------
+event_id
+title
+description
+date
+start_time
+end_time
+status (upcoming/completed)
+created_by
+
+Event Attendance Table
+event_attendance
+----------------
+event_id
+student_id
+attendance_status
+
+2.3 Event Creation Flow (Add Event Button)
+Step 1: Admin clicks “Add Event”
+
+(UI form opens)
+
+Admin enters:
+
+Title
+
+Date
+
+Time
+
+Description
+
+Step 2: Backend API
+POST /api/events
+
+Step 3: Save to database
+INSERT INTO events (...)
+
+Step 4: Auto status logic
+If event_date > today → Upcoming
+If event_date < today → Completed
+
+
+That’s how your Upcoming / Completed tabs work.
+
+2.4 Viewing Events (UI Tabs Logic)
+All Events
+SELECT * FROM events;
+
+Upcoming Events
+SELECT * FROM events WHERE status = 'upcoming';
+
+Completed Events
+SELECT * FROM events WHERE status = 'completed';
+
+
+This directly maps to your UI.
+
+2.5 Event Attendance Count (Shown in UI)
+
+Your UI shows:
+
+“120 attendees”, “80 attendees”
+
+This is calculated dynamically:
+
+SELECT COUNT(*) 
+FROM event_attendance 
+WHERE event_id = ? AND attendance_status = 'present';
+
+2.6 View Details Button
+
+Shows:
+
+Full description
+
+Date & time
+
+Attendance list
+
+Event status
+
+Parents:
+
+View only
+
+Admin / Teacher:
+
+View + manage attendance
+
+2.7 Event Waiting List (Optional but Smart)
+
+Your UI has Waiting List button → good design.
+
+Used when:
+
+Event has limited capacity
+
+Extra students queued
+
+Table:
+
+event_waiting_list
+------------------
+event_id
+student_id
+
+2.8 Event Report Integration (Link to Reports Module)
+
+Completed events can generate:
+
+Event participation report
+
+Attendance summary
+
+This links Events → Reports, showing strong system integration.

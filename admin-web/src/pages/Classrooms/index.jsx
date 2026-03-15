@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, Typography, Row, Col, Progress, Avatar, Tag, Modal, Form, Input, InputNumber, message, Space, Empty, Divider, Descriptions, List } from 'antd';
+import { Card, Button, Typography, Row, Col, Progress, Avatar, Tag, Modal, Form, Input, InputNumber, message, Space, Empty, Divider, Descriptions, List, theme } from 'antd';
 import { PlusOutlined, UserOutlined, TeamOutlined, ScheduleOutlined, EditOutlined, SaveOutlined } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/client';
@@ -10,6 +10,7 @@ const { Title, Text } = Typography;
 const Classrooms = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { token: { colorBgContainer, colorText, colorPrimaryBg, colorFillAlter } } = theme.useToken();
     const [classrooms, setClassrooms] = useState([]);
     const [loading, setLoading] = useState(false);
     const [isModalVisible, setIsModalVisible] = useState(false);
@@ -92,7 +93,7 @@ const Classrooms = () => {
                         icon={<PlusOutlined />}
                         size="large"
                         onClick={() => { form.resetFields(); setIsModalVisible(true); }}
-                        style={{ background: '#7B57E4', borderRadius: 8, height: 44 }}
+                        style={{ background: '#7B57E4', borderRadius: 8, height: 44, fontWeight: 600 }}
                     >
                         Add Classroom
                     </Button>
@@ -116,12 +117,12 @@ const Classrooms = () => {
                                 <Card
                                     hoverable
                                     bordered={false}
-                                    style={{ borderRadius: 16, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
+                                    style={{ borderRadius: 16, boxShadow: 'none', background: colorBgContainer }}
                                     bodyStyle={{ padding: 24 }}
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                                         <div>
-                                            <Title level={4} style={{ margin: 0, color: '#333' }}>{cls.name}</Title>
+                                            <Title level={4} style={{ margin: 0, color: colorText }}>{cls.name}</Title>
                                             <Tag color="purple" style={{ borderRadius: 6, marginTop: 4 }}>{cls.ageGroup || 'All Ages'}</Tag>
                                         </div>
                                         <div style={{ textAlign: 'right' }}>
@@ -138,7 +139,7 @@ const Classrooms = () => {
                                             percent={percentage}
                                             showInfo={false}
                                             strokeColor="#7B57E4"
-                                            trailColor="#F0EAFB"
+                                            trailColor={colorPrimaryBg}
                                             strokeWidth={10}
                                         />
                                     </div>
@@ -146,7 +147,7 @@ const Classrooms = () => {
                                     <Divider style={{ margin: '16px 0' }} />
 
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                        <Avatar icon={<UserOutlined />} style={{ background: '#F0EAFB', color: '#7B57E4' }} />
+                                        <Avatar icon={<UserOutlined />} style={{ background: colorPrimaryBg, color: '#7B57E4' }} />
                                         <div style={{ overflow: 'hidden' }}>
                                             <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Lead Teacher</Text>
                                             <Text strong style={{ fontSize: 14, whiteSpace: 'nowrap' }}>{leadTeacher}</Text>
@@ -156,7 +157,15 @@ const Classrooms = () => {
                                     <Button
                                         block
                                         onClick={() => navigate(`/classrooms/${cls.id}`)}
-                                        style={{ marginTop: 20, borderRadius: 8, height: 40, color: '#7B57E4', borderColor: '#7B57E4' }}
+                                        style={{
+                                            marginTop: 20,
+                                            borderRadius: 8,
+                                            height: 40,
+                                            color: '#7B57E4',
+                                            background: 'rgba(123, 87, 228, 0.1)',
+                                            border: 'none',
+                                            fontWeight: 600
+                                        }}
                                     >
                                         View Details
                                     </Button>
@@ -174,7 +183,7 @@ const Classrooms = () => {
                 onCancel={() => setIsModalVisible(false)}
                 onOk={handleAdd}
                 okText="Create Classroom"
-                okButtonProps={{ style: { background: '#7B57E4' } }}
+                okButtonProps={{ style: { background: '#7B57E4', fontWeight: 600, borderRadius: 8 } }}
             >
                 <Form form={form} layout="vertical" style={{ marginTop: 20 }}>
                     <Form.Item name="name" label="Classroom Name" rules={[{ required: true }]}>
@@ -274,10 +283,10 @@ const Classrooms = () => {
                             size="small"
                             dataSource={selectedClassroom.students || []}
                             renderItem={item => (
-                                <List.Item>
+                                <List.Item style={{ padding: '8px 12px', marginBottom: 8, background: colorFillAlter, borderRadius: 8 }}>
                                     <Space>
-                                        <Avatar size="small" src={item.photoUrl} />
-                                        <Text>{item.fullName}</Text>
+                                        <Avatar size="small" src={item.photoUrl}>{item.fullName[0]}</Avatar>
+                                        <Text style={{ color: colorText }}>{item.fullName}</Text>
                                     </Space>
                                 </List.Item>
                             )}

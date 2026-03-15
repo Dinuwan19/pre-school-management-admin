@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Typography, Row, Col, Avatar, Button, Tabs, Progress, List, Tag, Spin, message, Form, Divider, Statistic, Alert, Modal, Input, Select, DatePicker, Upload, Descriptions, Breadcrumb, Space, Empty, Image } from 'antd';
+import { Card, Typography, Row, Col, Avatar, Button, Tabs, Progress, List, Tag, Spin, message, Form, Divider, Statistic, Alert, Modal, Input, Select, DatePicker, Upload, Descriptions, Breadcrumb, Space, Empty, Image, theme } from 'antd';
 import {
     UserOutlined, ArrowLeftOutlined, EditOutlined, PhoneOutlined,
     EnvironmentOutlined, CalendarOutlined,
@@ -10,6 +10,7 @@ import {
 import api from '../../api/client';
 import dayjs from 'dayjs';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -18,6 +19,7 @@ const StudentProfile = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { isDarkMode } = useTheme();
     const [student, setStudent] = useState(null);
     const [attendanceSummary, setAttendanceSummary] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -41,6 +43,10 @@ const StudentProfile = () => {
     const [isAddSubSkillModalVisible, setIsAddSubSkillModalVisible] = useState(false);
     const [newSubSkillName, setNewSubSkillName] = useState('');
     const [addingSubSkill, setAddingSubSkill] = useState(false);
+
+    const {
+        token: { colorBgContainer, colorBorder, colorText, colorTextSecondary, colorBgLayout, colorPrimary, colorPrimaryBg, colorFillAlter },
+    } = theme.useToken();
 
     useEffect(() => {
         const handleKeyPress = (e) => {
@@ -155,7 +161,7 @@ const StudentProfile = () => {
                 if (values[key] !== undefined && values[key] !== null) {
                     if (key === 'dob' || key === 'enrollmentDate') {
                         formData.append(key, values[key].format('YYYY-MM-DD'));
-                    } else if (key === 'photo' || key === 'birthCert' || key === 'vaccineCard') {
+                    } else if (key === 'photo' || key === 'birthCert') {
                         // Handle Ant Design Upload structure
                         const fileObj = values[key]?.file || values[key]?.fileList?.[0] || (values[key] instanceof File ? values[key] : null);
                         if (fileObj && (fileObj.originFileObj || fileObj instanceof File)) {
@@ -262,7 +268,7 @@ const StudentProfile = () => {
             label: <span><UserOutlined />Profile</span>,
             children: (
                 <div style={{ paddingTop: 16 }}>
-                    <Card size="small" title={<Text strong>Personal Information</Text>} bordered={false} style={{ marginBottom: 16, background: '#fff' }}>
+                    <Card size="small" title={<Text strong>Personal Information</Text>} bordered={false} style={{ marginBottom: 16, background: colorBgContainer }}>
                         <Row gutter={[16, 24]}>
                             <Col span={12}>
                                 <Text type="secondary" style={{ fontSize: 12 }}>Full Name</Text>
@@ -298,35 +304,35 @@ const StudentProfile = () => {
                             style={{ marginTop: 24, borderRadius: 8 }}
                             icon={<DownloadOutlined />}
                             onClick={() => {
-                                if (student.birthCertPdf || student.vaccineCardPdf) {
-                                    if (student.birthCertPdf) window.open(getMediaUrl(student.birthCertPdf), '_blank');
-                                    if (student.vaccineCardPdf) window.open(getMediaUrl(student.vaccineCardPdf), '_blank');
+                                if (student.birthCertPdf) {
+                                    window.open(getMediaUrl(student.birthCertPdf), '_blank');
                                 } else {
-                                    message.info('No documents uploaded yet');
+                                    message.info('No birth certificate uploaded yet');
                                 }
                             }}
                         >
-                            View Birth Certificate & Vaccine Card
+                            Birth Certificate
                         </Button>
                     </Card>
 
-                    <Card size="small" title={<Text strong>Contact Information</Text>} bordered={false} style={{ marginBottom: 16, background: '#fff' }}>
+                    <Card size="small" title={<Text strong>Contact Information</Text>} bordered={false} style={{ marginBottom: 16, background: colorBgContainer }}>
                         <Descriptions column={1} size="small">
                             <Descriptions.Item label="Primary Contact">{student.parent_student_parentIdToparent?.phone || 'N/A'}</Descriptions.Item>
 
 
                             <Descriptions.Item label={<span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>Emergency Contact</span>}>
-                                <div style={{
-                                    border: '1px solid #ff4d4f',
-                                    background: '#fff1f0',
-                                    padding: '4px 8px',
-                                    borderRadius: 4,
-                                    color: '#cf1322',
-                                    fontWeight: 600,
-                                    display: 'inline-block'
-                                }}>
+                                <Tag
+                                    color="error"
+                                    style={{
+                                        borderRadius: 6,
+                                        padding: '4px 12px',
+                                        fontWeight: 600,
+                                        fontSize: 13,
+                                        border: isDarkMode ? '1px solid rgba(255, 77, 79, 0.2)' : '1px solid #ffccc7'
+                                    }}
+                                >
                                     {student.emergencyContact || 'N/A'}
-                                </div>
+                                </Tag>
                             </Descriptions.Item>
                         </Descriptions>
                         <Divider style={{ margin: '12px 0' }} />
@@ -358,12 +364,12 @@ const StudentProfile = () => {
                         <Tag color="purple" style={{ borderRadius: 12, padding: '2px 12px' }}>{student.classroom?.name || 'No Classroom'}</Tag>
                     </Card>
 
-                    <Card size="small" title={<Text strong>Medical Information</Text>} bordered={false} style={{ marginBottom: 16, background: '#fff' }}>
+                    <Card size="small" title={<Text strong>Medical Information</Text>} bordered={false} style={{ marginBottom: 16, background: colorBgContainer }}>
                         <Text type="secondary" style={{ fontSize: 12 }}>Medical Notes</Text>
                         <div style={{ marginTop: 4 }}>{student.medicalInfo || 'No allergies'}</div>
                     </Card>
 
-                    <Card size="small" title={<Text strong>Additional Notes</Text>} bordered={false} style={{ background: '#fff' }}>
+                    <Card size="small" title={<Text strong>Additional Notes</Text>} bordered={false} style={{ background: colorBgContainer }}>
                         <div style={{ marginTop: 4 }}>{student.additionalNotes || 'Enjoys group activities'}</div>
                     </Card>
                 </div>
@@ -376,13 +382,13 @@ const StudentProfile = () => {
                 <div style={{ paddingTop: 16 }}>
                     <style>{`
                         .marking-sidebar .ant-menu-item { height: auto !important; line-height: 1.4 !important; padding: 12px 16px !important; margin: 4px 0 !important; border-radius: 8px !important; }
-                        .marking-sidebar .ant-menu-item-selected { background: #f3efff !important; color: #7b57e4 !important; }
-                        .skill-card { transition: all 0.2s; border: 1px solid #f0f0f0; margin-bottom: 12px; border-radius: 12px; }
+                        .marking-sidebar .ant-menu-item-selected { background: transparent !important; color: #7b57e4 !important; }
+                        .skill-card { transition: all 0.2s; border: none; margin-bottom: 12px; border-radius: 12px; background: ${isDarkMode ? 'rgba(255,255,255,0.02)' : '#fff'} }
                         .skill-card:hover { border-color: #7b57e4; box-shadow: 0 4px 12px rgba(123, 87, 228, 0.08); }
-                        .skill-card.focused { border-color: #7b57e4; border-width: 2px; background: #fafbff; }
+                        .skill-card.focused { border-color: #7b57e4; border-width: 2px; }
                         .score-btn { width: 44px; height: 32px; border-radius: 6px; font-weight: 700; font-size: 11px; }
-                        .progress-pill { font-size: 10px; background: #eee; padding: 2px 8px; border-radius: 10px; color: #666; font-weight: 600; margin-top: 4px; display: inline-block; }
-                        .progress-pill.complete { background: #e6ffed; color: #52c41a; }
+                        .progress-pill { font-size: 10px; background: ${isDarkMode ? 'rgba(255,255,255,0.05)' : '#eee'}; padding: 2px 8px; border-radius: 10px; color: ${isDarkMode ? '#94a3b8' : '#666'}; font-weight: 600; margin-top: 4px; display: inline-block; }
+                        .progress-pill.complete { background: ${isDarkMode ? 'rgba(82, 196, 26, 0.1)' : '#e6ffed'}; color: #52c41a; }
                     `}</style>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
@@ -443,11 +449,13 @@ const StudentProfile = () => {
                                                     borderRadius: 12,
                                                     cursor: 'pointer',
                                                     marginBottom: 8,
-                                                    background: activeCategoryId === cat.id.toString() ? '#F3EFFF' : 'transparent',
-                                                    border: activeCategoryId === cat.id.toString() ? '1px solid #7B57E4' : '1px solid transparent'
+                                                    background: activeCategoryId === cat.id.toString() ? 'rgba(123, 87, 228, 0.15)' : 'transparent', // Keeping light purple for active state for now or use colorBgLayout? Let's keep it specific but maybe use a token if possible. actually F3EFFF is static. Let's make it dynamic if we can, or leave it if it works in dark mode. Wait, F3EFFF is very light. In dark mode this might be blinding. 
+                                                    // Let's use colorBgContainer for inactive, and a primary-tinted bg for active.
+                                                    background: activeCategoryId === cat.id.toString() ? colorPrimaryBg : 'transparent',
+                                                    border: activeCategoryId === cat.id.toString() ? `1px solid ${colorPrimary}` : '1px solid transparent'
                                                 }}
                                             >
-                                                <Text strong style={{ color: activeCategoryId === cat.id.toString() ? '#7B57E4' : '#444', display: 'block' }}>{cat.name}</Text>
+                                                <Text strong style={{ color: activeCategoryId === cat.id.toString() ? '#7B57E4' : colorText, display: 'block' }}>{cat.name}</Text>
                                                 <div className={`progress-pill ${isComplete ? 'complete' : ''}`}>
                                                     {markedCount}/{cat.skills.length} Marked
                                                 </div>
@@ -490,7 +498,7 @@ const StudentProfile = () => {
                                                             className={`skill-card ${isFocused ? 'focused' : ''}`}
                                                             style={{
                                                                 borderColor: score === 1 ? '#ff4d4f' : score === 2 ? '#faad14' : score === 3 ? '#52c41a' : (isFocused ? '#7b57e4' : '#f0f0f0'),
-                                                                background: isFocused ? '#fafbff' : '#fff'
+                                                                background: isFocused ? colorPrimaryBg : colorBgContainer
                                                             }}
                                                             onClick={() => setFocusedSkillIndex(index)}
                                                         >
@@ -587,11 +595,11 @@ const StudentProfile = () => {
                                     const assessment = student.assessments.find(a => a.term === selectedTerm);
                                     return (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                                            <div style={{ background: '#fff', borderRadius: 12, padding: '16px 24px', border: '1px solid #e8e8e8', marginBottom: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+                                            <div style={{ background: colorBgContainer, borderRadius: 12, padding: '16px 24px', border: 'none', marginBottom: 4, boxShadow: 'none' }}>
                                                 <Row align="middle">
                                                     <Col span={16}>
-                                                        <Text style={{ color: '#999', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 }}>Term Performance</Text>
-                                                        <Title level={4} style={{ color: '#1a1a1a', margin: '2px 0 0' }}>Overall Progress</Title>
+                                                        <Text style={{ color: colorTextSecondary, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 }}>Term Performance</Text>
+                                                        <Title level={4} style={{ color: colorText, margin: '2px 0 0' }}>Term {selectedTerm} Progress</Title>
                                                     </Col>
                                                     <Col span={8} style={{ textAlign: 'right' }}>
                                                         <div style={{ display: 'inline-block', textAlign: 'right' }}>
@@ -603,7 +611,7 @@ const StudentProfile = () => {
                                                                     return totalMarkedWeight > 0 ? Math.round((actualMarkedWeight / totalMarkedWeight) * 100) : 0;
                                                                 })()}%
                                                             </div>
-                                                            <div style={{ color: '#999', fontSize: 9, fontWeight: 700, marginTop: 4 }}>CUMULATIVE RELATIVE</div>
+                                                            <div style={{ color: colorTextSecondary, fontSize: 9, fontWeight: 700, marginTop: 4 }}>CUMULATIVE RELATIVE</div>
                                                         </div>
                                                     </Col>
                                                 </Row>
@@ -660,14 +668,14 @@ const StudentProfile = () => {
                                                                     minHeight: 180,
                                                                     display: 'flex',
                                                                     flexDirection: 'column',
-                                                                    border: '1px solid #f0f0f0',
+                                                                    border: 'none',
                                                                     opacity: markedSkills === 0 ? 0.7 : 1
                                                                 }}
                                                                 bodyStyle={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column' }}
                                                             >
                                                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 4px' }}>
                                                                     <div style={{ flex: 1 }}>
-                                                                        <Text strong style={{ fontSize: 14, color: markedSkills === 0 ? '#888' : '#1a1a1a', display: 'block', marginBottom: 6 }}>{cat.name}</Text>
+                                                                        <Text strong style={{ fontSize: 14, color: markedSkills === 0 ? colorTextSecondary : colorText, display: 'block', marginBottom: 6 }}>{cat.name}</Text>
                                                                         <Tag color={color} style={{ borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 10 }}>{label.toUpperCase()}</Tag>
                                                                     </div>
                                                                     <div style={{ textAlign: 'right' }}>
@@ -704,12 +712,12 @@ const StudentProfile = () => {
                                                 size="small"
                                                 title={<Text strong style={{ color: '#7b57e4' }}><BulbOutlined /> Teacher's Insights</Text>}
                                                 bordered={false}
-                                                style={{ borderRadius: 16, background: '#fff', border: '1px solid #eef0f5' }}
+                                                style={{ borderRadius: 16, background: colorBgContainer, border: `1px solid ${colorBorder}` }}
                                             >
-                                                <Paragraph style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: '#444' }}>
+                                                <Paragraph style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: colorText }}>
                                                     {assessment.remarks || 'No remarks added for this term.'}
                                                 </Paragraph>
-                                                <div style={{ marginTop: 16, borderTop: '1px solid #f0f2f5', paddingTop: 12, display: 'flex', justifyContent: 'space-between' }}>
+                                                <div style={{ marginTop: 16, borderTop: `1px solid ${colorBorder}`, paddingTop: 12, display: 'flex', justifyContent: 'space-between' }}>
                                                     <Text type="secondary" style={{ fontSize: 11 }}>Signed by {assessment.user?.fullName}</Text>
                                                     <Text type="secondary" style={{ fontSize: 11 }}>{dayjs(assessment.updatedAt).format('MMMM DD, YYYY')}</Text>
                                                 </div>
@@ -736,7 +744,7 @@ const StudentProfile = () => {
                                                         <List.Item style={{ padding: '16px 0', borderBottom: '1px solid #f0f2f5' }}>
                                                             <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                                                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                                    <Text strong style={{ fontSize: 13, color: '#1a1a1a' }}>{item.subSkill?.name}</Text>
+                                                                    <Text strong style={{ fontSize: 13, color: colorText }}>{item.subSkill?.name}</Text>
                                                                     <Text type="secondary" style={{ fontSize: 11 }}>Progressing well</Text>
                                                                 </div>
                                                                 <Tag
@@ -826,14 +834,9 @@ const StudentProfile = () => {
     };
 
     return (
-        <div style={{ background: '#f5f7fb', minHeight: '100vh', padding: '0 24px 24px' }}>
+        <div style={{ background: colorBgLayout, minHeight: '100vh', padding: '0 24px 24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0' }}>
-                <Breadcrumb
-                    items={[
-                        { title: <span style={{ color: '#999' }}>Students</span> },
-                        { title: <span style={{ fontWeight: 600 }}>{student.studentUniqueId}</span> }
-                    ]}
-                />
+                <div style={{ flex: 1 }}></div>
                 <Space></Space>
             </div>
 
@@ -846,9 +849,9 @@ const StudentProfile = () => {
 
             <Row gutter={24}>
                 <Col xs={24} md={6}>
-                    <Card bordered={false} style={{ borderRadius: 16, textAlign: 'center', height: '100%' }}>
+                    <Card bordered={false} style={{ borderRadius: 16, textAlign: 'center', height: '100%', background: colorBgContainer }}>
                         <div style={{ padding: '24px 0' }}>
-                            <Avatar size={120} src={getMediaUrl(student.photoUrl)} icon={<UserOutlined />} style={{ background: '#f0f0f0' }} />
+                            <Avatar size={120} src={getMediaUrl(student.photoUrl)} icon={<UserOutlined />} style={{ background: colorBgLayout }} />
                             <Title level={4} style={{ marginTop: 16, marginBottom: 4 }}>{student.fullName}</Title>
                             <Text type="secondary">{student.studentUniqueId}</Text>
                         </div>
@@ -880,7 +883,7 @@ const StudentProfile = () => {
                                 </div>
                             </Space>
                         </div>
-                        <div style={{ marginTop: 24, padding: 16, background: '#f9f9f9', borderRadius: 12, border: '1px dashed #d9d9d9' }}>
+                        <div style={{ marginTop: 24, padding: 16, background: colorBgLayout, borderRadius: 12, border: `1px dashed ${colorBorder}` }}>
                             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>Student QR Code</Text>
                             {student.qrCode ? (
                                 <div style={{ textAlign: 'center' }}>
@@ -964,7 +967,7 @@ const StudentProfile = () => {
                                 <Select allowClear>{parents.map(p => <Option key={p.id} value={p.id}>{p.fullName}</Option>)}</Select>
                             </Form.Item>
                         </Col>
-                        <Col span={8}>
+                        <Col span={12}>
                             <Form.Item name="photo" label="Update Photo">
                                 <Upload beforeUpload={() => false} maxCount={1} listType="picture" accept="image/*">
                                     <Button icon={<UploadOutlined />}>Select Image</Button>
@@ -972,20 +975,12 @@ const StudentProfile = () => {
                                 {student.photoUrl && <div style={{ fontSize: 10, color: '#999', marginTop: 4 }}>Current: {student.photoUrl.split('/').pop()}</div>}
                             </Form.Item>
                         </Col>
-                        <Col span={8}>
+                        <Col span={12}>
                             <Form.Item name="birthCert" label="Birth Certificate (PDF)">
                                 <Upload beforeUpload={() => false} maxCount={1} accept=".pdf">
                                     <Button icon={<UploadOutlined />}>Select PDF</Button>
                                 </Upload>
                                 {student.birthCertPdf && <div style={{ fontSize: 10, color: '#999', marginTop: 4 }}>Current: {student.birthCertPdf.split('/').pop()}</div>}
-                            </Form.Item>
-                        </Col>
-                        <Col span={8}>
-                            <Form.Item name="vaccineCard" label="Vaccine Card (PDF)">
-                                <Upload beforeUpload={() => false} maxCount={1} accept=".pdf">
-                                    <Button icon={<UploadOutlined />}>Select PDF</Button>
-                                </Upload>
-                                {student.vaccineCardPdf && <div style={{ fontSize: 10, color: '#999', marginTop: 4 }}>Current: {student.vaccineCardPdf.split('/').pop()}</div>}
                             </Form.Item>
                         </Col>
                     </Row>

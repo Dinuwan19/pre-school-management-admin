@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Typography, List, Modal, Form, Input, Select, message, Tag, Space, Avatar, Divider, Row, Col } from 'antd';
+import { Card, Button, Typography, List, Modal, Form, Input, Select, message, Tag, Space, Avatar, Divider, Row, Col, theme } from 'antd';
 import { PlusOutlined, BellOutlined, UserOutlined, DeleteOutlined, GlobalOutlined, TeamOutlined } from '@ant-design/icons';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -10,6 +10,7 @@ const { Option } = Select;
 
 const Announcements = () => {
     const { user } = useAuth();
+    const { token: { colorBgContainer, colorBgLayout, colorPrimary, colorPrimaryBg, colorText, colorTextSecondary } } = theme.useToken();
     const [announcements, setAnnouncements] = useState([]);
     const [loading, setLoading] = useState(false);
     const [classrooms, setClassrooms] = useState([]);
@@ -46,10 +47,6 @@ const Announcements = () => {
     const handleCreate = async () => {
         try {
             const values = await form.validateFields();
-            // If target is specific class, set role to PARENT (usually) or STUDENT? 
-            // Backend expects targetRole AND/OR targetClassroomId.
-            // If class is selected, usually it implies parents of that class.
-
             const payload = {
                 ...values,
                 targetRole: values.targetType === 'CLASS' ? 'PARENT' : values.targetType,
@@ -69,30 +66,6 @@ const Announcements = () => {
             setLoading(false);
         }
     };
-
-    // ... delete logic ...
-
-    // ... render ...
-    <Form.Item name="targetType" label="Recipient Group" rules={[{ required: true }]} initialValue="ALL">
-        <Select size="large" onChange={val => setTargetType(val)}>
-            <Option value="ALL">All Users</Option>
-            <Option value="TEACHER">Staff & Teachers</Option>
-            <Option value="PARENT">Parents Only</Option>
-            <Option value="CLASS">Specific Classroom</Option>
-        </Select>
-    </Form.Item>
-
-    {
-        targetType === 'CLASS' && (
-            <Form.Item name="targetClassroomId" label="Select Classroom" rules={[{ required: true, message: 'Please select a classroom' }]}>
-                <Select size="large" placeholder="Choose a class">
-                    {classrooms.map(cls => (
-                        <Option key={cls.id} value={cls.id}>{cls.name}</Option>
-                    ))}
-                </Select>
-            </Form.Item>
-        )
-    }
 
     const handleDelete = async (id) => {
         try {
@@ -117,17 +90,17 @@ const Announcements = () => {
     };
 
     return (
-        <div style={{ maxWidth: 1000, margin: '0 auto', paddingBottom: 40 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40, marginTop: 24 }}>
+        <div style={{ margin: '0 auto', paddingBottom: 40 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, marginTop: 12 }}>
                 <div>
-                    <Title level={2} style={{ margin: 0, color: '#1E293B' }}>Announcements</Title>
-                    <Text type="secondary">Broadcast important updates to parents and staff</Text>
+                    <Title level={4} style={{ margin: 0, color: colorText }}>Announcements</Title>
+                    <Text type="secondary" style={{ fontSize: 13 }}>Broadcast important updates to parents and staff</Text>
                 </div>
                 <Button
                     type="primary"
                     icon={<PlusOutlined />}
                     onClick={() => setIsModalVisible(true)}
-                    style={{ background: '#7B57E4', height: 44, borderRadius: 10, padding: '0 24px' }}
+                    style={{ background: '#7B57E4', height: 44, borderRadius: 8, fontWeight: 600, padding: '0 20px' }}
                 >
                     Create Announcement
                 </Button>
@@ -138,25 +111,25 @@ const Announcements = () => {
                 dataSource={announcements}
                 renderItem={(item) => (
                     <Card
-                        style={{ marginBottom: 20, borderRadius: 16, boxShadow: '0 4px 12px rgba(0,0,0,0.05)', border: 'none' }}
-                        bodyStyle={{ padding: 24 }}
+                        style={{ marginBottom: 12, borderRadius: 12, boxShadow: 'none', border: 'none', background: colorBgContainer }}
+                        bodyStyle={{ padding: 16 }}
                     >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <div style={{ display: 'flex', gap: 16 }}>
+                            <div style={{ display: 'flex', gap: 12 }}>
                                 <Avatar
                                     icon={<BellOutlined />}
-                                    style={{ background: '#F0EAFB', color: '#7B57E4' }}
-                                    size={48}
+                                    style={{ background: colorPrimaryBg, color: '#7B57E4' }}
+                                    size={40}
                                 />
                                 <div>
-                                    <Title level={4} style={{ margin: 0, marginBottom: 4 }}>{item.title}</Title>
-                                    <div style={{ marginBottom: 12 }}>
+                                    <Title level={5} style={{ margin: 0, marginBottom: 2 }}>{item.title}</Title>
+                                    <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                                         {getTargetTag(item)}
-                                        <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
-                                            {dayjs(item.createdAt).format('MMMM D, YYYY')} by {item.createdBy?.fullName}
+                                        <Text type="secondary" style={{ fontSize: 12 }}>
+                                            • {dayjs(item.createdAt).format('MMM D, YYYY')} by {item.createdBy?.fullName}
                                         </Text>
                                     </div>
-                                    <Paragraph style={{ fontSize: 15, color: '#555', lineHeight: 1.6 }}>
+                                    <Paragraph style={{ fontSize: 13.5, color: colorTextSecondary, lineHeight: 1.5, margin: 0 }}>
                                         {item.message}
                                     </Paragraph>
                                 </div>
@@ -183,7 +156,7 @@ const Announcements = () => {
                 okText="Publish Announcement"
                 confirmLoading={loading}
                 width={600}
-                okButtonProps={{ style: { background: '#7B57E4' } }}
+                okButtonProps={{ style: { background: '#7B57E4', fontWeight: 600, borderRadius: 8 } }}
             >
                 <Form form={form} layout="vertical" style={{ marginTop: 24 }}>
                     <Form.Item name="title" label="Announcement Title" rules={[{ required: true }]}>

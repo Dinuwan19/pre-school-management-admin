@@ -49,6 +49,35 @@ const DashboardScreen = ({ navigation }) => {
     const [imageModalVisible, setImageModalVisible] = useState(false);
     const [selectedImageUrl, setSelectedImageUrl] = useState(null);
     const [isDownloading, setIsDownloading] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // Strict Filtering Logic
+    const filteredUpdates = React.useMemo(() => {
+        if (!stats?.updates || !selectedChild) return stats?.updates || [];
+        return stats.updates.filter(item => {
+            const isSchoolWide = !item.targetClassroomId && !item.targetParentId && (item.targetRole === 'ALL' || item.targetRole === 'PARENT');
+            const isForChildClass = item.targetClassroomId && Number(item.targetClassroomId) === Number(selectedChild.classroomId);
+            const isForDirectParent = item.targetParentId && Number(item.targetParentId) === Number(selectedChild.parentUserId);
+            return isSchoolWide || isForChildClass || isForDirectParent;
+        });
+    }, [stats?.updates, selectedChild]);
+
+    const filteredEvents = React.useMemo(() => {
+        if (!stats?.upcomingEvents || !selectedChild) return stats?.upcomingEvents || [];
+        // Filter out past events (keep Today and Future)
+        const today = dayjs().startOf('day');
+
+        return stats.upcomingEvents.filter(event => {
+            const eventClassroomIds = (event.classrooms || []).map(c => Number(c.id));
+            const isSchoolWide = eventClassroomIds.length === 0;
+            const isForChildClass = selectedChild.classroomId && eventClassroomIds.includes(Number(selectedChild.classroomId));
+
+            // Date Check
+            const isFutureOrToday = dayjs(event.eventDate).isSame(today, 'day') || dayjs(event.eventDate).isAfter(today);
+
+            return (isSchoolWide || isForChildClass) && isFutureOrToday;
+        });
+    }, [stats?.upcomingEvents, selectedChild]);
 
     useFocusEffect(
         useCallback(() => {
@@ -67,7 +96,7 @@ const DashboardScreen = ({ navigation }) => {
             });
             if (data.profile) setProfile(data.profile);
 
-            if (data.children.length > 0) {
+            if (data.children.length > 0 && !selectedChild) {
                 setSelectedChild(data.children[0]);
             }
         } catch (error) {
@@ -204,8 +233,8 @@ const DashboardScreen = ({ navigation }) => {
                         </TouchableOpacity>
                     </View>
 
-                    {stats?.updates && stats.updates.length > 0 ? (
-                        stats.updates.map((update) => {
+                    {filteredUpdates && filteredUpdates.length > 0 ? (
+                        filteredUpdates.map((update) => {
                             let icon = <Bell size={20} color="#3B82F6" />;
                             let bgColor = "#EFF6FF";
 
@@ -220,6 +249,17 @@ const DashboardScreen = ({ navigation }) => {
                                 bgColor = "#F3F0FF";
                             }
 
+                            // Attribution Logic: Prioritize selected child
+                            let childName = null;
+                            if (update.targetClassroomId) {
+                                if (selectedChild && Number(selectedChild.classroomId) === Number(update.targetClassroomId)) {
+                                    childName = selectedChild.fullName.split(' ')[0];
+                                } else {
+                                    // Fallback (though filtering should minimize this)
+                                    childName = children.find(c => Number(c.classroomId) === Number(update.targetClassroomId))?.fullName?.split(' ')[0];
+                                }
+                            }
+
                             return (
                                 <UpdateCard
                                     key={update.id}
@@ -228,6 +268,7 @@ const DashboardScreen = ({ navigation }) => {
                                     title={update.title}
                                     time={update.date}
                                     desc={update.message}
+                                    badge={childName ? `For ${childName}` : 'School'}
                                 />
                             );
                         })
@@ -247,35 +288,51 @@ const DashboardScreen = ({ navigation }) => {
                         </TouchableOpacity>
                     </View>
 
-                    {stats?.upcomingEvents && stats.upcomingEvents.length > 0 ? (
+                    {filteredEvents && filteredEvents.length > 0 ? (
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eventScroll}>
-                            {stats.upcomingEvents.map((event) => (
-                                <TouchableOpacity key={event.id} style={styles.eventCard} onPress={() => openDetail(event)}>
-                                    <View style={styles.dateBox}>
-                                        <Text style={styles.monthText}>{event.date.split(' ')[0].toUpperCase()}</Text>
-                                        <Text style={styles.dayText}>{event.date.split(' ')[1]}</Text>
-                                    </View>
-                                    <View style={styles.eventContent}>
-                                        <Text style={styles.eventTitle}>{event.title}</Text>
-                                        <View style={styles.eventMetaRow}>
-                                            <View style={styles.eventMeta}>
-                                                <Calendar size={12} color="#94A3B8" />
-                                                <Text style={styles.eventMetaText}>{event.time}</Text>
-                                            </View>
-                                            <View style={styles.eventMeta}>
-                                                <MapPin size={12} color="#94A3B8" />
-                                                <Text style={styles.eventMetaText}>School</Text>
-                                            </View>
+                            {filteredEvents.map((event) => {
+                                const eventClassroomIds = event.classrooms?.map(c => c.id) || [];
+
+                                // Attribution Logic: Prioritize selected student
+                                let childName = null;
+                                if (eventClassroomIds.length > 0) {
+                                    if (selectedChild && eventClassroomIds.map(id => Number(id)).includes(Number(selectedChild.classroomId))) {
+                                        childName = selectedChild.fullName.split(' ')[0];
+                                    } else {
+                                        const targetChild = children.find(c => eventClassroomIds.map(id => Number(id)).includes(Number(c.classroomId)));
+                                        childName = targetChild ? targetChild.fullName.split(' ')[0] : null;
+                                    }
+                                }
+
+                                return (
+                                    <TouchableOpacity key={event.id} style={styles.eventCard} onPress={() => openDetail(event)}>
+                                        <View style={styles.dateBox}>
+                                            <Text style={styles.monthText}>{event.date?.split(' ')[0]?.toUpperCase()}</Text>
+                                            <Text style={styles.dayText}>{event.date?.split(' ')[1]}</Text>
                                         </View>
-                                        {event.event_media?.length > 0 && (
-                                            <View style={styles.mediaMiniBadge}>
-                                                <Camera size={10} color="#9D5BF0" />
-                                                <Text style={styles.mediaMiniText}>{event.event_media.length} Photos</Text>
+                                        <View style={styles.eventContent}>
+                                            <Text style={styles.eventTitle}>{event.title}</Text>
+                                            <View style={styles.eventMetaRow}>
+                                                <View style={styles.eventMeta}>
+                                                    <Calendar size={12} color="#94A3B8" />
+                                                    <Text style={styles.eventMetaText}>{event.time}</Text>
+                                                </View>
+                                                <View style={[styles.eventMeta, { marginLeft: 0 }]}>
+                                                    <View style={styles.miniChildBadge}>
+                                                        <Text style={styles.miniChildBadgeText}>{childName || 'School'}</Text>
+                                                    </View>
+                                                </View>
                                             </View>
-                                        )}
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
+                                            {event.event_media?.length > 0 && (
+                                                <View style={styles.mediaMiniBadge}>
+                                                    <Camera size={10} color="#9D5BF0" />
+                                                    <Text style={styles.mediaMiniText}>{event.event_media.length} Photos</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                    </TouchableOpacity>
+                                );
+                            })}
                         </ScrollView>
                     ) : (
                         <Text style={{ color: '#9CA3AF', fontStyle: 'italic', marginBottom: 20 }}>No upcoming events</Text>
@@ -469,17 +526,28 @@ const ActionItem = ({ icon, label, bgColor, onPress }) => (
     </TouchableOpacity>
 );
 
-const UpdateCard = ({ icon, bgColor, title, time, desc }) => (
+const UpdateCard = ({ icon, bgColor, title, time, desc, badge }) => (
     <View style={styles.updateCard}>
         <View style={[styles.updateIconBox, { backgroundColor: bgColor }]}>
             {icon}
         </View>
         <View style={styles.updateContent}>
-            <View style={styles.updateHeader}>
-                <Text style={styles.updateTitle}>{title}</Text>
-                <Text style={styles.updateTime}>{time}</Text>
+            <View style={[styles.updateHeader, { alignItems: 'flex-start' }]}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={[styles.updateTitle, { flexShrink: 1 }]} numberOfLines={0}>{title}</Text>
+                    {badge && (
+                        <View style={styles.badgeContainer}>
+                            <View style={[styles.miniChildBadge, { marginTop: 4 }]}>
+                                <Text style={styles.miniChildBadgeText}>{badge}</Text>
+                            </View>
+                        </View>
+                    )}
+                </View>
+                <View style={{ alignSelf: 'flex-start', marginTop: 2, flexShrink: 0 }}>
+                    <Text style={styles.updateTime}>{time}</Text>
+                </View>
             </View>
-            <Text style={styles.updateDesc}>{desc}</Text>
+            <Text style={styles.updateDesc} numberOfLines={2}>{desc}</Text>
         </View>
     </View>
 );
@@ -752,6 +820,22 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start'
     },
     mediaMiniText: { fontSize: 10, color: '#9D5BF0', fontWeight: 'bold' },
+    miniChildBadge: {
+        backgroundColor: '#F3EFFF',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+        alignSelf: 'flex-start',
+    },
+    miniChildBadgeText: {
+        fontSize: 10,
+        color: '#9D5BF0',
+        fontWeight: 'bold',
+    },
+    badgeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     closeBtnCircle: {
         width: 28, height: 28, borderRadius: 14,
         backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center'

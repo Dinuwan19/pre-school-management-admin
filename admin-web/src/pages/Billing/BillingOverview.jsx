@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Row, Col, Card, Statistic, Space, Button, List, Tag } from 'antd';
-import { ArrowUpOutlined, ArrowDownOutlined, CreditCardOutlined, PlusOutlined, HistoryOutlined } from '@ant-design/icons';
+import { ArrowUpOutlined, ArrowDownOutlined, CreditCardOutlined, PlusOutlined, HistoryOutlined, WalletOutlined, CheckCircleOutlined, BarChartOutlined, CalculatorOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/client';
@@ -65,26 +65,33 @@ const BillingOverview = () => {
                 ))}
             </Row>
 
+            <Row gutter={[16, 16]} style={{ marginBottom: 32 }}>
+                <Col span={24}>
+                    <Title level={4} style={{ marginBottom: 16 }}>Quick Actions</Title>
+                </Col>
+                {[
+                    { label: 'Collect Fees', icon: <WalletOutlined />, path: '/billing/students', color: '#7B57E4' },
+                    { label: 'Verify Payments', icon: <CheckCircleOutlined />, path: '/billing/students', color: '#52C41A' },
+                    { label: 'Monthly Report', icon: <BarChartOutlined />, path: '/reports', color: '#1890FF' },
+                    { label: 'Add Expense', icon: <CalculatorOutlined />, path: '/billing/expenses', color: '#FF4D4F' }
+                ].map((action, idx) => (
+                    <Col xs={12} sm={6} key={idx}>
+                        <Card
+                            hoverable
+                            onClick={() => navigate(action.path)}
+                            style={{ borderRadius: 12, textAlign: 'center', border: '1px solid #f0f0f0' }}
+                            bodyStyle={{ padding: '24px 12px' }}
+                        >
+                            <div style={{ color: action.color, fontSize: 28, marginBottom: 12 }}>{action.icon}</div>
+                            <Text strong style={{ fontSize: 13 }}>{action.label}</Text>
+                        </Card>
+                    </Col>
+                ))}
+            </Row>
+
             <Row gutter={24}>
                 <Col xs={24} lg={12}>
-                    <Card title="Quick Actions" bordered={false} style={{ borderRadius: 16, boxShadow: '0 4px 12px rgba(0,0,0,0.03)', height: '100%' }}>
-                        <Space direction="vertical" style={{ width: '100%' }} size={16}>
-                            <Button block size="large" onClick={() => navigate('/billing/students')} style={{ borderRadius: 12, height: 50, textAlign: 'left' }}>
-                                Manage Student Billing
-                            </Button>
-                            {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
-                                <Button block size="large" onClick={() => navigate('/billing/students')} style={{ borderRadius: 12, height: 50, textAlign: 'left' }}>
-                                    Manage Fee Categories
-                                </Button>
-                            )}
-                            <Button block size="large" onClick={() => navigate('/billing/expenses')} style={{ borderRadius: 12, height: 50, textAlign: 'left' }}>
-                                Manage Expenses
-                            </Button>
-                        </Space>
-                    </Card>
-                </Col>
-                <Col xs={24} lg={12}>
-                    <Card title="Recent Transactions" bordered={false} style={{ borderRadius: 16, boxShadow: '0 4px 12px rgba(0,0,0,0.03)', height: '100%' }}>
+                    <Card title="Recent Transactions" bordered={false} style={{ borderRadius: 16, boxShadow: '0 4px 12px rgba(0,0,0,0.03)', height: '100%', minHeight: 400 }}>
                         <List
                             dataSource={summary.recentTransactions}
                             renderItem={(item) => (

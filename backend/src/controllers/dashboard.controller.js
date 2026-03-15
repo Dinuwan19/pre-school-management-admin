@@ -257,7 +257,8 @@ exports.getParentStats = async (req, res, next) => {
                 balance: totalBalance,
                 progress: progressAvg,
                 latestRemarks: assessment?.remarks,
-                gender: child.gender
+                gender: child.gender,
+                parentUserId: parent.userId
             };
         }));
 
@@ -292,10 +293,12 @@ exports.getParentStats = async (req, res, next) => {
                 orderBy: { requestDate: 'asc' }
             }),
             prisma.event.findMany({
-                where: { status: { in: ['UPCOMING', 'PUBLISHED'] }, eventDate: { gte: new Date() } },
-                include: { event_media: true },
                 take: 5,
-                orderBy: { eventDate: 'asc' }
+                orderBy: { eventDate: 'asc' },
+                include: {
+                    event_media: true,
+                    classrooms: { select: { id: true } }
+                }
             }),
             prisma.notification.findMany({
                 where: {
@@ -332,7 +335,10 @@ exports.getParentStats = async (req, res, next) => {
                     title: u.title,
                     message: u.message,
                     createdAt: u.createdAt,
-                    type: isFee ? 'ALERT' : 'NOTICE'
+                    type: isFee ? 'ALERT' : 'NOTICE',
+                    targetClassroomId: u.targetClassroomId,
+                    targetParentId: u.targetParentId,
+                    targetRole: u.targetRole
                 };
             }),
             ...homeworkItems.map(h => ({
@@ -340,7 +346,8 @@ exports.getParentStats = async (req, res, next) => {
                 title: `New Homework: ${h.title}`,
                 message: `${h.description || 'New assignment posted.'}\nDue: ${h.dueDate ? dayjs(h.dueDate).format('MMM DD') : 'No date'}`,
                 createdAt: h.createdAt,
-                type: 'HOMEWORK'
+                type: 'HOMEWORK',
+                targetClassroomId: h.classroomId
             }))
         ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
 
@@ -363,14 +370,18 @@ exports.getParentStats = async (req, res, next) => {
                 event_media: ev.event_media || [],
                 eventDate: ev.eventDate,
                 startTime: ev.startTime,
-                endTime: ev.endTime
+                endTime: ev.endTime,
+                classrooms: ev.classrooms
             })),
             updates: combinedUpdates.map(u => ({
                 id: u.id,
                 title: u.title,
                 message: u.message,
                 date: dayjs(u.createdAt).fromNow(),
-                type: u.type
+                type: u.type,
+                targetClassroomId: u.targetClassroomId,
+                targetRole: u.targetRole,
+                targetParentId: u.targetParentId
             })),
             profile: {
                 fullName: parent.fullName,

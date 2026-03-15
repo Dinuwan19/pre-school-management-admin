@@ -127,20 +127,30 @@ const MeetingRequests = () => {
                     {record.status === 'PENDING' && (
                         <>
                             <Button
-                                type="primary"
                                 size="small"
                                 icon={<CheckOutlined />}
                                 onClick={() => handleStatusUpdate(record.id, 'APPROVED')}
-                                style={{ borderRadius: 6, background: '#10B981' }}
+                                style={{
+                                    borderRadius: 8,
+                                    background: 'rgba(16, 185, 129, 0.1)',
+                                    color: '#10B981',
+                                    border: 'none',
+                                    fontWeight: 600
+                                }}
                             >
                                 Approve
                             </Button>
                             <Button
-                                danger
                                 size="small"
                                 icon={<CloseCircleOutlined />}
                                 onClick={() => handleStatusUpdate(record.id, 'DECLINED')}
-                                style={{ borderRadius: 6 }}
+                                style={{
+                                    borderRadius: 8,
+                                    background: 'rgba(239, 68, 68, 0.1)',
+                                    color: '#EF4444',
+                                    border: 'none',
+                                    fontWeight: 600
+                                }}
                             >
                                 Decline
                             </Button>
@@ -152,7 +162,7 @@ const MeetingRequests = () => {
                             size="small"
                             icon={<CheckCircleOutlined />}
                             onClick={() => handleStatusUpdate(record.id, 'COMPLETED')}
-                            style={{ borderRadius: 6, background: '#7B57E4' }}
+                            style={{ borderRadius: 8, background: '#7B57E4', fontWeight: 600 }}
                         >
                             Mark Complete
                         </Button>

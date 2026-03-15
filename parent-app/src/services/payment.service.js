@@ -18,12 +18,17 @@ export const getBillingCategories = async (activeOnly = true) => {
     }
 };
 
-export const uploadPaymentReceipt = async (billingIds, amount, paymentMethod, receiptFile, note = '', categoryId = null, studentId = null) => {
+export const uploadPaymentReceipt = async (billingIds, amount, paymentMethod, receiptFile, note = '', categoryId = null, studentId = null, billingMonths = []) => {
     try {
         const formData = new FormData();
-        // billingIds should be an array of numbers
+        // Send as JSON string for robust backend parsing
         if (billingIds && billingIds.length) {
-            billingIds.forEach(id => formData.append('billingIds[]', id));
+            formData.append('billingIds', JSON.stringify(billingIds));
+        }
+
+        // Send billingMonths if provided (for auto-creation of future bills)
+        if (billingMonths && billingMonths.length) {
+            formData.append('billingMonths', JSON.stringify(billingMonths));
         }
 
         formData.append('amountPaid', amount);

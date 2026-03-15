@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Typography, Row, Col, Avatar, Button, Tag, Spin, message, Divider, Space, List, Modal, Form, Input, Select, DatePicker, Upload, Breadcrumb, Descriptions } from 'antd';
+import { Card, Typography, Row, Col, Avatar, Button, Tag, Spin, message, Divider, Space, List, Modal, Form, Input, Select, DatePicker, Upload, Breadcrumb, Descriptions, theme } from 'antd';
 import {
     UserOutlined, ArrowLeftOutlined, EditOutlined, MailOutlined,
     PhoneOutlined, EnvironmentOutlined, DownloadOutlined,
-    SafetyCertificateOutlined, HomeOutlined, EyeOutlined, UploadOutlined, FilePdfOutlined, CalendarOutlined, BulbOutlined
+    SafetyCertificateOutlined, HomeOutlined, EyeOutlined, UploadOutlined, FilePdfOutlined, CalendarOutlined, BulbOutlined, DeleteOutlined
 } from '@ant-design/icons';
 import api from '../../api/client';
 import dayjs from 'dayjs';
@@ -23,6 +23,10 @@ const StaffProfile = () => {
     const [editForm] = Form.useForm();
     const [saving, setSaving] = useState(false);
     const [classrooms, setClassrooms] = useState([]);
+
+    const {
+        token: { colorBgContainer, colorBgLayout, colorPrimary, colorTextSecondary, colorBorder, colorPrimaryBg },
+    } = theme.useToken();
 
     const fetchStaffData = async () => {
         try {
@@ -50,6 +54,11 @@ const StaffProfile = () => {
 
             Object.keys(values).forEach(key => {
                 if (values[key] !== undefined && values[key] !== null) {
+                    if (key === 'qualifications') {
+                        // Skip qualifications as we handle it explicitly below
+                        return;
+                    }
+
                     if (key === 'qualificationPdf') {
                         const fileObj = values[key]?.file || values[key]?.fileList?.[0] || (values[key] instanceof File ? values[key] : null);
                         if (fileObj && (fileObj.originFileObj || fileObj instanceof File)) {
@@ -65,6 +74,12 @@ const StaffProfile = () => {
                     }
                 }
             });
+
+            if (values.qualifications) {
+                // Ensure the items are mapped to strings or simple objects if they came from the Form.List
+                const cleanQualifications = values.qualifications.map(q => typeof q === 'string' ? q : (q.title || ''));
+                formData.append('qualifications', JSON.stringify(cleanQualifications));
+            }
 
             await api.put(`/staff/${id}`, formData);
             message.success('Staff updated successfully');
@@ -84,14 +99,9 @@ const StaffProfile = () => {
     const assignedClassrooms = staff.teacherprofile?.classrooms || [];
 
     return (
-        <div style={{ background: '#f5f7fb', minHeight: '100vh', padding: '0 24px 24px' }}>
+        <div style={{ background: colorBgLayout, minHeight: '100vh', padding: '0 24px 24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0' }}>
-                <Breadcrumb
-                    items={[
-                        { title: <span style={{ color: '#999' }}>Staff</span> },
-                        { title: <span style={{ fontWeight: 600 }}>{staff.employeeId}</span> }
-                    ]}
-                />
+                <div style={{ flex: 1 }}></div>
                 <Space></Space>
             </div>
 
@@ -100,7 +110,7 @@ const StaffProfile = () => {
                 <Title level={4} style={{ margin: 0 }}>{staff.fullName}</Title>
                 <div style={{ flex: 1 }}></div>
                 {user?.role === 'SUPER_ADMIN' && (
-                    <Button type="primary" icon={<EditOutlined />} style={{ background: '#7B57E4', borderRadius: 6 }} onClick={() => setIsEditModalVisible(true)}>Edit Profile</Button>
+                    <Button type="primary" icon={<EditOutlined />} style={{ background: colorPrimary, borderRadius: 6 }} onClick={() => setIsEditModalVisible(true)}>Edit Profile</Button>
                 )}
             </div>
 
@@ -108,10 +118,10 @@ const StaffProfile = () => {
                 <Col xs={24} md={6}>
                     <Card bordered={false} style={{ borderRadius: 16, textAlign: 'center', height: '100%' }}>
                         <div style={{ padding: '24px 0' }}>
-                            <Avatar size={120} src={staff.photoUrl} icon={<UserOutlined />} style={{ background: '#f0f0f0' }} />
+                            <Avatar size={120} src={staff.photoUrl} icon={<UserOutlined />} style={{ background: colorBgLayout }} />
                             <Title level={4} style={{ marginTop: 16, marginBottom: 4 }}>{staff.fullName}</Title>
                             <Text type="secondary">{staff.employeeId}</Text>
-                            <div style={{ marginTop: 4, color: '#7B57E4', fontWeight: 500 }}>
+                            <div style={{ marginTop: 4, color: colorPrimary, fontWeight: 500 }}>
                                 {staff.role === 'TEACHER' ? (staff.teacherprofile?.designation === 'LEAD' ? 'Lead Teacher' : 'Assistant Teacher') : staff.role}
                             </div>
                         </div>
@@ -141,34 +151,51 @@ const StaffProfile = () => {
 
                 <Col xs={24} md={18}>
                     <Card size="small" title={<Text strong>Qualifications</Text>} bordered={false} style={{ borderRadius: 16, marginBottom: 24 }}>
-                        {staff.teacherprofile?.qualification ? (
+                        {staff.teacherprofile?.qualifications && staff.teacherprofile.qualifications.length > 0 ? (
+                            <List
+                                dataSource={staff.teacherprofile.qualifications}
+                                renderItem={item => (
+                                    <List.Item style={{ border: 'none', padding: '8px 0' }}>
+                                        <Space align="start">
+                                            <div style={{ width: 32, height: 32, background: colorPrimaryBg, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <SafetyCertificateOutlined style={{ color: colorPrimary }} />
+                                            </div>
+                                            <div>
+                                                <div style={{ fontWeight: 600 }}>{item.title}</div>
+                                                <Text type="secondary" style={{ fontSize: 12 }}>Verified Qualification</Text>
+                                            </div>
+                                        </Space>
+                                    </List.Item>
+                                )}
+                            />
+                        ) : staff.teacherprofile?.qualification ? (
                             <div style={{ padding: '16px 0' }}>
                                 <Space align="start">
-                                    <div style={{ width: 32, height: 32, background: '#f0eafb', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <SafetyCertificateOutlined style={{ color: '#7B57E4' }} />
+                                    <div style={{ width: 32, height: 32, background: colorPrimaryBg, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <SafetyCertificateOutlined style={{ color: colorPrimary }} />
                                     </div>
                                     <div>
                                         <div style={{ fontWeight: 600 }}>Staff Qualifications</div>
                                         <Text type="secondary">{staff.teacherprofile.qualification}</Text>
                                     </div>
                                 </Space>
-                                {staff.teacherprofile.qualificationPdf && (
-                                    <div style={{ marginTop: 16 }}>
-                                        <Button icon={<FilePdfOutlined />} size="small" onClick={() => window.open(`${api.defaults.baseURL}${staff.teacherprofile.qualificationPdf}`, '_blank')}>
-                                            View Certificate PDF
-                                        </Button>
-                                    </div>
-                                )}
                             </div>
                         ) : (
                             <div style={{ padding: '24px 0', textAlign: 'center' }}><Text type="secondary">No qualifications listed</Text></div>
+                        )}
+                        {staff.teacherprofile?.qualificationPdf && (
+                            <div style={{ marginTop: 16 }}>
+                                <Button icon={<FilePdfOutlined />} size="small" onClick={() => window.open(`${api.defaults.baseURL.replace('/api', '')}/${staff.teacherprofile.qualificationPdf.replace(/^\//, '')}`, '_blank')}>
+                                    View Secondary Certificate PDF
+                                </Button>
+                            </div>
                         )}
                     </Card>
 
                     <Card size="small" title={<Text strong>Assigned Classrooms</Text>} bordered={false} style={{ borderRadius: 16 }}>
                         {assignedClassrooms.length > 0 ? (
                             assignedClassrooms.map(classroom => (
-                                <div key={classroom.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                                <div key={classroom.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${colorBorder}` }}>
                                     <div>
                                         <div style={{ fontWeight: 600 }}>{classroom.name}</div>
                                         <Text type="secondary">{classroom.ageGroup}</Text>
@@ -196,6 +223,7 @@ const StaffProfile = () => {
                     ...staff,
                     joiningDate: dayjs(staff.joiningDate),
                     qualification: staff.teacherprofile?.qualification,
+                    qualifications: staff.teacherprofile?.qualifications?.map(q => ({ title: q.title })) || [],
                     classroomIds: staff.teacherprofile?.classrooms?.map(c => c.id) || [],
                     designation: staff.teacherprofile?.designation || 'ASSISTANT'
                 }}>
@@ -206,18 +234,39 @@ const StaffProfile = () => {
                         <Col span={12}><Form.Item name="joiningDate" label="Joining Date"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
                         <Col span={12}><Form.Item name="role" label="Role"><Select><Option value="ADMIN">Admin</Option><Option value="TEACHER">Teacher</Option></Select></Form.Item></Col>
                         {staff.role === 'TEACHER' && (
-                            <>
-                                <Col span={12}><Form.Item name="designation" label="Designation"><Select><Option value="LEAD">Lead Teacher</Option><Option value="ASSISTANT">Assistant Teacher</Option></Select></Form.Item></Col>
-                                <Col span={12}>
-                                    <Form.Item name="classroomIds" label="Assigned Classrooms">
-                                        <Select mode="multiple" allowClear placeholder="Select Classrooms" maxTagCount={2}>
-                                            {classrooms.map(c => <Option key={c.id} value={c.id}>{c.name}</Option>)}
-                                        </Select>
-                                    </Form.Item>
-                                </Col>
-                            </>
+                            <Col span={24}>
+                                <div style={{ marginBottom: 8, fontWeight: 500 }}>Teacher Qualifications</div>
+                                <Form.List name="qualifications">
+                                    {(fields, { add, remove }) => (
+                                        <>
+                                            {fields.map(({ key, name, ...restField }) => (
+                                                <Row gutter={8} key={key} style={{ marginBottom: 8 }} align="middle">
+                                                    <Col flex="auto">
+                                                        <Form.Item
+                                                            {...restField}
+                                                            name={[name, 'title']}
+                                                            noStyle
+                                                            rules={[{ required: true, message: 'Missing qualification title' }]}
+                                                        >
+                                                            <Input placeholder="Qualification Title (e.g. Diploma in Montessori)" />
+                                                        </Form.Item>
+                                                    </Col>
+                                                    <Col flex="40px">
+                                                        <Button type="text" danger onClick={() => remove(name)} icon={<DeleteOutlined />} />
+                                                    </Col>
+                                                </Row>
+                                            ))}
+                                            <Form.Item>
+                                                <Button type="dashed" onClick={() => add()} block icon={<UploadOutlined />}>
+                                                    Add Qualification
+                                                </Button>
+                                            </Form.Item>
+                                        </>
+                                    )}
+                                </Form.List>
+                            </Col>
                         )}
-                        <Col span={24}><Form.Item name="qualification" label="Qualification"><Input.TextArea placeholder="Enter degrees, certificates, etc." /></Form.Item></Col>
+                        <Col span={24}><Form.Item name="qualification" label="Note (Legacy Qualification Field)"><Input.TextArea placeholder="Enter degrees, certificates, etc." rows={1} /></Form.Item></Col>
                         <Col span={24}>
                             <Form.Item name="qualificationPdf" label="Qualification PDF">
                                 <Upload beforeUpload={() => false} maxCount={1} accept=".pdf">

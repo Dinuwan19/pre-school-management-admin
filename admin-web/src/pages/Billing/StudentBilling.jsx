@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Tag, Modal, Form, Input, Select, message, Typography, Card, Badge, Descriptions, Divider, List, Tabs } from 'antd';
-import { PlusOutlined, EyeOutlined, BellOutlined, CheckCircleOutlined, CloseCircleOutlined, WalletOutlined } from '@ant-design/icons';
+import { PlusOutlined, EyeOutlined, BellOutlined, CheckCircleOutlined, CloseCircleOutlined, WalletOutlined, EditOutlined, DownloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -97,7 +97,7 @@ const StudentBilling = () => {
             title: 'Date',
             dataIndex: 'createdAt',
             key: 'date',
-            render: (val) => val ? new Date(val).toLocaleDateString() : '-'
+            render: (val) => val ? dayjs(val).format('MMM D, YYYY h:mm A') : '-'
         },
         {
             title: 'Status',
@@ -117,10 +117,22 @@ const StudentBilling = () => {
             title: 'Receipt',
             key: 'receipt',
             render: (_, item) => item?.receiptUrl ? (
-                <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => {
-                    const url = item.receiptUrl.startsWith('http') ? item.receiptUrl : `http://127.0.0.1:5000${item.receiptUrl}`;
-                    window.open(url, '_blank');
-                }}>View</Button>
+                <Button
+                    onClick={() => {
+                        const url = item.receiptUrl.startsWith('http') ? item.receiptUrl : `http://127.0.0.1:5000${item.receiptUrl}`;
+                        window.open(url, '_blank');
+                    }}
+                    style={{
+                        background: 'rgba(123, 87, 228, 0.1)',
+                        color: '#7B57E4',
+                        border: 'none',
+                        fontWeight: 600,
+                        borderRadius: 8
+                    }}
+                    size="small"
+                >
+                    View
+                </Button>
             ) : '-'
         }
     ];
@@ -170,7 +182,8 @@ const StudentBilling = () => {
             setIsVerifyModalVisible(false);
             fetchData();
         } catch (error) {
-            message.error('Failed to verify payment');
+            console.error('Verification Error:', error);
+            message.error(error.response?.data?.message || 'Failed to verify payment');
         } finally {
             setLoading(false);
         }
@@ -187,12 +200,47 @@ const StudentBilling = () => {
 
     const currentMonthPrefix = dayjs().format('YYYY-MM');
 
+    // Group Billings by Payment ID
+    const groupedBillings = {};
+    const unpaidBillings = [];
+
+    billings.forEach(b => {
+        const payment = b.billingpayment?.[0]?.payment;
+        if (payment) {
+            if (!groupedBillings[payment.id]) {
+                groupedBillings[payment.id] = {
+                    ...b,
+                    key: `pay-group-${payment.id}`,
+                    type: 'BILLING',
+                    amount: 0, // Will sum up
+                    billingMonth: [], // Will collect info
+                    billingCategoryName: [], // Will collect info
+                    paymentInfo: payment,
+                    relatedBillings: []
+                };
+            }
+            // Aggregate Data
+            groupedBillings[payment.id].amount += parseFloat(b.amount);
+            if (b.billingMonth) groupedBillings[payment.id].billingMonth.push(b.billingMonth);
+            if (b.billingCategory) groupedBillings[payment.id].billingCategoryName.push(b.billingCategory.name);
+            groupedBillings[payment.id].relatedBillings.push(b);
+        } else {
+            unpaidBillings.push({
+                key: `bill-${b.id}`,
+                type: 'BILLING',
+                ...b,
+                paymentInfo: null
+            });
+        }
+    });
+
     const mergedData = [
-        ...billings.map(b => ({
-            key: `bill-${b.id}`,
-            type: 'BILLING',
-            ...b,
-            paymentInfo: b.billingpayment?.[0]?.payment
+        ...unpaidBillings,
+        ...Object.values(groupedBillings).map(group => ({
+            ...group,
+            billingMonth: [...new Set(group.billingMonth)].join(', '), // Dedupe and join
+            // Simplify category display if mixed or specific
+            billingCategory: group.billingCategoryName.length > 0 ? { name: [...new Set(group.billingCategoryName)].join(', ') } : null
         })),
         ...historyPayments
             .filter(p => !p.billingpayment || p.billingpayment.length === 0)
@@ -210,12 +258,16 @@ const StudentBilling = () => {
             }))
     ].filter(item => {
         if (!filterCurrentMonth) return true;
-        // Check billing month string (e.g. "2026-02")
+
+        const targetPrefix = currentMonthPrefix;
+
         if (item.type === 'BILLING') {
-            return item.billingMonth?.includes(currentMonthPrefix);
+            // Check if any of the months in the string match
+            // item.billingMonth is now "2026-02, 2026-03"
+            return (item.billingMonth || '').includes(targetPrefix) ||
+                (item.createdAt && dayjs(item.createdAt).format('YYYY-MM') === targetPrefix);
         }
-        // Check payment createdAt
-        return dayjs(item.createdAt).format('YYYY-MM') === currentMonthPrefix;
+        return dayjs(item.createdAt).format('YYYY-MM') === targetPrefix;
     }).sort((a, b) => new Date(b.createdAt || b.updatedAt) - new Date(a.createdAt || a.updatedAt));
 
     const columns = [
@@ -290,7 +342,7 @@ const StudentBilling = () => {
                                     {record.transactionRef.replace(/\[.*?\]/g, '').trim()}
                                 </Text>
                             )}
-                            <Text type="secondary" style={{ fontSize: 10 }}>{new Date(record.createdAt).toLocaleDateString()}</Text>
+                            <Text type="secondary" style={{ fontSize: 10 }}>{dayjs(record.createdAt).format('MMM D, YYYY h:mm A')}</Text>
                         </Space>
                     );
                 }
@@ -318,12 +370,24 @@ const StudentBilling = () => {
             key: 'paymentInfo',
             render: (_, record) => {
                 const payment = record.type === 'BILLING' ? record.paymentInfo : record;
-                if (!payment) return '-';
+                const issuedAt = record.createdAt || (payment ? payment.createdAt : null);
 
                 return (
-                    <Space direction="vertical" size={0}>
-                        {payment.user && <Text type="secondary" style={{ fontSize: 10 }}>Verified by: {payment.user.fullName}</Text>}
-                        {payment.paymentMethod && <Tag style={{ fontSize: 10 }}>{payment.paymentMethod}</Tag>}
+                    <Space direction="vertical" size={2}>
+                        {issuedAt && (
+                            <div style={{ lineHeight: '1.2' }}>
+                                <Text type="secondary" style={{ fontSize: 10, display: 'block' }}>Issued At:</Text>
+                                <Text style={{ fontSize: 11 }}>{dayjs(issuedAt).format('MMM D, YYYY h:mm A')}</Text>
+                            </div>
+                        )}
+                        {payment?.verifiedAt && (
+                            <div style={{ lineHeight: '1.2' }}>
+                                <Text type="secondary" style={{ fontSize: 10, display: 'block' }}>Approved At:</Text>
+                                <Text style={{ fontSize: 11 }}>{dayjs(payment.verifiedAt).format('MMM D, YYYY h:mm A')}</Text>
+                            </div>
+                        )}
+                        {payment?.user && <Text type="secondary" style={{ fontSize: 10, display: 'block' }}>By: {payment.user.fullName}</Text>}
+                        {payment?.paymentMethod && <Tag style={{ fontSize: 10, marginTop: 4 }}>{payment.paymentMethod}</Tag>}
                     </Space>
                 );
             }
@@ -332,19 +396,20 @@ const StudentBilling = () => {
             title: 'Actions',
             key: 'actions',
             render: (_, record) => (
-                <Space>
+                <Space size="middle">
                     {record.type === 'BILLING' && record.status === 'UNPAID' && (
                         <>
                             <Button
                                 icon={<BellOutlined />}
+                                shape="circle"
                                 size="small"
                                 onClick={() => handleNotify(record.id)}
                                 style={{ color: '#FAAD14', borderColor: '#FAAD14' }}
-                            >
-                                Notify
-                            </Button>
+                                title="Notify Parent"
+                            />
                             <Button
                                 icon={<WalletOutlined />}
+                                shape="circle"
                                 size="small"
                                 type="primary"
                                 ghost
@@ -363,34 +428,34 @@ const StudentBilling = () => {
                                         }
                                     });
                                 }}
-                            >
-                                Pay Cash
-                            </Button>
+                                title="Pay Cash"
+                            />
                         </>
                     )}
 
                     {/* Invoice Download for ANY Paid Billing OR Approved Payment */}
                     {((record.type === 'BILLING' && record.status === 'PAID') || (record.type === 'PAYMENT' && record.status === 'APPROVED')) && (
                         <Button
-                            icon={<EyeOutlined />}
+                            icon={<DownloadOutlined />}
+                            shape="circle"
                             size="small"
                             onClick={() => {
                                 const invUrl = (record.paymentInfo || record).invoiceUrl;
                                 if (invUrl) {
-                                    window.open(invUrl, '_blank');
+                                    const fullUrl = invUrl.startsWith('http') ? invUrl : `http://127.0.0.1:5000${invUrl}`;
+                                    window.open(fullUrl, '_blank');
                                 } else {
-                                    message.warning('Invoice not found for this record');
+                                    message.warning('Invoice not found');
                                 }
                             }}
-                        >
-                            Download Invoice
-                        </Button>
+                            title="Download Invoice"
+                        />
                     )}
 
-                    {/* View Receipt if available (for both Billing-linked and Unallocated) */}
+                    {/* View Receipt if available */}
                     {((record.type === 'BILLING' && record.paymentInfo?.receiptUrl) || (record.type === 'PAYMENT' && record.receiptUrl)) && (
                         <Button
-                            type="link"
+                            shape="circle"
                             size="small"
                             icon={<EyeOutlined />}
                             onClick={() => {
@@ -398,9 +463,13 @@ const StudentBilling = () => {
                                 const fullUrl = url.startsWith('http') ? url : `http://127.0.0.1:5000${url}`;
                                 window.open(fullUrl, '_blank');
                             }}
-                        >
-                            View Receipt
-                        </Button>
+                            title="View Receipt"
+                            style={{
+                                background: 'rgba(123, 87, 228, 0.1)',
+                                color: '#7B57E4',
+                                border: 'none'
+                            }}
+                        />
                     )}
                 </Space>
             )
@@ -435,7 +504,7 @@ const StudentBilling = () => {
                         type="primary"
                         icon={<PlusOutlined />}
                         onClick={() => setIsAddModalVisible(true)}
-                        style={{ background: '#7B57E4', borderRadius: 8 }}
+                        style={{ background: '#7B57E4', borderRadius: 8, height: 44, fontWeight: 600 }}
                         size="large"
                     >
                         Generate Billing
@@ -502,11 +571,23 @@ const StudentBilling = () => {
                             onChange={onCategoryChange}
                         >
                             <Select.Option value="monthly">Monthly Fee (Standard)</Select.Option>
-                            {categories.map(c => (
-                                <Option key={c.id} value={c.id}>
-                                    {c.name} - Rs. {parseFloat(c.amount).toLocaleString()}
-                                </Option>
-                            ))}
+                            {categories
+                                .filter(c => {
+                                    if (!selectedStudentId) return true;
+                                    const student = students.find(s => s.id === selectedStudentId);
+                                    if (!student) return true;
+
+                                    // Global category (no specific classrooms)
+                                    if (!c.classrooms || c.classrooms.length === 0) return true;
+
+                                    // Check if student's classroom matches allowed classrooms
+                                    return c.classrooms.some(cr => cr.id === student.classroomId);
+                                })
+                                .map(c => (
+                                    <Option key={c.id} value={c.id}>
+                                        {c.name} - Rs. {parseFloat(c.amount).toLocaleString()}
+                                    </Option>
+                                ))}
                         </Select>
                     </Form.Item>
                     <Form.Item
@@ -571,14 +652,21 @@ const StudentBilling = () => {
                             const monthMatch = item.transactionRef.match(/\[Months:\s(.*?)\]/);
                             if (monthMatch) {
                                 months = monthMatch[1].split(',').map(m => m.trim());
-                                // We keep months in ref mostly, or strip it? converting to tags looks better
-                                // Let's strip the specific (Months: ...) part for cleaner ref
                                 displayRef = displayRef.replace(monthMatch[0], '').trim();
+                            } else {
+                                // Fallback: [Type: Monthly Fee (February)]
+                                const typeMatch = item.transactionRef.match(/\[Type:.*?\((.*?)\).*?\]/);
+                                if (typeMatch) {
+                                    months = [typeMatch[1]];
+                                    // Don't strip the Type tag as it contains context, or maybe strip it? 
+                                    // User wants to see "February". 
+                                    // Let's keep the tag in displayRef but extract month for the Tag.
+                                }
                             }
                         }
 
-                        // Clean other tags like [Monthly Fee]
-                        displayRef = displayRef.replace(/\[(.*?)\]/g, '').trim();
+                        // Clean other tags like [Monthly Fee] (if we want to hide them from Note)
+                        // displayRef = displayRef.replace(/\[(.*?)\]/g, '').trim();
 
                         // Fix Receipt URL
                         const receiptUrl = item.receiptUrl ? (item.receiptUrl.startsWith('http') ? item.receiptUrl : `http://127.0.0.1:5000${item.receiptUrl}`) : null;
@@ -607,7 +695,7 @@ const StudentBilling = () => {
                                             )}
                                         </Descriptions.Item>
 
-                                        <Descriptions.Item label="Date">{new Date(item.createdAt).toLocaleDateString()}</Descriptions.Item>
+                                        <Descriptions.Item label="Issued At">{dayjs(item.createdAt).format('MMM D, YYYY h:mm A')}</Descriptions.Item>
                                         <Descriptions.Item label="Note" span={2}>
                                             <Text type="secondary" style={{ fontStyle: 'italic' }}>{displayRef || 'No Reference'}</Text>
                                         </Descriptions.Item>

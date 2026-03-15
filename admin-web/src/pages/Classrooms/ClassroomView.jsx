@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Typography, Row, Col, Avatar, Button, List, Tag, Spin, message, Divider, Space, Table, Modal, Form, Input, InputNumber, Breadcrumb, Descriptions, Select } from 'antd';
+import { Card, Typography, Row, Col, Avatar, Button, List, Tag, Spin, message, Divider, Space, Table, Modal, Form, Input, InputNumber, Breadcrumb, Descriptions, Select, theme } from 'antd';
 import {
     ArrowLeftOutlined, EditOutlined, TeamOutlined,
     SolutionOutlined, CalendarOutlined, InfoCircleOutlined,
@@ -13,6 +13,9 @@ import dayjs from 'dayjs';
 const { Title, Text } = Typography;
 
 const ClassroomView = () => {
+    const {
+        token: { colorBgLayout, colorBorder, colorPrimary },
+    } = theme.useToken();
     const { id } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -139,7 +142,7 @@ const ClassroomView = () => {
 
 
     return (
-        <div style={{ background: '#f5f7fb', minHeight: '100vh', padding: '0 24px 24px' }}>
+        <div style={{ background: colorBgLayout, minHeight: '100vh', padding: '0 24px 24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0' }}>
                 <Breadcrumb
                     items={[
@@ -155,7 +158,7 @@ const ClassroomView = () => {
                 <Title level={4} style={{ margin: 0 }}>{classroom.name}</Title>
                 <div style={{ flex: 1 }}></div>
                 {user?.role !== 'TEACHER' && (
-                    <Button type="primary" icon={<EditOutlined />} style={{ background: '#7B57E4', borderRadius: 6 }} onClick={() => setIsEditModalVisible(true)}>Edit Classroom</Button>
+                    <Button type="primary" icon={<EditOutlined />} style={{ background: colorPrimary, borderRadius: 6 }} onClick={() => setIsEditModalVisible(true)}>Edit Classroom</Button>
                 )}
             </div>
 
@@ -173,7 +176,7 @@ const ClassroomView = () => {
                                 <div style={{ fontWeight: 600 }}>{classroom.students?.length || 0} / {classroom.capacity || 0}</div>
                             </Descriptions.Item>
                             <Descriptions.Item label={<Text type="secondary" style={{ fontSize: 12 }}>Lead Teacher</Text>}>
-                                <div style={{ fontWeight: 600, color: '#7B57E4' }}>{leadTeacherProfile?.user?.fullName || 'Not Assigned'}</div>
+                                <div style={{ fontWeight: 600, color: colorPrimary }}>{leadTeacherProfile?.user?.fullName || 'Not Assigned'}</div>
                             </Descriptions.Item>
                             <Descriptions.Item label={<Text type="secondary" style={{ fontSize: 12 }}>Assistant Teachers</Text>}>
                                 <Space direction="vertical" size={0}>
@@ -198,7 +201,7 @@ const ClassroomView = () => {
                         <Row gutter={[16, 16]} style={{ marginTop: 8 }}>
                             {classroom.students?.map(student => (
                                 <Col span={12} key={student.id}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px', border: '1px solid #f0f0f0', borderRadius: 12 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px', border: `1px solid ${colorBorder}`, borderRadius: 12 }}>
                                         <Avatar src={student.photoUrl} size={40} />
                                         <div>
                                             <div style={{ fontWeight: 600, fontSize: 14 }}>{student.fullName}</div>

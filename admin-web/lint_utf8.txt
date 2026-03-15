@@ -1,0 +1,157 @@
+﻿
+> admin-web@0.0.0 lint
+> eslint .
+
+
+D:\sdp system\admin-web\src\components\Billing\CategoryManagementModal.jsx
+  10:36  error  'open' is missing in props validation       react/prop-types
+  10:42  error  'onCancel' is missing in props validation   react/prop-types
+  10:52  error  'onSuccess' is missing in props validation  react/prop-types
+  25:18  error  'error' is defined but never used           no-unused-vars
+  36:18  error  'error' is defined but never used           no-unused-vars
+  83:26  error  'error' is defined but never used           no-unused-vars
+  97:18  error  'error' is defined but never used           no-unused-vars
+
+D:\sdp system\admin-web\src\components\ProtectedRoute.jsx
+   6:27  error  'children' is missing in props validation          react/prop-types
+   6:37  error  'allowedRoles' is missing in props validation      react/prop-types
+  20:36  error  'allowedRoles.map' is missing in props validation  react/prop-types
+
+D:\sdp system\admin-web\src\context\AuthContext.jsx
+   2:8   error  'axios' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      no-unused-vars
+   7:32  error  'children' is missing in props validation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         react/prop-types
+  15:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  13 |         const token = localStorage.getItem('token');
+  14 |         if (storedUser && token) {
+> 15 |             setUser(JSON.parse(storedUser));
+     |             ^^^^^^^ Avoid calling setState() directly within an effect
+  16 |         }
+  17 |         setLoading(false);
+  18 |     }, []);  react-hooks/set-state-in-effect
+  47:14  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    react-refresh/only-export-components
+
+D:\sdp system\admin-web\src\layouts\MainLayout.jsx
+   29:18  error  'colorBgContainer' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+   29:36  error  'borderRadiusLG' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u    no-unused-vars
+  134:11  error  'breadcrumbItems' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u   no-unused-vars
+
+D:\sdp system\admin-web\src\pages\Announcements\MeetingRequests.jsx
+  34:18  error    'error' is defined but never used                                                                                 no-unused-vars
+  43:8   warning  React Hook useEffect has a missing dependency: 'fetchMeetings'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  50:18  error    'error' is defined but never used                                                                                 no-unused-vars
+
+D:\sdp system\admin-web\src\pages\Announcements\index.jsx
+   24:18  error  'error' is defined but never used  no-unused-vars
+   66:18  error  'error' is defined but never used  no-unused-vars
+  102:18  error  'error' is defined but never used  no-unused-vars
+
+D:\sdp system\admin-web\src\pages\Attendance\index.jsx
+  44:18  error  'error' is defined but never used  no-unused-vars
+  73:18  error  'error' is defined but never used  no-unused-vars
+
+D:\sdp system\admin-web\src\pages\Billing\BillingOverview.jsx
+  11:13  error  'user' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+D:\sdp system\admin-web\src\pages\Billing\Expenses.jsx
+  25:18  error  'error' is defined but never used  no-unused-vars
+  62:18  error  'error' is defined but never used  no-unused-vars
+
+D:\sdp system\admin-web\src\pages\Billing\StudentBilling.jsx
+   27:11  error  'selectedCategoryId' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+   73:11  error  'historyColumns' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u      no-unused-vars
+   85:26  error  'e' is defined but never used                                                                       no-unused-vars
+  172:18  error  'error' is defined but never used                                                                   no-unused-vars
+  183:18  error  'error' is defined but never used                                                                   no-unused-vars
+  361:54  error  'e' is defined but never used                                                                       no-unused-vars
+
+D:\sdp system\admin-web\src\pages\Classrooms\ClassroomView.jsx
+   11:8   error    'dayjs' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                       no-unused-vars
+   55:8   warning  React Hook useEffect has a missing dependency: 'fetchClassroom'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+   65:18  error    'error' is defined but never used                                                                                  no-unused-vars
+   89:14  error    'e' is defined but never used                                                                                      no-unused-vars
+  105:18  error    'error' is defined but never used                                                                                  no-unused-vars
+
+D:\sdp system\admin-web\src\pages\Classrooms\index.jsx
+  35:18  error    'error' is defined but never used                                                                                   no-unused-vars
+  44:8   warning  React Hook useEffect has a missing dependency: 'fetchClassrooms'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  54:18  error    'error' is defined but never used                                                                                   no-unused-vars
+  61:11  error    'handleViewDetails' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                   no-unused-vars
+  75:18  error    'error' is defined but never used                                                                                   no-unused-vars
+
+D:\sdp system\admin-web\src\pages\Dashboard.jsx
+  56:77   error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  95:110  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+D:\sdp system\admin-web\src\pages\Events.jsx
+   13:12  error  'waitingList' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u           no-unused-vars
+   24:12  error  'viewingGallery' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u        no-unused-vars
+   24:28  error  'setViewingGallery' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u     no-unused-vars
+   34:18  error  'error' is defined but never used                                                                     no-unused-vars
+   45:18  error  'error' is defined but never used                                                                     no-unused-vars
+   54:18  error  'error' is defined but never used                                                                     no-unused-vars
+   79:18  error  'error' is defined but never used                                                                     no-unused-vars
+   86:11  error  'handleApprovePayload' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+   92:18  error  'error' is defined but never used                                                                     no-unused-vars
+  106:11  error  'handleApproveEvent' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u    no-unused-vars
+  111:18  error  'error' is defined but never used                                                                     no-unused-vars
+  142:18  error  'error' is defined but never used                                                                     no-unused-vars
+  161:26  error  'error' is defined but never used                                                                     no-unused-vars
+  203:18  error  'error' is defined but never used                                                                     no-unused-vars
+  220:18  error  'error' is defined but never used                                                                     no-unused-vars
+  446:53  error  Missing "key" prop for element in array                                                               react/jsx-key
+
+D:\sdp system\admin-web\src\pages\Homework\index.jsx
+  12:13  error  'user' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+  28:18  error  'error' is defined but never used                                                     no-unused-vars
+  48:18  error  'error' is defined but never used                                                     no-unused-vars
+  60:18  error  'error' is defined but never used                                                     no-unused-vars
+
+D:\sdp system\admin-web\src\pages\Parents\ParentProfile.jsx
+  10:8   error    'dayjs' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                    no-unused-vars
+  30:18  error    'error' is defined but never used                                                                               no-unused-vars
+  39:8   warning  React Hook useEffect has a missing dependency: 'fetchParent'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  49:18  error    'error' is defined but never used                                                                               no-unused-vars
+
+D:\sdp system\admin-web\src\pages\Parents\index.jsx
+   61:11  error  'handleEdit' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+  201:33  error  'value' is missing in props validation                                                      react/prop-types
+  204:19  error  'value.length' is missing in props validation                                               react/prop-types
+  226:31  error  'isEdit' is assigned a value but never used                                                 no-unused-vars
+
+D:\sdp system\admin-web\src\pages\Reports.jsx
+  28:18  error  'error' is defined but never used  no-unused-vars
+  67:18  error  'error' is defined but never used  no-unused-vars
+
+D:\sdp system\admin-web\src\pages\Staff\StaffProfile.jsx
+  25:12  error    'classrooms' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                            no-unused-vars
+  31:18  error    'error' is defined but never used                                                                                                     no-unused-vars
+  43:8   warning  React Hook useEffect has missing dependencies: 'fetchStaffData' and 'user?.role'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\sdp system\admin-web\src\pages\Staff\index.jsx
+  46:18  error  'error' is defined but never used  no-unused-vars
+  46:25  error  Empty block statement              no-empty
+
+D:\sdp system\admin-web\src\pages\Students\StudentProfile.jsx
+    1:1    warning  Unused eslint-disable directive (no problems were reported from 'no-unused-vars')
+   37:12   error    'viewMode' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                      no-unused-vars
+   37:22   error    'setViewMode' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                   no-unused-vars
+   56:21   warning  Unused eslint-disable directive (no problems were reported from 'react/prop-types')
+  133:8    warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  209:18   error    'error' is defined but never used                                                                             no-unused-vars
+  220:19   error    'res' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                           no-unused-vars
+  227:18   error    'error' is defined but never used                                                                             no-unused-vars
+  706:122  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                               react/no-unescaped-entities
+
+D:\sdp system\admin-web\src\pages\Students\index.jsx
+  55:8  warning  React Hook useEffect has a missing dependency: 'handleAdd'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+Γ£û 91 problems (82 errors, 9 warnings)
+  0 errors and 2 warnings potentially fixable with the `--fix` option.
+

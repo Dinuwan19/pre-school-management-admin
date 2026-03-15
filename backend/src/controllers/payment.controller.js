@@ -6,34 +6,62 @@ exports.submitPayment = async (req, res, next) => {
     try {
         let { billingIds, amountPaid, paymentMethod, transactionRef } = req.body;
 
-        console.log('Payment Submit Payload:', JSON.stringify(req.body, null, 2));
-        // console.log('Payment File:', req.file); // Buffer is large, careful logging
+        // --- ROBUST PARSING START ---
+        // Enhanced logging to stderr for visibility
+        console.error('Payment Payload (Raw Body):', JSON.stringify(req.body, null, 2));
 
+        // 1. Extract Transaction Ref (Note) with fallbacks
+        // Frontend might send it as 'transactionRef', 'note', or 'description'
+        if (!transactionRef) {
+            transactionRef = req.body.note || req.body.description || '';
+        }
+
+        // 2. Parse Billing IDs (Robust)
         let parsedBillingIds = [];
 
-        // 1. Try direct array or string from billingIds
-        if (billingIds) {
-            if (Array.isArray(billingIds)) {
-                parsedBillingIds = billingIds;
-            } else if (typeof billingIds === 'string') {
+        const rawIds = billingIds || req.body['billingIds[]'];
+
+        if (rawIds) {
+            if (Array.isArray(rawIds)) {
+                parsedBillingIds = rawIds;
+            } else if (typeof rawIds === 'string') {
+                // Try JSON parse first
                 try {
-                    const parsed = JSON.parse(billingIds);
-                    parsedBillingIds = Array.isArray(parsed) ? parsed : [billingIds];
+                    const parsed = JSON.parse(rawIds);
+                    parsedBillingIds = Array.isArray(parsed) ? parsed : [parsed];
                 } catch (e) {
-                    parsedBillingIds = billingIds.split(',').map(id => id.trim()).filter(id => id);
+                    // Fallback to comma split
+                    parsedBillingIds = rawIds.split(',').map(id => id.trim()).filter(Boolean);
+                }
+            } else if (typeof rawIds === 'number') {
+                parsedBillingIds = [rawIds];
+            }
+        }
+
+        // Clean IDs (ensure numbers)
+        parsedBillingIds = parsedBillingIds.map(id => parseInt(id)).filter(id => !isNaN(id));
+
+        billingIds = parsedBillingIds;
+        console.error('Resolved Billing IDs:', billingIds);
+        console.error('Resolved TransactionRef:', transactionRef);
+        // --- ROBUST PARSING END ---
+
+        const receiptUrl = req.file ? await uploadFile(req.file, 'receipts') : null;
+
+        // --- NEW: Parse billingMonths (Robust) ---
+        let parsedBillingMonths = [];
+        const rawMonths = req.body.billingMonths;
+        if (rawMonths) {
+            try {
+                const parsed = typeof rawMonths === 'string' ? JSON.parse(rawMonths) : rawMonths;
+                parsedBillingMonths = Array.isArray(parsed) ? parsed : [parsed];
+            } catch (e) {
+                if (typeof rawMonths === 'string') {
+                    parsedBillingMonths = rawMonths.split(',').map(m => m.trim()).filter(Boolean);
                 }
             }
         }
-        // 2. Try billingIds[] from multipart standard
-        else if (req.body['billingIds[]']) {
-            const raw = req.body['billingIds[]'];
-            parsedBillingIds = Array.isArray(raw) ? raw : [raw];
-        }
-
-        billingIds = parsedBillingIds;
-        console.log('Resolved Billing IDs:', billingIds);
-
-        const receiptUrl = req.file ? await uploadFile(req.file, 'receipts') : null;
+        // --- END: Parse billingMonths ---
 
         // Verify Locking: Check if any billingId is already PAID
         const idList = billingIds.map(id => parseInt(id));
@@ -70,8 +98,38 @@ exports.submitPayment = async (req, res, next) => {
                 }
             });
 
+            // --- ALLOCATION LOGIC: Handle billingMonths for future payments ---
+            if (billingIds.length === 0 && parsedBillingMonths.length > 0 && req.body.studentId) {
+                const sId = parseInt(req.body.studentId);
+                for (const monthCode of parsedBillingMonths) {
+                    // Check if bill already exists
+                    let bill = await tx.billing.findFirst({
+                        where: { studentId: sId, billingMonth: monthCode, categoryId: null }
+                    });
+
+                    if (!bill) {
+                        // Auto-create standard monthly fee bill
+                        bill = await tx.billing.create({
+                            data: {
+                                studentId: sId,
+                                billingMonth: monthCode,
+                                amount: 15000, // Standard fee
+                                status: paymentMethod === 'CASH' ? 'PAID' : 'PENDING'
+                            }
+                        });
+                        console.error(`Auto-created bill for ${monthCode} (Student: ${sId})`);
+                    }
+
+                    if (!billingIds.includes(bill.id)) {
+                        billingIds.push(bill.id);
+                    }
+                }
+            }
+            // --- END ALLOCATION LOGIC ---
+
             // Ad-hoc Flow: If categoryId provided, create a new Billing first
-            if (req.body.categoryId) {
+            // FIX: Prevent double allocation if billingMonths were processed (User intended Monthly Payment, not Adhoc)
+            if (req.body.categoryId && parsedBillingMonths.length === 0) {
                 const catId = parseInt(req.body.categoryId);
                 const sId = parseInt(req.body.studentId);
 
@@ -168,16 +226,33 @@ exports.verifyPayment = async (req, res, next) => {
         const { paymentId, status } = req.body; // status: APPROVED or REJECTED
         const verifierId = req.user.id;
 
-        const payment = await prisma.payment.update({
-            where: { id: parseInt(paymentId) },
-            data: {
-                status,
-                verifiedById: verifierId,
-                verifiedAt: new Date(),
-                receiptNo: status === 'APPROVED' ? await getNextReceiptNo() : undefined
-            },
-            include: { billingpayment: true }
-        });
+        let payment;
+        let retries = 3;
+
+        while (retries > 0) {
+            try {
+                payment = await prisma.payment.update({
+                    where: { id: parseInt(paymentId) },
+                    data: {
+                        status,
+                        verifiedById: verifierId,
+                        verifiedAt: new Date(),
+                        receiptNo: status === 'APPROVED' ? await getNextReceiptNo() : undefined
+                    },
+                    include: { billingpayment: true }
+                });
+                break; // Success
+            } catch (err) {
+                if (err.code === 'P2002' && err.meta?.target?.includes('receiptNo')) {
+                    console.warn(`ReceiptNo collision detected. Retrying... Attempts left: ${retries - 1}`);
+                    retries--;
+                    if (retries === 0) throw new Error('Failed to generate unique receipt number after retries');
+                    await new Promise(r => setTimeout(r, 200)); // Wait 200ms
+                } else {
+                    throw err;
+                }
+            }
+        }
 
         // Generate Invoice if APPROVED
         if (status === 'APPROVED') {

@@ -166,21 +166,18 @@ const StudentProfileScreen = ({ route, navigation }) => {
                     icon={<View style={[styles.iconCircle, { backgroundColor: '#F3E8FF' }]}><User size={18} color="#9D5BF0" /></View>}
                     label="Full Name"
                     value={student?.fullName}
-                    onEdit={() => openEditModal('Full Name', student?.fullName, 'fullName')}
                 />
 
                 <InfoRow
                     icon={<View style={[styles.iconCircle, { backgroundColor: '#F3E8FF' }]}><Calendar size={18} color="#9D5BF0" /></View>}
                     label="Date of Birth"
                     value={student?.dateOfBirth ? dayjs(student.dateOfBirth).format('MMM DD, YYYY') : 'N/A'}
-                    onEdit={() => openEditModal('Date of Birth', student?.dateOfBirth ? dayjs(student.dateOfBirth).format('YYYY-MM-DD') : '', 'dateOfBirth')}
                 />
 
                 <InfoRow
                     icon={<View style={[styles.iconCircle, { backgroundColor: '#F3E8FF' }]}><Activity size={18} color="#9D5BF0" /></View>}
                     label="Gender"
                     value={student?.gender || 'N/A'}
-                    onEdit={() => openEditModal('Gender', student?.gender, 'gender')}
                 />
             </View>
 
@@ -217,14 +214,13 @@ const StudentProfileScreen = ({ route, navigation }) => {
                     onEdit={() => openEditModal('Emergency Contact', student?.emergencyContact, 'emergencyContact')}
                 />
 
-                <TouchableOpacity style={styles.medicalBox} onPress={() => openEditModal('Medical Notes', student?.medicalInfo, 'medicalInfo')}>
+                <View style={styles.medicalBox}>
                     <View style={styles.medicalHeader}>
                         <View style={styles.statusDot} />
                         <Text style={styles.medicalTitle}>Medical Notes</Text>
-                        <Pencil size={12} color="#9D5BF0" style={{ marginLeft: 'auto' }} />
                     </View>
                     <Text style={styles.medicalDesc}>{student?.medicalInfo || 'No known allergies'}</Text>
-                </TouchableOpacity>
+                </View>
             </View>
         </View>
     );
@@ -559,18 +555,12 @@ const StudentProfileScreen = ({ route, navigation }) => {
                 <LinearGradient colors={['#9D5BF0', '#7C3AED']} style={styles.headerBackground}>
                     <SafeAreaView edges={['top']} style={{ paddingBottom: 60 }}>
                         <View style={styles.profileContainer}>
-                            <TouchableOpacity
-                                style={styles.profileImgContainer}
-                                onPress={() => setIsAvatarModalVisible(true)}
-                            >
+                            <View style={styles.profileImgContainer}>
                                 <Image
                                     source={getAvatarSource(student?.photoUrl, 'CHILD', null, student?.gender)}
                                     style={styles.profileImg}
                                 />
-                                <View style={styles.editBadge}>
-                                    <Pencil size={14} color="#fff" />
-                                </View>
-                            </TouchableOpacity>
+                            </View>
                             <View style={styles.profileInfo}>
                                 <Text style={styles.studentName}>{student?.fullName}</Text>
                                 <Text style={styles.studentSub}>ID: {student?.studentUniqueId}</Text>
@@ -704,7 +694,7 @@ const StudentProfileScreen = ({ route, navigation }) => {
                                 <Text style={styles.staticText}>{student?.fullName}</Text>
                             </View>
 
-                            <Text style={styles.label}>Select Teacher / Admin</Text>
+                            <Text style={styles.label}>Select Staff / Admin</Text>
                             <View style={styles.teacherList}>
                                 {details?.availableStaff?.map((staff) => (
                                     <TouchableOpacity
@@ -738,17 +728,17 @@ const StudentProfileScreen = ({ route, navigation }) => {
                                     </TouchableOpacity>
                                 ))}
                                 {(!details?.availableStaff || details.availableStaff.length === 0) && (
-                                    <Text style={styles.emptyTextSmall}>No teachers found for this classroom.</Text>
+                                    <Text style={styles.emptyTextSmall}>No staff found for this classroom.</Text>
                                 )}
                             </View>
 
                             <View style={{ flexDirection: 'row', gap: 10 }}>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.label}>Date (e.g. 25/01/2026)</Text>
+                                    <Text style={styles.label}>Preferred Date</Text>
                                     <TextInput style={styles.input} value={preferredDate} onChangeText={setPreferredDate} placeholder="DD/MM/YYYY" />
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.label}>Time (e.g. 10:00 AM)</Text>
+                                    <Text style={styles.label}>Preferred Time</Text>
                                     <TextInput style={styles.input} value={preferredTime} onChangeText={setPreferredTime} placeholder="HH:mm AM" />
                                 </View>
                             </View>

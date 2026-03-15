@@ -142,6 +142,7 @@ exports.getAllNotifications = async (req, res, next) => {
                     message: h.description,
                     createdAt: h.createdAt,
                     type: 'HOMEWORK',
+                    targetClassroomId: h.classroomId,
                     user_notification_createdByIdTouser: h.user
                 }));
             }

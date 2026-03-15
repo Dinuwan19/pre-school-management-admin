@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Tag, Modal, Form, Input, DatePicker, TimePicker, Select, Typography, message, Space, Row, Col, Upload, List, Avatar } from 'antd';
+import { Card, Button, Tag, Modal, Form, Input, DatePicker, TimePicker, Select, Typography, message, Space, Row, Col, Upload, List, Avatar, theme } from 'antd';
 import { CalendarOutlined, PlusOutlined, EnvironmentOutlined, UserOutlined, FileTextOutlined, CheckCircleOutlined, DeleteOutlined, EditOutlined, UploadOutlined, EyeOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import mockApi from '../api/client';
 import dayjs from 'dayjs';
@@ -25,11 +25,14 @@ const Events = () => {
     const [detailModalVisible, setDetailModalVisible] = useState(false);
     const [selectedEventForDetails, setSelectedEventForDetails] = useState(null);
     const { user } = useAuth();
+    const {
+        token: { colorBgContainer, colorBgLayout, colorPrimary, colorTextSecondary, colorBorder, colorText, colorPrimaryBg },
+    } = theme.useToken();
 
     const fetchEvents = async () => {
         setLoading(true);
         try {
-            const response = await mockApi.get('/events?status=All Events');
+            const response = await mockApi.get('/events');
             setEvents(response.data);
         } catch (error) {
             message.error('Failed to fetch events');
@@ -236,7 +239,7 @@ const Events = () => {
     });
 
     return (
-        <div style={{ paddingBottom: 40, background: '#F8FAFC', minHeight: '100vh' }}>
+        <div style={{ paddingBottom: 40, background: colorBgLayout, minHeight: '100vh' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
                 <div>
                     <Title level={4} style={{ margin: 0 }}>Events</Title>
@@ -245,12 +248,8 @@ const Events = () => {
                 <Button
                     type="primary"
                     icon={<PlusOutlined />}
-                    onClick={() => {
-                        setEditingEvent(null);
-                        form.resetFields();
-                        setIsModalVisible(true);
-                    }}
-                    style={{ background: '#7B57E4', borderRadius: 8, height: 40 }}
+                    onClick={() => { setEditingEvent(null); form.resetFields(); setIsModalVisible(true); }}
+                    style={{ background: '#7B57E4', borderRadius: 8, height: 44, fontWeight: 600, padding: '0 20px' }}
                 >
                     Create Event
                 </Button>
@@ -267,9 +266,9 @@ const Events = () => {
                                 padding: '6px 16px',
                                 borderRadius: 20,
                                 fontSize: 13,
-                                border: filterStatus === s ? '1px solid #7B57E4' : '1px solid #E2E8F0',
-                                background: filterStatus === s ? '#7B57E4' : 'white',
-                                color: filterStatus === s ? 'white' : '#64748B'
+                                border: 'none',
+                                background: filterStatus === s ? colorPrimary : 'transparent',
+                                color: filterStatus === s ? 'white' : colorTextSecondary
                             }}
                         >
                             {s}
@@ -286,12 +285,12 @@ const Events = () => {
                     <List.Item>
                         <Card
                             hoverable
-                            style={{ borderRadius: 20, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}
+                            style={{ borderRadius: 20, border: 'none', boxShadow: 'none', background: colorBgContainer }}
                             bodyStyle={{ padding: 24 }}
                         >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                                 <Title level={4} style={{ margin: 0, fontSize: 18 }}>{item.title}</Title>
-                                <Space size={4} style={{ color: '#64748B' }}>
+                                <Space size={4} style={{ color: colorTextSecondary }}>
                                     <UserOutlined />
                                     <Text style={{ fontSize: 13 }}>{item.attendees || 0}/20</Text>
                                 </Space>
@@ -303,14 +302,14 @@ const Events = () => {
 
                             <div style={{ marginBottom: 24 }}>
                                 <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                                    <Space><CalendarOutlined style={{ color: '#94A3B8' }} /> <Text style={{ color: '#64748B' }}>{dayjs(item.eventDate).format('MMM D, YYYY')}</Text></Space>
-                                    <Space><EnvironmentOutlined style={{ color: '#94A3B8' }} /> <Text style={{ color: '#64748B' }}>{item.location}</Text></Space>
+                                    <Space><CalendarOutlined style={{ color: colorTextSecondary }} /> <Text style={{ color: colorTextSecondary }}>{dayjs(item.eventDate).format('MMM D, YYYY')}</Text></Space>
+                                    <Space><EnvironmentOutlined style={{ color: colorTextSecondary }} /> <Text style={{ color: colorTextSecondary }}>{item.location}</Text></Space>
                                 </Space>
                             </div>
 
-                            <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ borderTop: `1px solid ${colorBorder}`, paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Space>
-                                    <Avatar icon={<UserOutlined />} size="small" style={{ backgroundColor: '#E0E7FF', color: '#6366F1' }} />
+                                    <Avatar icon={<UserOutlined />} size="small" style={{ backgroundColor: colorPrimaryBg, color: colorPrimary }} />
                                     <div>
                                         <Text type="secondary" style={{ fontSize: 11, display: 'block', lineHeight: 1 }}>Lead Teacher</Text>
                                         <Text strong style={{ fontSize: 13 }}>{item.user?.fullName || 'Admin'}</Text>
@@ -336,7 +335,7 @@ const Events = () => {
                             <div style={{ marginTop: 16 }}>
                                 <Button
                                     block
-                                    style={{ borderRadius: 12, height: 40, color: '#7B57E4', borderColor: '#E9E3FF', background: '#F9F8FF' }}
+                                    style={{ borderRadius: 12, height: 40, color: colorPrimary, borderColor: colorBorder, background: colorBgLayout }}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setSelectedEventForDetails(item);
@@ -404,14 +403,14 @@ const Events = () => {
                     <Row gutter={48}>
                         <Col span={24} md={14}>
                             <Title level={5}>Description</Title>
-                            <Text style={{ display: 'block', marginBottom: 24, fontSize: 15, color: '#334155', lineHeight: 1.6 }}>
+                            <Text style={{ display: 'block', marginBottom: 24, fontSize: 15, color: colorText, lineHeight: 1.6 }}>
                                 {selectedEventForDetails?.description || 'No description provided.'}
                             </Text>
 
-                            <Space direction="vertical" size={16} style={{ width: '100%', padding: '20px', background: '#F8FAFC', borderRadius: 12 }}>
-                                <Space><CalendarOutlined style={{ color: '#7B57E4' }} /> <Text strong>Date:</Text> <Text>{dayjs(selectedEventForDetails?.eventDate).format('MMMM D, YYYY')}</Text></Space>
-                                <Space><ClockCircleOutlined style={{ color: '#7B57E4' }} /> <Text strong>Time:</Text> <Text>{selectedEventForDetails?.startTime} - {selectedEventForDetails?.endTime}</Text></Space>
-                                <Space><EnvironmentOutlined style={{ color: '#7B57E4' }} /> <Text strong>Location:</Text> <Text>{selectedEventForDetails?.location}</Text></Space>
+                            <Space direction="vertical" size={16} style={{ width: '100%', padding: '20px', background: colorBgLayout, borderRadius: 12 }}>
+                                <Space><CalendarOutlined style={{ color: colorPrimary }} /> <Text strong>Date:</Text> <Text>{dayjs(selectedEventForDetails?.eventDate).format('MMMM D, YYYY')}</Text></Space>
+                                <Space><ClockCircleOutlined style={{ color: colorPrimary }} /> <Text strong>Time:</Text> <Text>{selectedEventForDetails?.startTime} - {selectedEventForDetails?.endTime}</Text></Space>
+                                <Space><EnvironmentOutlined style={{ color: colorPrimary }} /> <Text strong>Location:</Text> <Text>{selectedEventForDetails?.location}</Text></Space>
                             </Space>
                         </Col>
 
@@ -435,10 +434,10 @@ const Events = () => {
                                                         />
                                                     ) : (
                                                         <div
-                                                            style={{ height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F1F5F9' }}
+                                                            style={{ height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: colorBgLayout }}
                                                             onClick={() => window.open(getMediaUrl(media.url), '_blank')}
                                                         >
-                                                            <FileTextOutlined style={{ fontSize: 24, color: '#94A3B8' }} />
+                                                            <FileTextOutlined style={{ fontSize: 24, color: colorTextSecondary }} />
                                                         </div>
                                                     )
                                                 }
@@ -469,12 +468,14 @@ const Events = () => {
             <Modal
                 title={editingEvent ? "Edit Event" : "Create New Event"}
                 open={isModalVisible}
+                onOk={() => form.submit()}
+                okText={editingEvent ? "Update Event" : "Create Event"}
+                okButtonProps={{ style: { background: '#7B57E4', fontWeight: 600, borderRadius: 8 }, loading: submitting }}
                 onCancel={() => {
                     setIsModalVisible(false);
                     setEditingEvent(null);
                     form.resetFields();
                 }}
-                footer={null}
             >
                 <Form
                     form={form}

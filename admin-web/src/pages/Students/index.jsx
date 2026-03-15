@@ -173,19 +173,13 @@ Instructions:
             key: 'student',
             render: (_, record) => (
                 <Space size={12}>
-                    <Avatar src={record.photoUrl} size={40} style={{ backgroundColor: '#7B57E4' }}>{record.fullName[0]}</Avatar>
+                    <Avatar src={record.photoUrl} size={42} style={{ backgroundColor: '#F3EFFF', color: '#7B57E4' }}>{record.fullName[0]}</Avatar>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <Text strong>{record.fullName}</Text>
-                        <Text type="secondary" style={{ fontSize: 12 }}>{record.gender}</Text>
+                        <Text strong style={{ fontSize: 14 }}>{record.fullName}</Text>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{record.studentUniqueId || 'ID Pending'}</Text>
                     </div>
                 </Space>
             ),
-        },
-        {
-            title: 'ID',
-            dataIndex: 'studentUniqueId',
-            key: 'id',
-            render: (text) => <Text strong style={{ color: '#555' }}>{text || 'Pending'}</Text>
         },
         {
             title: 'Age',
@@ -196,7 +190,19 @@ Instructions:
             title: 'Classroom',
             dataIndex: ['classroom', 'name'],
             key: 'classroom',
-            render: (text) => text ? <Tag color="purple" style={{ borderRadius: 12, padding: '0 10px', background: '#F0EAFB', color: '#7B57E4', border: 0 }}>{text}</Tag> : <Tag>Unassigned</Tag>
+            render: (text) => text ? (
+                <Tag
+                    color="purple"
+                    style={{
+                        borderRadius: 12,
+                        padding: '0 12px',
+                        fontWeight: 600,
+                        border: 0,
+                    }}
+                >
+                    {text}
+                </Tag>
+            ) : <Tag>Unassigned</Tag>
         },
         {
             title: 'Parent',
@@ -213,7 +219,19 @@ Instructions:
             title: 'Action',
             key: 'action',
             render: (_, record) => (
-                <a onClick={() => navigate(`/students/${record.id}`)} style={{ color: '#7B57E4', fontWeight: 500 }}>View Profile</a>
+                <Button
+                    onClick={() => navigate(`/students/${record.id}`)}
+                    style={{
+                        background: 'rgba(123, 87, 228, 0.1)',
+                        color: '#7B57E4',
+                        border: 'none',
+                        fontWeight: 600,
+                        borderRadius: 8
+                    }}
+                    size="small"
+                >
+                    View
+                </Button>
             ),
         },
     ];
@@ -242,7 +260,7 @@ Instructions:
                     </div>
 
                     {user?.role !== 'TEACHER' && (
-                        <Button type="primary" icon={<PlusOutlined />} size="large" onClick={handleAdd} style={{ borderRadius: 8, background: '#7B57E4' }}>
+                        <Button type="primary" icon={<PlusOutlined />} size="large" onClick={handleAdd} style={{ borderRadius: 8, background: '#7B57E4', height: 44, fontWeight: 600 }}>
                             Add Student
                         </Button>
                     )}
@@ -401,24 +419,17 @@ Instructions:
                         </Col>
                     </Row>
                     <Row gutter={24}>
-                        <Col span={8}>
+                        <Col span={12}>
                             <Form.Item name="photo" label="Student Photo">
                                 <Upload maxCount={1} beforeUpload={() => false} listType="picture" accept="image/*">
                                     <Button icon={<UploadOutlined />}>Upload Photo</Button>
                                 </Upload>
                             </Form.Item>
                         </Col>
-                        <Col span={8}>
+                        <Col span={12}>
                             <Form.Item name="birthCert" label="Birth Certificate (PDF)">
                                 <Upload maxCount={1} beforeUpload={() => false} accept=".pdf,.jpg,.jpeg,.png">
                                     <Button icon={<UploadOutlined />}>Upload Cert</Button>
-                                </Upload>
-                            </Form.Item>
-                        </Col>
-                        <Col span={8}>
-                            <Form.Item name="vaccineCard" label="Vaccine Card (PDF)">
-                                <Upload maxCount={1} beforeUpload={() => false} accept=".pdf,.jpg,.jpeg,.png">
-                                    <Button icon={<UploadOutlined />}>Upload Card</Button>
                                 </Upload>
                             </Form.Item>
                         </Col>

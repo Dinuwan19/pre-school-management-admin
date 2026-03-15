@@ -96,11 +96,17 @@ exports.scanAttendance = async (req, res, next) => {
             }
         } else {
             // mode === 'OUT'
-            if (!attendance) {
-                return res.status(400).json({ message: 'Cannot Check-Out: No Check-In record for today', status: 'ERROR' });
+
+            // Fix Bug 1: Cannot Check-Out if no Check-In record exists (or is ABSENT)
+            if (!attendance || !attendance.checkInTime) {
+                return res.status(400).json({
+                    message: 'Cannot Check-Out: No Check-In record found for today.',
+                    status: 'ERROR'
+                });
             }
 
-            if (attendance.checkOutTime && !forceMode) {
+            // Fix Bug 2: Cannot Check-Out if already Checked-Out (Prevent double scan updates)
+            if (attendance.checkOutTime) {
                 return res.json({
                     message: `Already checked out today at ${dayjs(attendance.checkOutTime).format('hh:mm A')}`,
                     type: 'ALREADY_OUT',
@@ -368,30 +374,29 @@ exports.getStudentAttendanceSummary = async (req, res, next) => {
             take: 30
         });
 
-        const totalDays = attendance.length;
-        const presentDays = attendance.filter(a => a.checkInTime).length;
+        const presentDays = attendance.filter(a => ['PRESENT', 'LATE', 'COMPLETED'].includes(a.status)).length;
 
-        // Better attendance rate: present days / (days since enrollment or 30, whichever is smaller)
-        // For simplicity now, let's assume totalDays is the baseline if data is available, 
-        // but if data is sparse, let's look at the date range.
+        // Better attendance rate: exclude weekends
         let attendanceRate = 0;
-        if (totalDays > 0) {
-            const earliest = dayjs(attendance[totalDays - 1].attendanceDate);
+        let workingDays = 0;
+        if (attendance.length > 0) {
+            const earliest = dayjs(attendance[attendance.length - 1].attendanceDate);
             const latest = dayjs(attendance[0].attendanceDate);
             const rangeDays = latest.diff(earliest, 'days') + 1;
+
             // Count week days in range
-            let workingDays = 0;
             for (let i = 0; i < rangeDays; i++) {
                 const d = earliest.add(i, 'day');
                 if (d.day() !== 0 && d.day() !== 6) workingDays++;
             }
+            // Use presentDays / workingDays. Note: presentDays can include weekend records
             attendanceRate = workingDays > 0 ? Math.round((presentDays / workingDays) * 100) : 100;
         }
         if (attendanceRate > 100) attendanceRate = 100;
 
         res.json({
             studentId: studentIdInt,
-            totalDays,
+            totalDays: workingDays || attendance.length, // Display the baseline used for calculation
             presentDays,
             attendanceRate,
             history: attendance

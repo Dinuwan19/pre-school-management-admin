@@ -90,12 +90,14 @@ exports.getAllEvents = async (req, res, next) => {
         // Auto-update statuses based on date before fetching
         // In production, a CRON job is better, but this ensures consistency on fetch
         const now = new Date();
+        const startOfToday = new Date(now.setHours(0, 0, 0, 0));
+
         await prisma.event.updateMany({
-            where: { eventDate: { lt: now }, status: 'UPCOMING' },
+            where: { eventDate: { lt: startOfToday }, status: 'UPCOMING' },
             data: { status: 'COMPLETED' }
         });
 
-        if (status && status !== 'All Events') {
+        if (status && status !== 'All Events' && status !== 'ALL') {
             where.status = status.toUpperCase();
         } else if (req.user.role === 'PARENT') {
             const { id, username } = req.user;
@@ -117,7 +119,12 @@ exports.getAllEvents = async (req, res, next) => {
                 return res.json([]);
             }
 
-            where.status = { in: ['UPCOMING', 'PUBLISHED', 'APPROVED'] };
+            // If status is ALL, show everything. Otherwise default to valid statuses.
+            if (status === 'ALL') {
+                where.status = { in: ['UPCOMING', 'COMPLETED', 'PUBLISHED', 'APPROVED'] };
+            } else {
+                where.status = { in: ['UPCOMING', 'PUBLISHED', 'APPROVED'] };
+            }
         }
 
         const events = await prisma.event.findMany({
@@ -129,7 +136,10 @@ exports.getAllEvents = async (req, res, next) => {
                 user: {
                     select: { fullName: true }
                 },
-                event_media: true
+                event_media: true,
+                classrooms: {
+                    select: { id: true, name: true }
+                }
             },
             orderBy: { eventDate: 'desc' }
         });

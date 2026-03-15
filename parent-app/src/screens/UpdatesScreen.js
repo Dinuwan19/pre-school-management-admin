@@ -56,7 +56,7 @@ const UpdatesScreen = ({ navigation }) => {
             setAnnouncements(announcementsRes.data);
 
             // Fetch Events
-            const eventsRes = await api.get('/events');
+            const eventsRes = await api.get('/events?status=ALL');
             setEvents(eventsRes.data);
 
             // Fetch Meetings
@@ -99,7 +99,30 @@ const UpdatesScreen = ({ navigation }) => {
     }, []);
 
     // Filter Logic
-    // No longer needed as we merged homework into announcements tab
+    const filteredAnnouncements = React.useMemo(() => {
+        if (!selectedStudent) return announcements;
+        return announcements.filter(item => {
+            const isSchoolWide = !item.targetClassroomId && !item.targetParentId && (item.targetRole === 'ALL' || item.targetRole === 'PARENT');
+            const isForChildClass = item.targetClassroomId && Number(item.targetClassroomId) === Number(selectedStudent.classroomId);
+            const isForDirectParent = item.targetParentId && Number(item.targetParentId) === Number(selectedStudent.parentUserId);
+            return isSchoolWide || isForChildClass || isForDirectParent;
+        });
+    }, [announcements, selectedStudent]);
+
+    const filteredEvents = React.useMemo(() => {
+        if (!selectedStudent) return events;
+        return events.filter(event => {
+            const eventClassroomIds = (event.classrooms || []).map(c => Number(c.id));
+            const isSchoolWide = eventClassroomIds.length === 0;
+            const isForChildClass = eventClassroomIds.includes(Number(selectedStudent.classroomId));
+            return isSchoolWide || isForChildClass;
+        });
+    }, [events, selectedStudent]);
+
+    const filteredMeetings = React.useMemo(() => {
+        if (!selectedStudent) return meetings;
+        return meetings.filter(m => Number(m.studentId) === Number(selectedStudent.id));
+    }, [meetings, selectedStudent]);
 
     const openDetail = (item) => {
         setSelectedItem(item);
@@ -147,7 +170,7 @@ const UpdatesScreen = ({ navigation }) => {
                 onPress={() => setIsStudentSwitcherVisible(true)}
             >
                 <Image
-                    source={getAvatarSource(selectedStudent?.photoUrl, 'CHILD')}
+                    source={getAvatarSource(selectedStudent?.photoUrl, 'CHILD', null, selectedStudent?.gender)}
                     style={styles.headerAvatar}
                 />
                 <View style={styles.headerAvatarBadge}>
@@ -223,18 +246,35 @@ const UpdatesScreen = ({ navigation }) => {
                     <Icon size={24} color={iconColor} />
                 </View>
                 <View style={styles.content}>
-                    <View style={styles.titleRow}>
-                        <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
-                        <View style={[styles.typeBadge, { backgroundColor: badgeColor }]}>
-                            <Text style={[styles.typeBadgeText, { color: badgeText }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                        <View style={{ flex: 1, marginRight: 8 }}>
+                            <Text style={[styles.title, { flexShrink: 1 }]} numberOfLines={0}>{item.title}</Text>
+                        </View>
+                        <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: badgeColor, alignSelf: 'flex-start', flexShrink: 0 }}>
+                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: badgeText }}>
                                 {label}
                             </Text>
                         </View>
                     </View>
                     <Text style={styles.message} numberOfLines={2}>{item.message}</Text>
-                    <Text style={styles.date}>
-                        {dayjs(item.createdAt).format('MMM DD, YYYY')}
-                    </Text>
+                    <View style={styles.cardFooter}>
+                        <Text style={styles.date}>
+                            {dayjs(item.createdAt).format('MMM DD, YYYY')}
+                        </Text>
+                        {item.targetClassroomId ? (
+                            <View style={styles.miniChildBadge}>
+                                <Text style={styles.miniChildBadgeText}>
+                                    {selectedStudent && Number(selectedStudent.classroomId) === Number(item.targetClassroomId)
+                                        ? selectedStudent.fullName.split(' ')[0]
+                                        : (availableStudents.find(c => Number(c.classroomId) === Number(item.targetClassroomId))?.fullName?.split(' ')[0] || 'Class')}
+                                </Text>
+                            </View>
+                        ) : (
+                            <View style={[styles.miniChildBadge, { backgroundColor: '#F1F5F9' }]}>
+                                <Text style={[styles.miniChildBadgeText, { color: '#64748B' }]}>School</Text>
+                            </View>
+                        )}
+                    </View>
                 </View>
                 <ChevronRight size={20} color="#CBD5E1" />
             </TouchableOpacity>
@@ -251,7 +291,22 @@ const UpdatesScreen = ({ navigation }) => {
                 <Text style={styles.message} numberOfLines={2}>
                     {dayjs(item.eventDate).format('MMM DD, YYYY')} • {item.startTime}
                 </Text>
-                <Text style={styles.date}>{item.location || 'School Campus'}</Text>
+                <View style={styles.cardFooter}>
+                    <Text style={styles.date}>{item.location || 'School Campus'}</Text>
+                    {item.classrooms?.length > 0 ? (
+                        <View style={styles.miniChildBadge}>
+                            <Text style={styles.miniChildBadgeText}>
+                                {selectedStudent && item.classrooms.some(cl => Number(cl.id) === Number(selectedStudent.classroomId))
+                                    ? selectedStudent.fullName.split(' ')[0]
+                                    : (availableStudents.find(c => item.classrooms.some(cl => Number(cl.id) === Number(c.classroomId)))?.fullName?.split(' ')[0] || 'Class')}
+                            </Text>
+                        </View>
+                    ) : (
+                        <View style={[styles.miniChildBadge, { backgroundColor: '#F1F5F9' }]}>
+                            <Text style={[styles.miniChildBadgeText, { color: '#64748B' }]}>School</Text>
+                        </View>
+                    )}
+                </View>
                 {item.event_media?.length > 0 && (
                     <View style={styles.listMediaBadge}>
                         <Camera size={12} color="#9D5BF0" />
@@ -295,21 +350,21 @@ const UpdatesScreen = ({ navigation }) => {
                     <ActivityIndicator size="large" color="#9D5BF0" style={{ marginTop: 40 }} />
                 ) : (
                     activeTab === 'announcements' ? (
-                        announcements.length > 0 ? announcements.map(renderAnnouncementItem) : (
+                        filteredAnnouncements.length > 0 ? filteredAnnouncements.map(renderAnnouncementItem) : (
                             <View style={styles.emptyContainer}>
                                 <Bell size={64} color="#E2E8F0" />
                                 <Text style={styles.emptyText}>No recent updates</Text>
                             </View>
                         )
                     ) : activeTab === 'events' ? (
-                        events.length > 0 ? events.map(renderEventItem) : (
+                        filteredEvents.length > 0 ? filteredEvents.map(renderEventItem) : (
                             <View style={styles.emptyContainer}>
                                 <Calendar size={64} color="#E2E8F0" />
                                 <Text style={styles.emptyText}>No upcoming events</Text>
                             </View>
                         )
                     ) : (
-                        meetings.length > 0 ? meetings.map(renderMeetingItem) : (
+                        filteredMeetings.length > 0 ? filteredMeetings.map(renderMeetingItem) : (
                             <View style={styles.emptyContainer}>
                                 <MessageSquare size={64} color="#E2E8F0" />
                                 <Text style={styles.emptyText}>No meeting requests</Text>
@@ -355,7 +410,7 @@ const UpdatesScreen = ({ navigation }) => {
                                     >
                                         <View style={styles.optionAvatarContainer}>
                                             <Image
-                                                source={getAvatarSource(child.photoUrl, 'CHILD')}
+                                                source={getAvatarSource(child.photoUrl, 'CHILD', null, child.gender)}
                                                 style={styles.optionAvatar}
                                             />
                                             {selectedStudent?.id === child.id && (
@@ -836,7 +891,24 @@ const styles = StyleSheet.create({
     logoutBtnText: {
         color: '#EF4444',
         fontWeight: 'bold'
-    }
+    },
+    cardFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 4
+    },
+    miniChildBadge: {
+        backgroundColor: '#F3EFFF',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    miniChildBadgeText: {
+        fontSize: 10,
+        color: '#9D5BF0',
+        fontWeight: 'bold',
+    },
 });
 
 export default UpdatesScreen;

@@ -1,6 +1,8 @@
 import React from 'react';
+import { ConfigProvider, theme } from 'antd';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -27,9 +29,79 @@ import ResetPassword from './pages/ResetPassword';
 import Reports from './pages/Reports';
 import Events from './pages/Events';
 
-function App() {
+const AppContent = () => {
+  const { isDarkMode } = useTheme();
+  const { defaultAlgorithm, darkAlgorithm } = theme;
+
   return (
-    <BrowserRouter>
+    <ConfigProvider
+      theme={{
+        algorithm: isDarkMode ? darkAlgorithm : defaultAlgorithm,
+        token: {
+          colorPrimary: '#7B57E4',
+          borderRadius: 12,
+          fontFamily: "'Inter', sans-serif",
+          // Deep Dark Theme Tokens
+          ...(isDarkMode ? {
+            colorBgLayout: '#020617', // Deeper Slate 950
+            colorBgContainer: '#0f172a', // Slate 900
+            colorBgElevated: '#1e293b', // Slate 800
+            colorBorder: 'rgba(255, 255, 255, 0.06)', // Subtle translucent border
+            colorBorderSecondary: 'rgba(255, 255, 255, 0.04)',
+            colorText: '#f1f5f9', // Slate 100
+            colorTextSecondary: '#94a3b8', // Slate 400
+            colorTextDescription: '#64748b', // Slate 500
+            colorFillSecondary: 'rgba(123, 87, 228, 0.1)', // Subtle purple fill
+            controlItemBgActive: 'rgba(123, 87, 228, 0.15)',
+          } : {})
+        },
+        components: {
+          Button: {
+            borderRadius: 8,
+            controlHeight: 40,
+            defaultBorderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : '#d9d9d9',
+            paddingInline: 16,
+          },
+          Card: {
+            colorBgContainer: isDarkMode ? '#0f172a' : '#ffffff',
+            colorBorderSecondary: isDarkMode ? 'rgba(255, 255, 255, 0.04)' : '#f0f0f0',
+            borderRadiusLG: 16,
+          },
+          Table: {
+            colorBgContainer: isDarkMode ? 'transparent' : '#ffffff',
+            headerBg: isDarkMode ? 'rgba(255, 255, 255, 0.02)' : '#fafafa',
+            rowHoverBg: isDarkMode ? 'rgba(255, 255, 255, 0.04)' : '#fafafa',
+            borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.06)' : '#f0f0f0',
+            headerColor: isDarkMode ? '#94a3b8' : 'rgba(0, 0, 0, 0.85)',
+          },
+          Tag: {
+            borderRadius: 6,
+            colorBorder: 'transparent',
+          },
+          Menu: {
+            itemSelectedBg: isDarkMode ? 'rgba(123, 87, 228, 0.15)' : '#F3EFFF',
+            itemSelectedColor: '#7B57E4',
+            itemBg: 'transparent',
+            subMenuItemBg: 'transparent',
+            activeBarBorderWidth: 0,
+          },
+          Modal: {
+            contentBg: isDarkMode ? '#0f172a' : '#ffffff',
+            headerBg: isDarkMode ? '#0f172a' : '#ffffff',
+          },
+          Input: {
+            colorBgContainer: isDarkMode ? 'rgba(0, 0, 0, 0.2)' : '#ffffff',
+            colorBorder: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : '#d9d9d9',
+            activeBorderColor: '#7B57E4',
+          },
+          Select: {
+            colorBgContainer: isDarkMode ? 'rgba(0, 0, 0, 0.2)' : '#ffffff',
+            colorBorder: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : '#d9d9d9',
+            optionSelectedBg: isDarkMode ? 'rgba(123, 87, 228, 0.15)' : '#e6f7ff',
+          }
+        }
+      }}
+    >
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -104,6 +176,16 @@ function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AuthProvider>
+    </ConfigProvider>
+  );
+};
+
+function App() {
+  return (
+    <BrowserRouter>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

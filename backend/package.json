@@ -29,6 +29,8 @@
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.12",
     "pdfkit": "^0.17.2",
+    "puppeteer": "^24.37.4",
+    "puppeteer-core": "^24.37.4",
     "qrcode": "^1.5.4",
     "zod": "^4.3.5"
   },

@@ -1,6 +1,6 @@
 const PDFDocument = require('pdfkit');
 const prisma = require('../config/prisma');
-const supabase = require('../config/supabase');
+const fs = require('fs');
 const path = require('path');
 const dayjs = require('dayjs');
 
@@ -10,7 +10,11 @@ const dayjs = require('dayjs');
 exports.getNextReceiptNo = async () => {
     const lastPayment = await prisma.payment.findFirst({
         where: { receiptNo: { not: null } },
-        orderBy: { id: 'desc' } // Use ID to get the strictly latest
+        where: { receiptNo: { not: null } },
+        orderBy: [
+            { verifiedAt: 'desc' },
+            { id: 'desc' }
+        ]
     });
 
     if (!lastPayment || !lastPayment.receiptNo) {
@@ -91,25 +95,20 @@ exports.generateInvoice = async (paymentId) => {
             doc.on('end', async () => {
                 const pdfData = Buffer.concat(buffers);
 
-                // Upload to Supabase
-                const fileName = `invoices/${payment.receiptNo}-${Date.now()}.pdf`;
-                const { data, error } = await supabase.storage
-                    .from('receipts') // Use the verified 'receipts' bucket
-                    .upload(fileName, pdfData, {
-                        contentType: 'application/pdf',
-                        upsert: true
-                    });
-
-                if (error) {
+                // Upload to Local File System
+                const fileName = `${payment.receiptNo}-${Date.now()}.pdf`;
+                const uploadDir = path.join(__dirname, '../../uploads/receipts/invoices');
+                
+                try {
+                    if (!fs.existsSync(uploadDir)) {
+                        fs.mkdirSync(uploadDir, { recursive: true });
+                    }
+                    fs.writeFileSync(path.join(uploadDir, fileName), pdfData);
+                    resolve(`/uploads/receipts/invoices/${fileName}`);
+                } catch (error) {
                     console.error('Invoice Upload Error:', error);
                     return reject(error);
                 }
-
-                const { data: publicUrl } = supabase.storage
-                    .from('receipts')
-                    .getPublicUrl(data.path);
-
-                resolve(publicUrl.publicUrl);
             });
 
             // --- PDF Layout ---

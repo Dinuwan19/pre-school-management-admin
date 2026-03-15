@@ -1,0 +1,7 @@
+--- Finding Pending Payments for S0003 ---
+Student: oshini nethsara (3)
+Found 1 PENDING payments.
+
+Payment ID: 27 | Amount: 30000 | Method: ONLINE_TRANSFER | Created: Mon Feb 16 2026 16:00:30 GMT+0530 (India Standard Time)
+ - BillingID: 20 | Month: 2026-02 | Amount: 15000 | Status: PENDING
+ - BillingID: 21 | Month: 2026-03 | Amount: 15000 | Status: PENDING
