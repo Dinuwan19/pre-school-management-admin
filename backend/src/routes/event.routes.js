@@ -12,7 +12,7 @@ router.get('/', checkClassroomScope, checkParentAccess, eventController.getAllEv
 router.get('/:id', checkClassroomScope, checkParentAccess, eventController.getEventById);
 
 // Manage events
-router.post('/', checkClassroomScope, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'TEACHER']), eventController.createEvent);
+router.post('/', checkClassroomScope, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF']), eventController.createEvent);
 router.put('/:id/approve', authorizeRole(['SUPER_ADMIN', 'ADMIN']), eventController.approveEvent);
 router.put('/:id/status', authorizeRole(['SUPER_ADMIN', 'ADMIN']), eventController.updateEventStatus);
 
@@ -22,7 +22,7 @@ router.post('/waiting-list', checkParentAccess, authorizeRole(['SUPER_ADMIN', 'A
 router.put('/waiting-list/:id/approve', authorizeRole(['SUPER_ADMIN', 'ADMIN']), eventController.approveWaitingList);
 
 // Media Management
-router.post('/:id/media', upload.fields([{ name: 'media', maxCount: 10 }]), authorizeRole(['SUPER_ADMIN', 'ADMIN']), eventController.uploadEventMedia);
+router.post('/:id/media', upload.fields([{ name: 'media', maxCount: 10 }]), authorizeRole(['SUPER_ADMIN', 'ADMIN', 'STAFF', 'TEACHER']), eventController.uploadEventMedia);
 router.delete('/media/:id', authorizeRole(['SUPER_ADMIN', 'ADMIN']), eventController.deleteEventMedia);
 
 module.exports = router;

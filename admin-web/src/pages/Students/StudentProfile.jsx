@@ -402,7 +402,7 @@ const StudentProfile = () => {
                                 <Option value={2}>Term 2</Option>
                                 <Option value={3}>Term 3</Option>
                             </Select>
-                            {user?.role !== 'PARENT' && !isEditingProgress && (
+                            {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'TEACHER') && !isEditingProgress && (
                                 <Button
                                     type="primary"
                                     icon={<EditOutlined />}
@@ -823,6 +823,140 @@ const StudentProfile = () => {
                     </Card>
                 </div>
             )
+        },
+        {
+            key: 'payments',
+            label: <span><MedicineBoxOutlined />Payments</span>,
+            children: (
+                <div style={{ paddingTop: 16 }}>
+                    <Card size="small" title={<Text strong>12-Month Payment Overview ({dayjs().year()})</Text>} bordered={false} style={{ marginBottom: 16 }}>
+                        <div style={{ 
+                            display: 'grid', 
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', 
+                            gap: 12,
+                            padding: '16px 0'
+                        }}>
+                            {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map(month => {
+                                // Find billing for this month (Monthly Fee only - categoryId is null)
+                                const monthBill = (student.billing || []).find(b => {
+                                    if (b.categoryId !== null) return false;
+                                    
+                                    const months = b.billingMonth.split(',').map(m => m.trim().toLowerCase());
+                                    return months.some(m => {
+                                        // Match direct names like "January"
+                                        if (m === month.toLowerCase()) return true;
+                                        // Match date formats like "2026-01"
+                                        if (m.includes('-')) {
+                                            const d = dayjs(m);
+                                            return d.isValid() && d.format('MMMM').toLowerCase() === month.toLowerCase() && d.year() === dayjs().year();
+                                        }
+                                        return false;
+                                    });
+                                });
+
+                                let statusColor = colorBgLayout;
+                                let statusText = 'Not Billed';
+                                let textColor = colorTextSecondary;
+                                let borderColor = colorBorder;
+
+                                // Check if the month is before enrollment
+                                const currentYear = dayjs().year();
+                                const monthIndex = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'].indexOf(month.toLowerCase());
+                                const gridDate = dayjs().year(currentYear).month(monthIndex).startOf('month');
+                                const enrollmentDate = student.enrollmentDate ? dayjs(student.enrollmentDate).startOf('month') : null;
+
+                                const isBeforeEnrollment = enrollmentDate && gridDate.isBefore(enrollmentDate);
+
+                                if (isBeforeEnrollment) {
+                                    statusColor = 'transparent';
+                                    statusText = 'N/A';
+                                    textColor = colorTextSecondary;
+                                    borderColor = colorBorder;
+                                } else if (monthBill) {
+                                    const status = monthBill.status;
+                                    if (status === 'PAID' || status === 'APPROVED') {
+                                        statusColor = 'rgba(82, 196, 26, 0.1)';
+                                        statusText = 'Paid';
+                                        textColor = '#52c41a';
+                                        borderColor = '#52c41a';
+                                    } else if (status === 'PENDING') {
+                                        statusColor = 'rgba(250, 173, 20, 0.1)';
+                                        statusText = 'Pending';
+                                        textColor = '#faad14';
+                                        borderColor = '#faad14';
+                                    } else if (status === 'OVERDUE') {
+                                        statusColor = 'rgba(255, 77, 79, 0.1)';
+                                        statusText = 'Overdue';
+                                        textColor = '#ff4d4f';
+                                        borderColor = '#ff4d4f';
+                                    } else {
+                                        statusColor = 'rgba(255, 77, 79, 0.05)';
+                                        statusText = 'Unpaid';
+                                        textColor = '#ff4d4f';
+                                        borderColor = colorBorder;
+                                    }
+                                }
+
+                                return (
+                                    <div key={month} style={{
+                                        background: statusColor,
+                                        border: isBeforeEnrollment ? `1px dashed ${borderColor}` : `1px solid ${borderColor}`,
+                                        opacity: isBeforeEnrollment ? 0.5 : 1,
+                                        borderRadius: 12,
+                                        padding: '16px 12px',
+                                        textAlign: 'center',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.3s ease'
+                                    }}>
+                                        <div style={{ fontWeight: 700, fontSize: 13, color: colorText, marginBottom: 4 }}>{month}</div>
+                                        <div style={{ 
+                                            fontSize: 10, 
+                                            fontWeight: 800, 
+                                            textTransform: 'uppercase',
+                                            color: textColor,
+                                            letterSpacing: 0.5
+                                        }}>
+                                            {statusText}
+                                        </div>
+                                        {monthBill && (
+                                            <div style={{ fontSize: 11, marginTop: 4, opacity: 0.8 }}>
+                                                LKR {parseFloat(monthBill.amount).toLocaleString()}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </Card>
+
+                    <Card size="small" title={<Text strong>Other Payments (Uniforms, Books, etc.)</Text>} bordered={false}>
+                        <List
+                            dataSource={(student.billing || []).filter(b => b.categoryId !== null)}
+                            renderItem={(item) => (
+                                <List.Item style={{ padding: '12px 16px' }}>
+                                    <List.Item.Meta
+                                        title={<Text strong>{item.billingCategory?.name || item.billingMonth}</Text>}
+                                        description={dayjs(item.createdAt).format('MMM DD, YYYY')}
+                                    />
+                                    <div style={{ textAlign: 'right' }}>
+                                        <div style={{ fontWeight: 600 }}>LKR {parseFloat(item.amount).toLocaleString()}</div>
+                                        <Tag color={
+                                            item.status === 'PAID' || item.status === 'APPROVED' ? 'green' : 
+                                            item.status === 'OVERDUE' ? 'error' : 
+                                            item.status === 'PENDING' ? 'gold' : 'red'
+                                        }>
+                                            {item.status}
+                                        </Tag>
+                                    </div>
+                                </List.Item>
+                            )}
+                            locale={{ emptyText: <Empty description="No transaction history" /> }}
+                        />
+                    </Card>
+                </div>
+            )
         }
     ];
 
@@ -844,7 +978,9 @@ const StudentProfile = () => {
                 <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/students')} size="small" style={{ borderRadius: 4 }}>Back</Button>
                 <Title level={4} style={{ margin: 0 }}>{student.fullName}</Title>
                 <div style={{ flex: 1 }}></div>
-                <Button type="primary" icon={<EditOutlined />} style={{ background: '#7B57E4', borderRadius: 6 }} onClick={() => setIsEditModalVisible(true)}>Edit Profile</Button>
+                {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+                    <Button type="primary" icon={<EditOutlined />} style={{ background: '#7B57E4', borderRadius: 6 }} onClick={() => setIsEditModalVisible(true)}>Edit Profile</Button>
+                )}
             </div>
 
             <Row gutter={24}>

@@ -210,7 +210,11 @@ exports.getStudentById = async (req, res, next) => {
                         scores: { include: { subSkill: { include: { category: true } } } }
                     }
                 },
-                attendance: attendanceQuery
+                attendance: attendanceQuery,
+                billing: {
+                    orderBy: { createdAt: 'desc' },
+                    include: { billingCategory: true }
+                }
             }
         });
         if (!student) return res.status(404).json({ message: 'Student not found' });

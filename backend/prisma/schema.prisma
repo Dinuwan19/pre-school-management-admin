@@ -453,6 +453,8 @@ enum user_role {
   ADMIN
   TEACHER
   PARENT
+  STAFF
+  CASHIER
 }
 
 enum parent_relationship {

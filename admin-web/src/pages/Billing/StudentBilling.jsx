@@ -103,9 +103,13 @@ const StudentBilling = () => {
             title: 'Status',
             dataIndex: 'status',
             key: 'status',
-            render: (status) => (
-                <Tag color={status === 'APPROVED' ? 'green' : 'red'}>{status || 'UNKNOWN'}</Tag>
-            )
+            render: (status) => {
+                let color = 'gold';
+                if (status === 'PAID' || status === 'APPROVED') color = 'green';
+                if (status === 'UNPAID' || status === 'REJECTED') color = 'red';
+                if (status === 'OVERDUE') color = 'error'; // Deep red / urgent
+                return <Tag color={color} style={{ borderRadius: 10, padding: '0 12px' }}>{status}</Tag>
+            }
         },
         {
             title: 'Verified By',
@@ -257,6 +261,12 @@ const StudentBilling = () => {
                 student: null
             }))
     ].filter(item => {
+        // --- CLEAN UP: Remove ALL OVERDUE records from Tab 1 ---
+        // (They are visible in the specific "Overdue Payments" tab)
+        if (item.type === 'BILLING' && item.status === 'OVERDUE' && !filterCurrentMonth) {
+            return false; 
+        }
+
         if (!filterCurrentMonth) return true;
 
         const targetPrefix = currentMonthPrefix;
@@ -370,7 +380,7 @@ const StudentBilling = () => {
             key: 'paymentInfo',
             render: (_, record) => {
                 const payment = record.type === 'BILLING' ? record.paymentInfo : record;
-                const issuedAt = record.createdAt || (payment ? payment.createdAt : null);
+                const issuedAt = (payment && payment.createdAt) ? payment.createdAt : record.createdAt;
 
                 return (
                     <Space direction="vertical" size={2}>
@@ -397,7 +407,7 @@ const StudentBilling = () => {
             key: 'actions',
             render: (_, record) => (
                 <Space size="middle">
-                    {record.type === 'BILLING' && record.status === 'UNPAID' && (
+                    {record.type === 'BILLING' && (record.status === 'UNPAID' || record.status === 'OVERDUE') && (
                         <>
                             <Button
                                 icon={<BellOutlined />}
@@ -422,9 +432,10 @@ const StudentBilling = () => {
                                                 await api.post('/billing/pay-cash', { billingId: record.id });
                                                 message.success('Cash payment recorded');
                                                 fetchData();
-                                            } catch (e) {
-                                                message.error('Failed to record cash payment');
-                                            }
+                                             } catch (e) {
+                                                 const errorMsg = e.response?.data?.message || 'Failed to record cash payment';
+                                                 message.error(errorMsg);
+                                             }
                                         }
                                     });
                                 }}
@@ -604,12 +615,24 @@ const StudentBilling = () => {
                             style={{ width: '100%' }}
                             maxTagCount="responsive"
                         >
-                            {Array.from({ length: 12 }, (_, i) => {
-                                const date = dayjs().add(i, 'month');
-                                const value = date.format('YYYY-MM');
-                                const humanName = date.format('MMMM');
-                                return { value, humanName, label: date.format('MMMM YYYY') };
-                            })
+                            {(() => {
+                                const selectedStudent = students.find(s => s.id === selectedStudentId);
+                                const enrollmentDate = selectedStudent?.enrollmentDate ? dayjs(selectedStudent.enrollmentDate).startOf('month') : dayjs().startOf('month');
+                                const sixMonthsAgo = dayjs().subtract(6, 'month').startOf('month');
+                                
+                                // Start from enrollment or 6 months ago, whichever is later
+                                let startDate = enrollmentDate.isAfter(sixMonthsAgo) ? enrollmentDate : sixMonthsAgo;
+                                
+                                return Array.from({ length: 13 }, (_, i) => {
+                                    const date = startDate.add(i, 'month');
+                                    // Don't show more than 6 months into the future
+                                    if (date.isAfter(dayjs().add(6, 'month'))) return null;
+                                    
+                                    const value = date.format('YYYY-MM');
+                                    const humanName = date.format('MMMM');
+                                    return { value, humanName, label: date.format('MMMM YYYY') };
+                                }).filter(Boolean);
+                            })()
                                 .filter(opt => !billedMonthsForSelected.includes(opt.value) && !billedMonthsForSelected.includes(opt.humanName))
                                 .map(opt => (
                                     <Option key={opt.value} value={opt.value}>{opt.label}</Option>

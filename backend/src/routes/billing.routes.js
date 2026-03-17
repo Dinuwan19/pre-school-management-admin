@@ -4,7 +4,7 @@ const billingController = require('../controllers/billing.controller');
 const { authenticateToken, authorizeRole } = require('../middlewares/auth.middleware');
 
 router.use(authenticateToken);
-router.use(authorizeRole(['SUPER_ADMIN', 'ADMIN']));
+router.use(authorizeRole(['SUPER_ADMIN', 'ADMIN', 'CASHIER']));
 
 router.get('/overdue', authorizeRole(['SUPER_ADMIN', 'ADMIN']), billingController.getOverdueBillings);
 router.get('/dashboard-stats', authorizeRole(['SUPER_ADMIN', 'ADMIN']), billingController.getDashboardStats);

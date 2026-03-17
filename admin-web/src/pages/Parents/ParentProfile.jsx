@@ -67,7 +67,7 @@ const ParentProfile = () => {
             <Text type="secondary">{parent.parentUniqueId}</Text>
           </div>
         </Space>
-        {user?.role !== 'TEACHER' && user?.role !== 'PARENT' && (
+        {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
           <Button type="primary" icon={<EditOutlined />} onClick={() => setIsEditModalVisible(true)} style={{ background: '#7B57E4' }}>Edit Profile</Button>
         )}
       </div>

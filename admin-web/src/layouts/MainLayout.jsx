@@ -57,18 +57,18 @@ const MainLayout = () => {
     }, []);
 
     const menuItems = [
-        {
+        ...(userRole !== 'PARENT' && userRole !== 'CASHIER' ? [{
             key: '/dashboard',
             icon: <DashboardOutlined />,
             label: 'Dashboard',
-        },
+        }] : []),
 
         {
             key: '/students',
             icon: <UserOutlined />,
             label: 'Students',
         },
-        ...(userRole !== 'PARENT' ? [
+        ...(userRole !== 'PARENT' && userRole !== 'CASHIER' ? [
             {
                 key: '/parents',
                 icon: <TeamOutlined />,
@@ -85,7 +85,7 @@ const MainLayout = () => {
             icon: <IdcardOutlined />,
             label: 'Staff',
         }] : []),
-        ...(userRole !== 'PARENT' ? [
+        ...(userRole !== 'PARENT' && userRole !== 'CASHIER' ? [
             {
                 key: '/attendance',
                 icon: <CalendarOutlined />,
@@ -96,19 +96,16 @@ const MainLayout = () => {
                 icon: <BellOutlined />,
                 label: 'Education & Communication',
                 children: [
-                    { key: '/announcements', label: 'Announcements' },
+                    ...(userRole !== 'STAFF' ? [{ key: '/announcements', label: 'Announcements' }] : []),
                     { key: '/meetings', label: 'Meeting Requests' },
-                    { key: '/homework', label: 'Homework' }
+                    ...(userRole !== 'STAFF' ? [{ key: '/homework', label: 'Homework' }] : [])
                 ]
             }
-        ] : [
+        ] : userRole === 'PARENT' ? [
             { key: '/announcements', label: 'Announcements', icon: <BellOutlined /> },
             { key: '/homework', label: 'Homework', icon: <BellOutlined /> }
-        ]),
-        // Only Admin and Super Admin can see Billing (except parents see their own student billing? 
-        // User said: "role base access not working properly staff part no need to billing part also"
-        // I take this as: Teacher doesn't need Billing. Admin/SuperAdmin do.
-        ...((userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') ? [{
+        ] : []),
+        ...((userRole === 'SUPER_ADMIN' || userRole === 'ADMIN' || userRole === 'CASHIER') ? [{
             key: 'billing-sub',
             icon: <FileTextOutlined />,
             label: 'Billing',
@@ -118,11 +115,11 @@ const MainLayout = () => {
                 { key: '/billing/expenses', label: 'Expenses' }
             ]
         }] : []),
-        {
+        ...(userRole !== 'PARENT' && userRole !== 'CASHIER' ? [{
             key: '/events',
             icon: <ScheduleOutlined />,
             label: 'Events',
-        },
+        }] : []),
         ...((userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') ? [{
             key: '/reports',
             icon: <BarChartOutlined />,

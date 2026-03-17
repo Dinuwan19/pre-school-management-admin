@@ -62,7 +62,9 @@ exports.payBillingCash = async (req, res, next) => {
         const billing = await prisma.billing.findUnique({ where: { id: parseInt(billingId) } });
 
         if (!billing) return res.status(404).json({ message: 'Billing record not found' });
-        if (billing.status !== 'UNPAID') return res.status(400).json({ message: 'This month is already paid or verification is pending.' });
+        if (billing.status !== 'UNPAID' && billing.status !== 'OVERDUE') {
+            return res.status(400).json({ message: 'This month is already paid or verification is pending.' });
+        }
 
         // 1. Update Billing Status
         const updatedBilling = await prisma.billing.update({
@@ -228,10 +230,150 @@ exports.notifyUnpaid = async (req, res, next) => {
     }
 };
 
+// Helper to sync overdue status and notify parents
+const syncOverdueStatus = async () => {
+    try {
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonthIndex = now.getMonth();
+        const currentDay = now.getDate();
+        const dayjs = require('dayjs');
+
+        // 1. Mark existing UNPAID bills as OVERDUE
+        const unpaidBillings = await prisma.billing.findMany({
+            where: { status: 'UNPAID' },
+            include: {
+                student: { include: { parent_student_parentIdToparent: true } }
+            }
+        });
+
+        const overdueItems = unpaidBillings.filter(bill => {
+            const billDate = new Date(bill.createdAt);
+            if (billDate.getFullYear() < currentYear || 
+                (billDate.getFullYear() === currentYear && billDate.getMonth() < currentMonthIndex)) {
+                return true;
+            }
+            if (billDate.getFullYear() === currentYear && billDate.getMonth() === currentMonthIndex) {
+                return currentDay > 10;
+            }
+            return false;
+        });
+
+        let updatedCount = 0;
+        await Promise.all(overdueItems.map(async (bill) => {
+            await prisma.billing.update({
+                where: { id: bill.id },
+                data: { status: 'OVERDUE' }
+            });
+
+            const parent = bill.student.parent_student_parentIdToparent;
+            if (parent && parent.userId) {
+                const existingNote = await prisma.notification.findFirst({
+                    where: {
+                        targetParentId: parent.userId,
+                        billingMonth: bill.billingMonth,
+                        title: 'Overdue Payment Reminder'
+                    }
+                });
+
+                if (!existingNote) {
+                    await prisma.notification.create({
+                        data: {
+                            title: 'Overdue Payment Reminder',
+                            message: `The payment for ${bill.billingMonth} for ${bill.student.fullName} is now overdue. Please settle it as soon as possible.`,
+                            targetRole: 'PERSONAL',
+                            targetParentId: parent.userId,
+                            billingMonth: bill.billingMonth,
+                            createdById: 1
+                        }
+                    });
+                }
+            }
+            updatedCount++;
+        }));
+
+        // 2. PROACTIVE: Identify active students missing Monthly Fee bills for previous/current months
+        const activeStudents = await prisma.student.findMany({
+            where: { status: 'ACTIVE' },
+            include: { parent_student_parentIdToparent: true }
+        });
+
+        // Months to check: Current Month (if past 10th) and Previous Month
+        const monthsToCheck = [];
+        // Previous Month
+        const prevMonth = dayjs().subtract(1, 'month');
+        monthsToCheck.push({ value: prevMonth.format('YYYY-MM'), name: prevMonth.format('MMMM'), date: prevMonth });
+        
+        // Current Month (if past 10th)
+        if (currentDay > 10) {
+            const curr = dayjs();
+            monthsToCheck.push({ value: curr.format('YYYY-MM'), name: curr.format('MMMM'), date: curr });
+        }
+
+        for (const student of activeStudents) {
+            for (const targetMonth of monthsToCheck) {
+                // Check if student was enrolled during this month
+                const enrollDate = dayjs(student.enrollmentDate).startOf('month');
+                if (targetMonth.date.startOf('month').isBefore(enrollDate)) continue;
+
+                // Check if bill already exists (Monthly Fee only - categoryId is null)
+                const existingBill = await prisma.billing.findFirst({
+                    where: {
+                        studentId: student.id,
+                        categoryId: null,
+                        OR: [
+                            { billingMonth: { contains: targetMonth.value } },
+                            { billingMonth: { contains: targetMonth.name } }
+                        ]
+                    }
+                });
+
+                if (!existingBill) {
+                    console.log(`[Auto-Billing] Creating overdue bill for ${student.fullName} - ${targetMonth.value}`);
+                    // Create OVERDUE bill automatically
+                    const newBill = await prisma.billing.create({
+                        data: {
+                            studentId: student.id,
+                            billingMonth: targetMonth.value,
+                            amount: 15000,
+                            status: 'OVERDUE',
+                            categoryId: null
+                        }
+                    });
+
+                    // Notify Parent
+                    const parent = student.parent_student_parentIdToparent;
+                    if (parent && parent.userId) {
+                        await prisma.notification.create({
+                            data: {
+                                title: 'Overdue Payment Reminder',
+                                message: `Auto-generated: The payment for ${targetMonth.name} for ${student.fullName} is now overdue. Please settle it as soon as possible.`,
+                                targetRole: 'PERSONAL',
+                                targetParentId: parent.userId,
+                                billingMonth: targetMonth.value,
+                                createdById: 1
+                            }
+                        });
+                    }
+                    updatedCount++;
+                }
+            }
+        }
+
+        return updatedCount;
+    } catch (error) {
+        console.error('[Billing Sync] Error:', error);
+        return 0;
+    }
+};
+
 exports.getOverdueBillings = async (req, res, next) => {
     try {
+        // Run sync before returning
+        await syncOverdueStatus();
+
         const billings = await prisma.billing.findMany({
-            where: { status: 'UNPAID' },
+            where: { status: 'OVERDUE' },
             include: {
                 student: {
                     select: {
@@ -244,31 +386,7 @@ exports.getOverdueBillings = async (req, res, next) => {
             orderBy: { billingMonth: 'desc' }
         });
 
-        // Business Rule: "Overdue" means unpaid after the 5th of the month.
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonthIndex = now.getMonth(); // 0-11
-        const currentDay = now.getDate();
-
-        const overdueBillings = billings.filter(bill => {
-            // Heuristic: Check createdAt or billingMonth string
-            // Assuming billingMonth strings (e.g. "January" or "2024-01")
-
-            // 1. If bill is old (created before this month), it's definitely overdue
-            const billDate = new Date(bill.createdAt);
-            if (billDate.getMonth() < currentMonthIndex || billDate.getFullYear() < currentYear) {
-                return true;
-            }
-
-            // 2. If bill is current month, check if today > 5th
-            if (billDate.getMonth() === currentMonthIndex && billDate.getFullYear() === currentYear) {
-                return currentDay > 5;
-            }
-
-            return false;
-        });
-
-        res.json(overdueBillings);
+        res.json(billings);
     } catch (error) {
         next(error);
     }
@@ -319,16 +437,11 @@ exports.getDashboardStats = async (req, res, next) => {
         });
         const verificationQueueTotal = pendingPaymentsAgg._sum.amountPaid ? parseFloat(pendingPaymentsAgg._sum.amountPaid) : 0;
 
-        // Overdue logic: Unpaid billings before the 5th of the current month
-        const now = new Date();
-        const fifthOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 5, 0, 0, 0);
-
+        // Overdue logic: Sync and then count OVERDUE billings
+        await syncOverdueStatus();
         const overdueBillingsAgg = await prisma.billing.aggregate({
             _sum: { amount: true },
-            where: {
-                status: 'UNPAID',
-                createdAt: { lt: fifthOfCurrentMonth }
-            }
+            where: { status: 'OVERDUE' }
         });
         const overdueTotal = overdueBillingsAgg._sum.amount ? parseFloat(overdueBillingsAgg._sum.amount) : 0;
 

@@ -11,6 +11,6 @@ router.delete('/:id', authorizeRole(['SUPER_ADMIN', 'ADMIN']), billingCategoryCo
 router.get('/:id/stats', authorizeRole(['SUPER_ADMIN', 'ADMIN']), billingCategoryController.getCategoryStats);
 
 // View: SUPER_ADMIN, ADMIN, and PARENT (for their scoped categories)
-router.get('/', authorizeRole(['SUPER_ADMIN', 'ADMIN', 'PARENT']), billingCategoryController.getAllCategories);
+router.get('/', authorizeRole(['SUPER_ADMIN', 'ADMIN', 'PARENT', 'CASHIER', 'STAFF']), billingCategoryController.getAllCategories);
 
 module.exports = router;

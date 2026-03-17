@@ -10,7 +10,6 @@ const dayjs = require('dayjs');
 exports.getNextReceiptNo = async () => {
     const lastPayment = await prisma.payment.findFirst({
         where: { receiptNo: { not: null } },
-        where: { receiptNo: { not: null } },
         orderBy: [
             { verifiedAt: 'desc' },
             { id: 'desc' }

@@ -315,21 +315,23 @@ const Events = () => {
                                         <Text strong style={{ fontSize: 13 }}>{item.user?.fullName || 'Admin'}</Text>
                                     </div>
                                 </Space>
-                                <Space>
-                                    <Button
-                                        type="text"
-                                        icon={<EditOutlined />}
-                                        onClick={(e) => { e.stopPropagation(); handleEdit(item); }}
-                                        size="small"
-                                    />
-                                    <Button
-                                        type="text"
-                                        danger
-                                        icon={<DeleteOutlined />}
-                                        onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
-                                        size="small"
-                                    />
-                                </Space>
+                                {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+                                    <Space>
+                                        <Button
+                                            type="text"
+                                            icon={<EditOutlined />}
+                                            onClick={(e) => { e.stopPropagation(); handleEdit(item); }}
+                                            size="small"
+                                        />
+                                        <Button
+                                            type="text"
+                                            danger
+                                            icon={<DeleteOutlined />}
+                                            onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                                            size="small"
+                                        />
+                                    </Space>
+                                )}
                             </div>
 
                             <div style={{ marginTop: 16 }}>
@@ -375,15 +377,17 @@ const Events = () => {
                             </Tag>
                         </div>
                         <Space size={12}>
-                            <Button
-                                icon={<EditOutlined />}
-                                onClick={() => {
-                                    setDetailModalVisible(false);
-                                    handleEdit(selectedEventForDetails);
-                                }}
-                            >
-                                Edit
-                            </Button>
+                            {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+                                <Button
+                                    icon={<EditOutlined />}
+                                    onClick={() => {
+                                        setDetailModalVisible(false);
+                                        handleEdit(selectedEventForDetails);
+                                    }}
+                                >
+                                    Edit
+                                </Button>
+                            )}
                             {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && selectedEventForDetails?.status === 'COMPLETED' && (
                                 <Button
                                     type="primary"

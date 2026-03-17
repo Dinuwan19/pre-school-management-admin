@@ -118,11 +118,21 @@ Instructions:
             title: 'Role',
             dataIndex: 'role',
             key: 'role',
-            render: (role) => (
-                <Tag color={role === 'ADMIN' ? 'purple' : 'cyan'}>
-                    {role === 'ADMIN' ? 'Administrative Staff' : 'Teacher'}
-                </Tag>
-            )
+            render: (role) => {
+                let color = 'cyan';
+                let label = 'Teacher';
+                if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
+                    color = 'purple';
+                    label = 'App Admin';
+                } else if (role === 'STAFF') {
+                    color = 'blue';
+                    label = 'Administrative Staff';
+                } else if (role === 'CASHIER') {
+                    color = 'green';
+                    label = 'Cashier';
+                }
+                return <Tag color={color}>{label}</Tag>;
+            }
         },
         {
             title: 'Classrooms',
@@ -194,9 +204,12 @@ Instructions:
                                 </Form.Item>
                             </Col>
                             <Col xs={24} md={12}>
-                                {/* Hidden Role Field - Default to TEACHER */}
-                                <Form.Item name="role" hidden initialValue="TEACHER">
-                                    <Input />
+                                <Form.Item name="role" label="Staff Role" rules={[{ required: true }]}>
+                                    <Select placeholder="Select role">
+                                        <Option value="TEACHER">Teacher</Option>
+                                        <Option value="STAFF">Administrative Staff</Option>
+                                        <Option value="CASHIER">Cashier</Option>
+                                    </Select>
                                 </Form.Item>
 
                                 <Form.Item name="email" label="Email Address">

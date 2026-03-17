@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 // Replace with your PC's IP address (ipconfig)
 // Replace with your PC's IP address (ipconfig)
-export const BASE_URL = 'http://192.168.1.5:5000';
+export const BASE_URL = 'http://172.19.14.175:5000';
 const API_URL = `${BASE_URL}/api`;
 
 const api = axios.create({
