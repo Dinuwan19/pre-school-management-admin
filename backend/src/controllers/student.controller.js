@@ -7,8 +7,8 @@ const { uploadFile, uploadLocalFile } = require('../services/storage.service'); 
 exports.createStudent = async (req, res, next) => {
     try {
         // Teachers and Staff cannot add students
-        if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
-            return res.status(403).json({ message: 'Access denied: Teachers and Staff cannot create students.' });
+        if (req.user.role === 'TEACHER') {
+            return res.status(403).json({ message: 'Access denied: Teachers cannot create students.' });
         }
 
         const {
@@ -89,7 +89,7 @@ exports.getAllStudents = async (req, res, next) => {
             // If scope is empty array, it means no access (handled by middleware usually but safe to check)
             if (req.classroomScope.length === 0) return res.json([]);
             where.classroomId = { in: req.classroomScope };
-        } else if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
+        } else if (req.user.role === 'TEACHER') {
             // Teacher with no classroom assigned sees nothing
             return res.json([]);
         } else if (req.user.role === 'PARENT') {

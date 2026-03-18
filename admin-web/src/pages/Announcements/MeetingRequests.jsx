@@ -96,8 +96,8 @@ const MeetingRequests = () => {
                 </Tooltip>
             ),
         },
-        // Admin only column
-        ...((user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') ? [{
+        // Admin/Staff only column
+        ...((user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'STAFF') ? [{
             title: 'Assigned Teacher',
             dataIndex: ['teacher', 'fullName'],
             key: 'teacher',
@@ -122,53 +122,61 @@ const MeetingRequests = () => {
         {
             title: 'Actions',
             key: 'actions',
-            render: (record) => (
-                <Space>
-                    {record.status === 'PENDING' && (
-                        <>
+            render: (record) => {
+                const canUpdate = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || record.teacherId === user?.id;
+
+                if (!canUpdate) {
+                    return <Text type="secondary" italic style={{ fontSize: 12 }}>View Only</Text>;
+                }
+
+                return (
+                    <Space>
+                        {record.status === 'PENDING' && (
+                            <>
+                                <Button
+                                    size="small"
+                                    icon={<CheckOutlined />}
+                                    onClick={() => handleStatusUpdate(record.id, 'APPROVED')}
+                                    style={{
+                                        borderRadius: 8,
+                                        background: 'rgba(16, 185, 129, 0.1)',
+                                        color: '#10B981',
+                                        border: 'none',
+                                        fontWeight: 600
+                                    }}
+                                >
+                                    Approve
+                                </Button>
+                                <Button
+                                    size="small"
+                                    icon={<CloseCircleOutlined />}
+                                    onClick={() => handleStatusUpdate(record.id, 'DECLINED')}
+                                    style={{
+                                        borderRadius: 8,
+                                        background: 'rgba(239, 68, 68, 0.1)',
+                                        color: '#EF4444',
+                                        border: 'none',
+                                        fontWeight: 600
+                                    }}
+                                >
+                                    Decline
+                                </Button>
+                            </>
+                        )}
+                        {record.status === 'APPROVED' && (
                             <Button
+                                type="primary"
                                 size="small"
-                                icon={<CheckOutlined />}
-                                onClick={() => handleStatusUpdate(record.id, 'APPROVED')}
-                                style={{
-                                    borderRadius: 8,
-                                    background: 'rgba(16, 185, 129, 0.1)',
-                                    color: '#10B981',
-                                    border: 'none',
-                                    fontWeight: 600
-                                }}
+                                icon={<CheckCircleOutlined />}
+                                onClick={() => handleStatusUpdate(record.id, 'COMPLETED')}
+                                style={{ borderRadius: 8, background: '#7B57E4', fontWeight: 600 }}
                             >
-                                Approve
+                                Mark Complete
                             </Button>
-                            <Button
-                                size="small"
-                                icon={<CloseCircleOutlined />}
-                                onClick={() => handleStatusUpdate(record.id, 'DECLINED')}
-                                style={{
-                                    borderRadius: 8,
-                                    background: 'rgba(239, 68, 68, 0.1)',
-                                    color: '#EF4444',
-                                    border: 'none',
-                                    fontWeight: 600
-                                }}
-                            >
-                                Decline
-                            </Button>
-                        </>
-                    )}
-                    {record.status === 'APPROVED' && (
-                        <Button
-                            type="primary"
-                            size="small"
-                            icon={<CheckCircleOutlined />}
-                            onClick={() => handleStatusUpdate(record.id, 'COMPLETED')}
-                            style={{ borderRadius: 8, background: '#7B57E4', fontWeight: 600 }}
-                        >
-                            Mark Complete
-                        </Button>
-                    )}
-                </Space>
-            ),
+                        )}
+                    </Space>
+                );
+            },
         },
     ];
 

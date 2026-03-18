@@ -245,14 +245,16 @@ const Events = () => {
                     <Title level={4} style={{ margin: 0 }}>Events</Title>
                     <Text type="secondary">Manage school events and activities</Text>
                 </div>
-                <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => { setEditingEvent(null); form.resetFields(); setIsModalVisible(true); }}
-                    style={{ background: '#7B57E4', borderRadius: 8, height: 44, fontWeight: 600, padding: '0 20px' }}
-                >
-                    Create Event
-                </Button>
+                {['SUPER_ADMIN', 'ADMIN', 'STAFF'].includes(user?.role) && (
+                    <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => { setEditingEvent(null); form.resetFields(); setIsModalVisible(true); }}
+                        style={{ background: '#7B57E4', borderRadius: 8, height: 44, fontWeight: 600, padding: '0 20px' }}
+                    >
+                        Create Event
+                    </Button>
+                )}
             </div>
 
             <div style={{ marginBottom: 24 }}>

@@ -285,7 +285,7 @@ const Classrooms = () => {
                             renderItem={item => (
                                 <List.Item style={{ padding: '8px 12px', marginBottom: 8, background: colorFillAlter, borderRadius: 8 }}>
                                     <Space>
-                                        <Avatar size="small" src={item.photoUrl}>{item.fullName[0]}</Avatar>
+                                        <Avatar size="small" src={item.photoUrl}>{item.fullName?.[0] || '?'}</Avatar>
                                         <Text style={{ color: colorText }}>{item.fullName}</Text>
                                     </Space>
                                 </List.Item>

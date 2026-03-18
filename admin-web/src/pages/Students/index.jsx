@@ -173,7 +173,7 @@ Instructions:
             key: 'student',
             render: (_, record) => (
                 <Space size={12}>
-                    <Avatar src={record.photoUrl} size={42} style={{ backgroundColor: '#F3EFFF', color: '#7B57E4' }}>{record.fullName[0]}</Avatar>
+                    <Avatar src={record.photoUrl} size={42} style={{ backgroundColor: '#F3EFFF', color: '#7B57E4' }}>{record.fullName?.[0] || '?'}</Avatar>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <Text strong style={{ fontSize: 14 }}>{record.fullName}</Text>
                         <Text type="secondary" style={{ fontSize: 11 }}>{record.studentUniqueId || 'ID Pending'}</Text>
@@ -259,7 +259,7 @@ Instructions:
                         </Select>
                     </div>
 
-                    {user?.role !== 'TEACHER' && (
+                    {['SUPER_ADMIN', 'ADMIN', 'STAFF'].includes(user?.role) && (
                         <Button type="primary" icon={<PlusOutlined />} size="large" onClick={handleAdd} style={{ borderRadius: 8, background: '#7B57E4', height: 44, fontWeight: 600 }}>
                             Add Student
                         </Button>

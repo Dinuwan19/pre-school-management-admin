@@ -6,8 +6,8 @@ const upload = require('../middlewares/upload.middleware');
 
 router.use(authenticateToken);
 
-router.post('/', authorizeRole(['SUPER_ADMIN', 'ADMIN']), upload.fields([{ name: 'receipt', maxCount: 1 }]), expenseController.createExpense);
-router.get('/', authorizeRole(['SUPER_ADMIN', 'ADMIN']), expenseController.getAllExpenses);
-router.get('/summary', authorizeRole(['SUPER_ADMIN', 'ADMIN']), expenseController.getExpenseSummary);
+router.post('/', authorizeRole(['SUPER_ADMIN', 'ADMIN', 'CASHIER']), upload.fields([{ name: 'receipt', maxCount: 1 }]), expenseController.createExpense);
+router.get('/', authorizeRole(['SUPER_ADMIN', 'ADMIN', 'CASHIER']), expenseController.getAllExpenses);
+router.get('/summary', authorizeRole(['SUPER_ADMIN', 'ADMIN', 'CASHIER']), expenseController.getExpenseSummary);
 
 module.exports = router;

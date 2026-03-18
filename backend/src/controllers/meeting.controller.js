@@ -86,8 +86,8 @@ exports.getTeacherMeetings = async (req, res, next) => {
         const userRole = req.user.role;
 
         let where = {};
-        // If not Admin/Super Admin, filter by teacherId
-        if (userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN') {
+        // If not Admin/Super Admin/Staff, filter by teacherId
+        if (userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN' && userRole !== 'STAFF') {
             where.teacherId = userId;
         }
 
@@ -111,14 +111,27 @@ exports.updateMeetingStatus = async (req, res, next) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
+        const userId = req.user.id;
+        const userRole = req.user.role;
 
-        const meeting = await prisma.meeting_request.update({
+        const meeting = await prisma.meeting_request.findUnique({
+            where: { id: parseInt(id) }
+        });
+
+        if (!meeting) return res.status(404).json({ message: 'Meeting not found' });
+
+        // Authorization check: Admin/Super Admin or the assigned teacher
+        if (userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN' && meeting.teacherId !== userId) {
+            return res.status(403).json({ message: 'Forbidden: You are not authorized to update this meeting status' });
+        }
+
+        const updatedMeeting = await prisma.meeting_request.update({
             where: { id: parseInt(id) },
             data: { status }
         });
 
-        res.json({ message: `Meeting status updated to ${status}`, meeting });
-        await logAction(req.user.id, `MEETING_STATUS_UPDATE: Meeting ${id} changed to ${status}`);
+        res.json({ message: `Meeting status updated to ${status}`, meeting: updatedMeeting });
+        await logAction(userId, `MEETING_STATUS_UPDATE: Meeting ${id} changed to ${status}`);
     } catch (error) {
         next(error);
     }

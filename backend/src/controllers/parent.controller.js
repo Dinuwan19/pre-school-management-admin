@@ -6,8 +6,8 @@ const { uploadFile } = require('../services/storage.service');
 exports.createParent = async (req, res, next) => {
     try {
         // Teachers and Staff cannot add parents
-        if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
-            return res.status(403).json({ message: 'Access denied: Teachers and Staff cannot create parent records.' });
+        if (req.user.role === 'TEACHER') {
+            return res.status(403).json({ message: 'Access denied: Teachers cannot create parent records.' });
         }
 
         const { relationship, nationalId, occupation, address, phone, email } = req.body;
@@ -55,7 +55,7 @@ exports.getAllParents = async (req, res, next) => {
                 { student_student_parentIdToparent: { some: { classroomId: { in: req.classroomScope } } } },
                 { student_student_secondParentIdToparent: { some: { classroomId: { in: req.classroomScope } } } }
             ];
-        } else if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
+        } else if (req.user.role === 'TEACHER') {
             // Teacher with no classroom assigned sees no parents
             return res.json([]);
         }
@@ -128,8 +128,8 @@ exports.getParentById = async (req, res) => {
 
 exports.updateParent = async (req, res, next) => {
     try {
-        if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
-            return res.status(403).json({ message: 'Access denied: Teachers and Staff cannot update parent records.' });
+        if (req.user.role === 'TEACHER') {
+            return res.status(403).json({ message: 'Access denied: Teachers cannot update parent records.' });
         }
         const { id } = req.params;
         const data = { ...req.body };
@@ -150,8 +150,8 @@ exports.updateParent = async (req, res, next) => {
 
 exports.deleteParent = async (req, res, next) => {
     try {
-        if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
-            return res.status(403).json({ message: 'Access denied: Teachers and Staff cannot deactivate parent records.' });
+        if (req.user.role === 'TEACHER') {
+            return res.status(403).json({ message: 'Access denied: Teachers cannot deactivate parent records.' });
         }
         const { id } = req.params;
         await prisma.parent.update({

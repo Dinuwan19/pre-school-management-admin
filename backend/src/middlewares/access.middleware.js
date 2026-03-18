@@ -9,8 +9,9 @@ exports.checkClassroomScope = async (req, res, next) => {
         const user = req.user;
         const role = user?.role?.toUpperCase().trim();
 
-        // If not a teacher/staff, no mandatory scoping (Admin/SuperAdmin can see all)
-        if (role !== 'TEACHER' && role !== 'STAFF') {
+        // STAFF (Administrative) can see all data. 
+        // Only TEACHER is scoped to assigned classrooms.
+        if (role !== 'TEACHER') {
             return next();
         }
 
@@ -40,7 +41,7 @@ exports.checkClassroomScope = async (req, res, next) => {
  * Mandatory Scoping: Block access if no classroom is assigned for teachers
  */
 exports.requireClassroom = (req, res, next) => {
-    if ((req.user.role === 'TEACHER' || req.user.role === 'STAFF') && (!req.classroomScope || req.classroomScope.length === 0)) {
+    if (req.user.role === 'TEACHER' && (!req.classroomScope || req.classroomScope.length === 0)) {
         return res.status(403).json({
             message: 'Access denied: You are not assigned to any classroom. Please contact administrator.'
         });

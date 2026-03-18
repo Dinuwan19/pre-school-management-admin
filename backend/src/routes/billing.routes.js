@@ -6,8 +6,8 @@ const { authenticateToken, authorizeRole } = require('../middlewares/auth.middle
 router.use(authenticateToken);
 router.use(authorizeRole(['SUPER_ADMIN', 'ADMIN', 'CASHIER']));
 
-router.get('/overdue', authorizeRole(['SUPER_ADMIN', 'ADMIN']), billingController.getOverdueBillings);
-router.get('/dashboard-stats', authorizeRole(['SUPER_ADMIN', 'ADMIN']), billingController.getDashboardStats);
+router.get('/overdue', authorizeRole(['SUPER_ADMIN', 'ADMIN', 'CASHIER']), billingController.getOverdueBillings);
+router.get('/dashboard-stats', authorizeRole(['SUPER_ADMIN', 'ADMIN', 'CASHIER']), billingController.getDashboardStats);
 /* router.get('/recent-transactions', authorizeRole(['SUPER_ADMIN', 'ADMIN']), billingController.getRecentTransactions); */
 // Since recent transactions are part of dashboard stats now, maybe we don't need a separate endpoint?
 // Actually I implemented it as returned inside dashboard stats. 
@@ -17,9 +17,9 @@ router.get('/dashboard-stats', authorizeRole(['SUPER_ADMIN', 'ADMIN']), billingC
 // Checking controller... yes, it returns { ..., recentTransactions: [...] }.
 // So only 'overdue' is separate.
 router.get('/', billingController.getAllBillings);
-router.post('/generate', authorizeRole(['SUPER_ADMIN', 'ADMIN']), billingController.generateBilling);
-router.post('/notify', authorizeRole(['SUPER_ADMIN', 'ADMIN']), billingController.notifyUnpaid);
+router.post('/generate', authorizeRole(['SUPER_ADMIN', 'ADMIN', 'CASHIER']), billingController.generateBilling);
+router.post('/notify', authorizeRole(['SUPER_ADMIN', 'ADMIN', 'CASHIER']), billingController.notifyUnpaid);
 
-router.post('/pay-cash', authorizeRole(['SUPER_ADMIN', 'ADMIN']), billingController.payBillingCash);
+router.post('/pay-cash', authorizeRole(['SUPER_ADMIN', 'ADMIN', 'CASHIER']), billingController.payBillingCash);
 
 module.exports = router;

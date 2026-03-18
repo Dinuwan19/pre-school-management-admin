@@ -1,7 +1,7 @@
 import React from 'react';
 import { ConfigProvider, theme } from 'antd';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
@@ -28,6 +28,20 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Reports from './pages/Reports';
 import Events from './pages/Events';
+
+const InitialRedirect = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+
+  if (user.role === 'CASHIER') {
+    return <Navigate to="/billing/overview" replace />;
+  }
+
+
+  return <Navigate to="/dashboard" replace />;
+};
 
 const AppContent = () => {
   const { isDarkMode } = useTheme();
@@ -110,28 +124,63 @@ const AppContent = () => {
 
           <Route
             element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEACHER']}>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF', 'CASHIER']}>
                 <MainLayout />
               </ProtectedRoute>
             }
           >
-            {/* Dashboard & Common - Accessible by ALL staff/parents (managed by component) */}
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/announcements" element={<Announcements />} />
-            <Route path="/meetings" element={<MeetingRequests />} />
-            <Route path="/homework" element={<Homework />} />
+            {/* Dashboard & Common */}
+            <Route path="/dashboard" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF']}>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/announcements" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF']}>
+                <Announcements />
+              </ProtectedRoute>
+            } />
+            <Route path="/meetings" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF']}>
+                <MeetingRequests />
+              </ProtectedRoute>
+            } />
+            <Route path="/homework" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF']}>
+                <Homework />
+              </ProtectedRoute>
+            } />
 
-            {/* Classrooms - Accessible by Staff */}
-            <Route path="/classrooms" element={<Classrooms />} />
-            <Route path="/classrooms/:id" element={<ClassroomView />} />
-            <Route path="/attendance" element={<Attendance />} />
+            {/* Classrooms */}
+            <Route path="/classrooms" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF']}>
+                <Classrooms />
+              </ProtectedRoute>
+            } />
+            <Route path="/classrooms/:id" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF']}>
+                <ClassroomView />
+              </ProtectedRoute>
+            } />
+            <Route path="/attendance" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF']}>
+                <Attendance />
+              </ProtectedRoute>
+            } />
 
-            {/* Students & Parents - Teachers View Only, Admins Edit */}
-            {/* Note: View components handle internal permission checks (e.g. hiding Edit buttons) */}
+            {/* Students & Parents */}
             <Route path="/students" element={<Students />} />
             <Route path="/students/:id" element={<StudentProfile />} />
-            <Route path="/parents" element={<Parents />} />
-            <Route path="/parents/:id" element={<ParentProfile />} />
+            <Route path="/parents" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF']}>
+                <Parents />
+              </ProtectedRoute>
+            } />
+            <Route path="/parents/:id" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF']}>
+                <ParentProfile />
+              </ProtectedRoute>
+            } />
 
             {/* STAFF - SUPER ADMIN ONLY */}
             <Route path="/staff" element={
@@ -145,35 +194,35 @@ const AppContent = () => {
               </ProtectedRoute>
             } />
 
-            {/* BILLING - ADMIN & SUPER ADMIN ONLY */}
+            {/* BILLING - ADMIN, SUPER ADMIN, CASHIER */}
             <Route path="/billing/overview" element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'CASHIER']}>
                 <BillingOverview />
               </ProtectedRoute>
             } />
             <Route path="/billing/students" element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'CASHIER']}>
                 <StudentBilling />
               </ProtectedRoute>
             } />
             <Route path="/billing/expenses" element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'CASHIER']}>
                 <Expenses />
               </ProtectedRoute>
             } />
             <Route path="/events" element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEACHER']}>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF']}>
                 <Events />
               </ProtectedRoute>
             } />
             <Route path="/reports" element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'STAFF']}>
                 <Reports />
               </ProtectedRoute>
             } />
           </Route>
 
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<InitialRedirect />} />
         </Routes>
       </AuthProvider>
     </ConfigProvider>

@@ -232,7 +232,7 @@ exports.bulkMarkAttendance = async (req, res, next) => {
                 return res.status(403).json({ message: 'Forbidden: You do not have access to this classroom' });
             }
             finalClassroomId = parseInt(classroomId) || req.classroomScope[0];
-        } else if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
+        } else if (req.user.role === 'TEACHER') {
             return res.status(403).json({ message: 'Access denied: No classroom assigned' });
         }
 
@@ -311,7 +311,7 @@ exports.getDailyAttendance = async (req, res, next) => {
         let studentWhere = { status: 'ACTIVE' };
         if (req.classroomScope) {
             studentWhere.classroomId = { in: req.classroomScope };
-        } else if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
+        } else if (req.user.role === 'TEACHER') {
             return res.json([]);
         }
 

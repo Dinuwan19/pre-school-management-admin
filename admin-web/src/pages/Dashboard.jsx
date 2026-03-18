@@ -38,7 +38,7 @@ const Dashboard = () => {
     const statCards = [
         { title: 'Students', value: data?.counts?.students || 0, icon: <UserOutlined />, color: '#7B57E4', path: '/students' },
         { title: 'Classrooms', value: data?.counts?.classrooms || 0, icon: <HomeOutlined />, color: '#FF9500', path: '/classrooms' },
-        ...(userRole === 'ADMIN' || userRole === 'SUPER_ADMIN' ? [
+        ...(userRole === 'ADMIN' || userRole === 'SUPER_ADMIN' || userRole === 'TEACHER' || userRole === 'STAFF' ? [
             { title: 'Staff', value: data?.counts?.staff || 0, icon: <TeamOutlined />, color: '#00C7BE', path: '/staff' }
         ] : []),
         { title: 'Parents', value: data?.counts?.parents || 0, icon: <TeamOutlined />, color: '#FF4D4F', path: '/parents' },

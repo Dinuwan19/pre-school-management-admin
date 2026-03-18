@@ -5,7 +5,7 @@ const auditService = require('../services/audit.service');
 exports.createEvent = async (req, res, next) => {
     try {
         const { title, description, eventDate, startTime, endTime, location, targetClassroomIds } = req.body;
-        const isTeacher = req.user.role === 'TEACHER' || req.user.role === 'STAFF';
+        const isTeacher = req.user.role === 'TEACHER';
 
         // If Teacher, status is PENDING. If Admin, status is UPCOMING (Published).
         const status = isTeacher ? 'PENDING' : 'UPCOMING';

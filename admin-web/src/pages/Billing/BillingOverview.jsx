@@ -72,7 +72,7 @@ const BillingOverview = () => {
                 {[
                     { label: 'Collect Fees', icon: <WalletOutlined />, path: '/billing/students', color: '#7B57E4' },
                     { label: 'Verify Payments', icon: <CheckCircleOutlined />, path: '/billing/students', color: '#52C41A' },
-                    { label: 'Monthly Report', icon: <BarChartOutlined />, path: '/reports', color: '#1890FF' },
+                    ...(user?.role !== 'CASHIER' ? [{ label: 'Monthly Report', icon: <BarChartOutlined />, path: '/reports', color: '#1890FF' }] : []),
                     { label: 'Add Expense', icon: <CalculatorOutlined />, path: '/billing/expenses', color: '#FF4D4F' }
                 ].map((action, idx) => (
                     <Col xs={12} sm={6} key={idx}>

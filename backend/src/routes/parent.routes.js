@@ -8,9 +8,9 @@ const { validate, parentSchema } = require('../middlewares/validate.middleware')
 router.use(authenticateToken);
 
 router.post('/', authorizeRole(['SUPER_ADMIN', 'ADMIN', 'STAFF']), validate(parentSchema), parentController.createParent);
-router.get('/', checkClassroomScope, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'STAFF', 'TEACHER']), parentController.getAllParents);
-router.get('/:id', checkClassroomScope, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'STAFF', 'TEACHER', 'PARENT']), parentController.getParentById);
-router.put('/:id', authorizeRole(['SUPER_ADMIN', 'ADMIN']), validate(parentSchema), parentController.updateParent);
-router.delete('/:id', authorizeRole(['SUPER_ADMIN', 'ADMIN']), parentController.deleteParent);
+router.get('/', checkClassroomScope, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'STAFF', 'TEACHER', 'CASHIER']), parentController.getAllParents);
+router.get('/:id', checkClassroomScope, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'STAFF', 'TEACHER', 'PARENT', 'CASHIER']), parentController.getParentById);
+router.put('/:id', authorizeRole(['SUPER_ADMIN', 'ADMIN', 'STAFF']), validate(parentSchema), parentController.updateParent);
+router.delete('/:id', authorizeRole(['SUPER_ADMIN', 'ADMIN', 'STAFF']), parentController.deleteParent);
 
 module.exports = router;

@@ -1,6 +1,6 @@
 const prisma = require('../config/prisma');
 const bcrypt = require('bcryptjs');
-const { sendAccountCredentials } = require('../services/email.service');
+const { sendTempPasswordEmail } = require('../services/mailer.service');
 const { uploadFile } = require('../services/storage.service');
 const { logAction } = require('../services/audit.service');
 
@@ -8,7 +8,7 @@ exports.getAllStaff = async (req, res, next) => {
     try {
         const staff = await prisma.user.findMany({
             where: {
-                role: { in: ['ADMIN', 'TEACHER'] },
+                role: { in: ['ADMIN', 'TEACHER', 'STAFF', 'CASHIER'] },
                 status: 'ACTIVE'
             },
             include: {
@@ -32,8 +32,22 @@ exports.createStaff = async (req, res, next) => {
         const { fullName, email, phone, role, address, nationalId, joiningDate, classroomIds, qualification, designation, qualifications } = req.body;
 
         const prefix = role === 'TEACHER' ? 'T' : 'A';
-        const count = await prisma.user.count({ where: { role: role } });
-        const employeeId = `${prefix}${(count + 1).toString().padStart(3, '0')}`;
+        
+        // Find the highest existing employeeId for this prefix
+        const lastUser = await prisma.user.findFirst({
+            where: { employeeId: { startsWith: prefix } },
+            orderBy: { employeeId: 'desc' }
+        });
+
+        let nextNumber = 1;
+        if (lastUser && lastUser.employeeId) {
+            const lastNumber = parseInt(lastUser.employeeId.slice(1));
+            if (!isNaN(lastNumber)) {
+                nextNumber = lastNumber + 1;
+            }
+        }
+        
+        const employeeId = `${prefix}${nextNumber.toString().padStart(3, '0')}`;
 
         const cleanName = fullName.trim();
         const username = cleanName.toLowerCase().split(/\s+/).join('.') + Math.floor(Math.random() * 100);
@@ -109,7 +123,15 @@ exports.createStaff = async (req, res, next) => {
 
         // Send email credentials
         if (email) {
-            await sendAccountCredentials(email, username, tempPassword);
+            try {
+                await sendTempPasswordEmail(email, username, tempPassword);
+            } catch (err) {
+                console.warn('⚠️ Could not send email credential. This might be due to unconfigured SMTP:', err.message);
+                console.log('--- MOCKED EMAIL TO:', email, '---');
+                console.log(`Username: ${username}`);
+                console.log(`Password: ${tempPassword}`);
+                console.log('---------------------------');
+            }
         }
 
         res.status(201).json({

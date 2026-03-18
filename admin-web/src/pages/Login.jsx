@@ -53,7 +53,7 @@ const Login = () => {
                 if (result.user.firstLogin) {
                     setStep('reset-password');
                 } else {
-                    navigate('/dashboard');
+                    navigate('/');
                 }
             } else {
                 setError(result.message);
@@ -82,7 +82,7 @@ const Login = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             message.success('Password updated successfully');
-            navigate('/dashboard');
+            navigate('/');
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to update password');
         } finally {

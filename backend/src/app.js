@@ -33,33 +33,6 @@ app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 
-// Debug Middleware: Log all requests
-app.use((req, res, next) => {
-    const originalJson = res.json;
-    res.json = function (data) {
-        if (res.statusCode === 403) {
-            const logMsg = `[403 REJECT] ${new Date().toISOString()} | ${req.method} ${req.url} | Message: ${data.message || 'No message'} | User: ${req.user?.username || 'GUEST'}\n`;
-            console.log(logMsg);
-            try { fs.appendFileSync(path.join(__dirname, '..', 'backend_logs.txt'), logMsg); } catch (e) { }
-        }
-        return originalJson.call(this, data);
-    };
-
-    const originalSendStatus = res.sendStatus;
-    res.sendStatus = function (code) {
-        if (code === 403) {
-            const logMsg = `[403 REJECT] ${req.method} ${req.url} - via sendStatus\n`;
-            console.log(logMsg);
-            try { fs.appendFileSync(path.join(__dirname, '..', 'backend_logs.txt'), logMsg); } catch (e) { }
-        }
-        return originalSendStatus.call(this, code);
-    };
-
-    const logEntry = `[${new Date().toISOString()}] ${req.method} ${req.url} from ${req.ip}\n`;
-    console.log(logEntry);
-    try { fs.appendFileSync(path.join(__dirname, '..', 'backend_logs.txt'), logEntry); } catch (e) { }
-    next();
-});
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, '..', 'uploads');

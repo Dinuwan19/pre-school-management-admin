@@ -96,14 +96,16 @@ const Announcements = () => {
                     <Title level={4} style={{ margin: 0, color: colorText }}>Announcements</Title>
                     <Text type="secondary" style={{ fontSize: 13 }}>Broadcast important updates to parents and staff</Text>
                 </div>
-                <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => setIsModalVisible(true)}
-                    style={{ background: '#7B57E4', height: 44, borderRadius: 8, fontWeight: 600, padding: '0 20px' }}
-                >
-                    Create Announcement
-                </Button>
+                {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+                    <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => setIsModalVisible(true)}
+                        style={{ background: '#7B57E4', height: 44, borderRadius: 8, fontWeight: 600, padding: '0 20px' }}
+                    >
+                        Create Announcement
+                    </Button>
+                )}
             </div>
 
             <List

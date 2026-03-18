@@ -27,7 +27,7 @@ exports.createNotification = async (req, res, next) => {
                     return res.status(403).json({ message: 'Forbidden: You are not assigned to this classroom.' });
                 }
             }
-        } else if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
+        } else if (req.user.role === 'TEACHER') {
             return res.status(403).json({ message: 'Access denied: No classroom assigned to send notifications.' });
         }
 
@@ -68,7 +68,7 @@ exports.getAllNotifications = async (req, res, next) => {
                     { targetRole: 'ALL' }
                 ]
             };
-        } else if (role === 'TEACHER' || role === 'STAFF') {
+        } else if (role === 'TEACHER') {
             // Teacher with no classroom sees only their own
             where = { createdById: id };
         } else if (role === 'PARENT') {

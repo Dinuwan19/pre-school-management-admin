@@ -22,7 +22,7 @@ exports.createHomework = async (req, res, next) => {
                     return res.status(403).json({ message: 'Forbidden: You are not assigned to this classroom.' });
                 }
             }
-        } else if (req.user.role === 'TEACHER' || req.user.role === 'STAFF') {
+        } else if (req.user.role === 'TEACHER') {
             return res.status(403).json({ message: 'Access denied: No classroom assigned to create homework.' });
         }
 
@@ -49,7 +49,7 @@ exports.getAllHomework = async (req, res, next) => {
 
         if (req.classroomScope) {
             where = { classroomId: { in: req.classroomScope } };
-        } else if (role === 'TEACHER' || role === 'STAFF') {
+        } else if (role === 'TEACHER') {
             return res.json([]); // No classroom assigned
         } else if (role === 'PARENT') {
             const { id, username } = req.user;

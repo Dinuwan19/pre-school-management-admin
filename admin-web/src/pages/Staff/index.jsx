@@ -106,7 +106,7 @@ Instructions:
             key: 'member',
             render: (_, record) => (
                 <Space size={12}>
-                    <Avatar src={record.photoUrl} size={42} style={{ background: '#F3EFFF', color: '#7B57E4' }}>{record.fullName[0]}</Avatar>
+                    <Avatar src={record.photoUrl} size={42} style={{ background: '#F3EFFF', color: '#7B57E4' }}>{record.fullName?.[0] || '?'}</Avatar>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <Text strong style={{ fontSize: 14 }}>{record.fullName}</Text>
                         <Text type="secondary" style={{ fontSize: 11 }}>{record.employeeId || 'ID Pending'}</Text>
@@ -243,39 +243,48 @@ Instructions:
                             </Col>
                         </Row>
 
-                        <Divider orientation="left">Role & Assignment</Divider>
-                        <Row gutter={24}>
-                            <Col xs={24} md={12}>
-                                <Form.Item
-                                    name="classroomIds"
-                                    label="Assigned Classrooms (Max 3)"
-                                    rules={[
-                                        {
-                                            validator: (_, value) => {
-                                                if (value && value.length > 3) {
-                                                    return Promise.reject(new Error('Max 3 classrooms allowed'));
-                                                }
-                                                return Promise.resolve();
-                                            }
-                                        }
-                                    ]}
-                                >
-                                    <Select
-                                        mode="multiple"
-                                        placeholder="Select classrooms"
-                                        maxTagCount={3}
-                                        optionFilterProp="children"
-                                    >
-                                        {classrooms.map(c => <Option key={c.id} value={c.id}>{c.name}</Option>)}
-                                    </Select>
-                                </Form.Item>
-                            </Col>
-                            <Col xs={24} md={12}>
-                                <Form.Item name="qualification" label="Qualifications">
-                                    <Input placeholder="e.g. B.Ed in Early Childhood Education" />
-                                </Form.Item>
-                            </Col>
-                        </Row>
+                        <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.role !== currentValues.role}>
+                            {({ getFieldValue }) => {
+                                const role = getFieldValue('role');
+                                return role === 'TEACHER' ? (
+                                    <>
+                                        <Divider orientation="left">Role & Assignment</Divider>
+                                        <Row gutter={24}>
+                                            <Col xs={24} md={12}>
+                                                <Form.Item
+                                                    name="classroomIds"
+                                                    label="Assigned Classrooms (Max 3)"
+                                                    rules={[
+                                                        {
+                                                            validator: (_, value) => {
+                                                                if (value && value.length > 3) {
+                                                                    return Promise.reject(new Error('Max 3 classrooms allowed'));
+                                                                }
+                                                                return Promise.resolve();
+                                                            }
+                                                        }
+                                                    ]}
+                                                >
+                                                    <Select
+                                                        mode="multiple"
+                                                        placeholder="Select classrooms"
+                                                        maxTagCount={3}
+                                                        optionFilterProp="children"
+                                                    >
+                                                        {classrooms.map(c => <Option key={c.id} value={c.id}>{c.name}</Option>)}
+                                                    </Select>
+                                                </Form.Item>
+                                            </Col>
+                                            <Col xs={24} md={12}>
+                                                <Form.Item name="qualification" label="Qualifications">
+                                                    <Input placeholder="e.g. B.Ed in Early Childhood Education" />
+                                                </Form.Item>
+                                            </Col>
+                                        </Row>
+                                    </>
+                                ) : null;
+                            }}
+                        </Form.Item>
 
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
                             <Button onClick={() => setView('list')}>Cancel</Button>

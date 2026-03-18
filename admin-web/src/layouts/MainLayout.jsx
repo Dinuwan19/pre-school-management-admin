@@ -57,17 +57,20 @@ const MainLayout = () => {
     }, []);
 
     const menuItems = [
-        ...(userRole !== 'PARENT' && userRole !== 'CASHIER' ? [{
+        ...(userRole === 'SUPER_ADMIN' || userRole === 'ADMIN' || userRole === 'STAFF' || userRole === 'TEACHER' ? [{
             key: '/dashboard',
             icon: <DashboardOutlined />,
             label: 'Dashboard',
         }] : []),
 
-        {
+        // STUDENTS - ACCESSIBLE BY ALL (EXCEPT PARENT)
+        ...(userRole !== 'PARENT' ? [{
             key: '/students',
             icon: <UserOutlined />,
             label: 'Students',
-        },
+        }] : []),
+
+        // PARENTS & CLASSROOMS
         ...(userRole !== 'PARENT' && userRole !== 'CASHIER' ? [
             {
                 key: '/parents',
@@ -80,11 +83,15 @@ const MainLayout = () => {
                 label: 'Classrooms',
             }
         ] : []),
+
+        // STAFF - SUPER ADMIN ONLY
         ...(userRole === 'SUPER_ADMIN' ? [{
             key: '/staff',
             icon: <IdcardOutlined />,
             label: 'Staff',
         }] : []),
+
+        // ATTENDANCE & COMMUNICATION
         ...(userRole !== 'PARENT' && userRole !== 'CASHIER' ? [
             {
                 key: '/attendance',
@@ -96,15 +103,17 @@ const MainLayout = () => {
                 icon: <BellOutlined />,
                 label: 'Education & Communication',
                 children: [
-                    ...(userRole !== 'STAFF' ? [{ key: '/announcements', label: 'Announcements' }] : []),
+                    { key: '/announcements', label: 'Announcements' },
                     { key: '/meetings', label: 'Meeting Requests' },
-                    ...(userRole !== 'STAFF' ? [{ key: '/homework', label: 'Homework' }] : [])
+                    { key: '/homework', label: 'Homework' }
                 ]
             }
         ] : userRole === 'PARENT' ? [
             { key: '/announcements', label: 'Announcements', icon: <BellOutlined /> },
             { key: '/homework', label: 'Homework', icon: <BellOutlined /> }
         ] : []),
+
+        // BILLING - SUPER_ADMIN, ADMIN, CASHIER
         ...((userRole === 'SUPER_ADMIN' || userRole === 'ADMIN' || userRole === 'CASHIER') ? [{
             key: 'billing-sub',
             icon: <FileTextOutlined />,
@@ -115,12 +124,16 @@ const MainLayout = () => {
                 { key: '/billing/expenses', label: 'Expenses' }
             ]
         }] : []),
-        ...(userRole !== 'PARENT' && userRole !== 'CASHIER' ? [{
+
+        // EVENTS - HIDE FROM CASHIER, TEACHER
+        ...(userRole !== 'PARENT' && userRole !== 'CASHIER' && userRole !== 'TEACHER' ? [{
             key: '/events',
             icon: <ScheduleOutlined />,
             label: 'Events',
         }] : []),
-        ...((userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') ? [{
+
+        // REPORTS - ADMIN & SUPER ADMIN ONLY
+        ...((userRole === 'SUPER_ADMIN' || userRole === 'ADMIN' || userRole === 'STAFF') ? [{
             key: '/reports',
             icon: <BarChartOutlined />,
             label: 'Reports',
@@ -130,7 +143,7 @@ const MainLayout = () => {
     // Helper to determine breadcrumbs
     const pathSnippets = location.pathname.split('/').filter((i) => i);
     const breadcrumbItems = [
-        { title: 'Home', path: '/dashboard' },
+        { title: 'Home', path: '/' },
         ...pathSnippets.map((snippet, index) => {
             const url = `/${pathSnippets.slice(0, index + 1).join('/')}`;
             return {
@@ -230,7 +243,7 @@ const MainLayout = () => {
 
                         <div
                             style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
-                            onClick={() => navigate('/dashboard')}
+                            onClick={() => navigate('/')}
                         >
                             <div style={{ textAlign: 'right', lineHeight: 1.2 }}>
                                 <div style={{ fontWeight: 600, color: colorText }}>{user?.username}</div>

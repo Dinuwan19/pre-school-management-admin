@@ -17,7 +17,7 @@ const parentSchema = z.object({
 
 const userSchema = z.object({
     fullName: z.string().min(3),
-    role: z.enum(['SUPER_ADMIN', 'ADMIN', 'TEACHER']),
+    role: z.enum(['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF', 'CASHIER']),
     phone: z.string().min(10)
 }).partial();
 
@@ -26,7 +26,8 @@ const validate = (schema) => (req, res, next) => {
         schema.parse(req.body);
         next();
     } catch (error) {
-        return res.status(400).json({ status: 'error', message: error.errors[0].message });
+        const errorMsg = (error.errors && error.errors[0]?.message) || (error.issues && error.issues[0]?.message) || error.message || 'Validation failed';
+        return res.status(400).json({ status: 'error', message: errorMsg });
     }
 };
 

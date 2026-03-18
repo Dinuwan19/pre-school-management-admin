@@ -28,8 +28,9 @@ exports.getStats = async (req, res, next) => {
             ]);
             studentCount = sCount;
             parentCount = pCount;
-            staffCount = null; // Hide staff count from teachers
             classroomCount = req.classroomScope.length;
+            // Also show teachers/admins as staff for teachers
+            staffCount = await prisma.user.count({ where: { role: { in: ['ADMIN', 'TEACHER'] }, status: 'ACTIVE' } });
         } else {
             // Admin Scope
             const [sCount, sCCount, cCount, pCount] = await Promise.all([
@@ -60,7 +61,7 @@ exports.getStats = async (req, res, next) => {
             percentage: studentCount > 0 ? Math.round((presentToday / studentCount) * 100) : 0
         };
 
-        // 3. Billing & Payments (Only for Admins)
+        // 3. Billing & Payments (Only for Admins/Cashiers - Scoped users like teachers don't see this)
         let billingStats = null;
         if (!req.classroomScope) {
             const currentMonthBillings = await prisma.billing.findMany({

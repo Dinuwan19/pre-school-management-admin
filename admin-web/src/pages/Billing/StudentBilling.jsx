@@ -149,10 +149,13 @@ const StudentBilling = () => {
         try {
             const values = await form.validateFields();
             setLoading(true);
+            const selectedCat = categories.find(c => c.id === values.categoryId);
+            const isOneTime = selectedCat?.frequency === 'ONE_TIME';
+
             const payload = {
                 ...values,
                 categoryId: values.categoryId === 'monthly' ? null : values.categoryId,
-                billingMonths: values.billingMonths
+                billingMonths: isOneTime ? [selectedCat.name || 'One-Time Payment'] : values.billingMonths
             };
             await api.post('/billing/generate', payload);
             message.success('Billing record generated');
@@ -601,44 +604,46 @@ const StudentBilling = () => {
                                 ))}
                         </Select>
                     </Form.Item>
-                    <Form.Item
-                        name="billingMonths"
-                        label="Billing Months"
-                        rules={[
-                            { required: true, message: 'Select at least one month' },
-                            { type: 'array', max: 6, message: 'You can select a maximum of 6 months' }
-                        ]}
-                    >
-                        <Select
-                            mode="multiple"
-                            placeholder="Select months"
-                            style={{ width: '100%' }}
-                            maxTagCount="responsive"
+                    {categories.find(c => c.id === selectedCategoryId)?.frequency !== 'ONE_TIME' && (
+                        <Form.Item
+                            name="billingMonths"
+                            label="Billing Months"
+                            rules={[
+                                { required: true, message: 'Select at least one month' },
+                                { type: 'array', max: 6, message: 'You can select a maximum of 6 months' }
+                            ]}
                         >
-                            {(() => {
-                                const selectedStudent = students.find(s => s.id === selectedStudentId);
-                                const enrollmentDate = selectedStudent?.enrollmentDate ? dayjs(selectedStudent.enrollmentDate).startOf('month') : dayjs().startOf('month');
-                                const sixMonthsAgo = dayjs().subtract(6, 'month').startOf('month');
-                                
-                                // Start from enrollment or 6 months ago, whichever is later
-                                let startDate = enrollmentDate.isAfter(sixMonthsAgo) ? enrollmentDate : sixMonthsAgo;
-                                
-                                return Array.from({ length: 13 }, (_, i) => {
-                                    const date = startDate.add(i, 'month');
-                                    // Don't show more than 6 months into the future
-                                    if (date.isAfter(dayjs().add(6, 'month'))) return null;
+                            <Select
+                                mode="multiple"
+                                placeholder="Select months"
+                                style={{ width: '100%' }}
+                                maxTagCount="responsive"
+                            >
+                                {(() => {
+                                    const selectedStudent = students.find(s => s.id === selectedStudentId);
+                                    const enrollmentDate = selectedStudent?.enrollmentDate ? dayjs(selectedStudent.enrollmentDate).startOf('month') : dayjs().startOf('month');
+                                    const sixMonthsAgo = dayjs().subtract(6, 'month').startOf('month');
                                     
-                                    const value = date.format('YYYY-MM');
-                                    const humanName = date.format('MMMM');
-                                    return { value, humanName, label: date.format('MMMM YYYY') };
-                                }).filter(Boolean);
-                            })()
-                                .filter(opt => !billedMonthsForSelected.includes(opt.value) && !billedMonthsForSelected.includes(opt.humanName))
-                                .map(opt => (
-                                    <Option key={opt.value} value={opt.value}>{opt.label}</Option>
-                                ))}
-                        </Select>
-                    </Form.Item>
+                                    // Start from enrollment or 6 months ago, whichever is later
+                                    let startDate = enrollmentDate.isAfter(sixMonthsAgo) ? enrollmentDate : sixMonthsAgo;
+                                    
+                                    return Array.from({ length: 13 }, (_, i) => {
+                                        const date = startDate.add(i, 'month');
+                                        // Don't show more than 6 months into the future
+                                        if (date.isAfter(dayjs().add(6, 'month'))) return null;
+                                        
+                                        const value = date.format('YYYY-MM');
+                                        const humanName = date.format('MMMM');
+                                        return { value, humanName, label: date.format('MMMM YYYY') };
+                                    }).filter(Boolean);
+                                })()
+                                    .filter(opt => !billedMonthsForSelected.includes(opt.value) && !billedMonthsForSelected.includes(opt.humanName))
+                                    .map(opt => (
+                                        <Option key={opt.value} value={opt.value}>{opt.label}</Option>
+                                    ))}
+                            </Select>
+                        </Form.Item>
+                    )}
                     <Form.Item name="amount" label="Fee Amount (Rs.)" rules={[{ required: true }]} initialValue={15000}>
                         <Input type="number" />
                     </Form.Item>

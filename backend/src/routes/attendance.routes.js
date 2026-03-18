@@ -6,10 +6,10 @@ const { checkClassroomScope, checkParentAccess } = require('../middlewares/acces
 
 router.use(authenticateToken);
 
-router.post('/scan', checkClassroomScope, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'TEACHER']), attendanceController.scanAttendance);
-router.post('/manual', checkClassroomScope, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'TEACHER']), attendanceController.manualAttendance);
-router.post('/bulk', checkClassroomScope, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'TEACHER']), attendanceController.bulkMarkAttendance);
-router.get('/daily', checkClassroomScope, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'TEACHER']), attendanceController.getDailyAttendance);
-router.get('/student/:studentId', checkParentAccess, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'PARENT']), attendanceController.getStudentAttendanceSummary);
+router.post('/scan', checkClassroomScope, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'CASHIER', 'STAFF']), attendanceController.scanAttendance);
+router.post('/manual', checkClassroomScope, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF']), attendanceController.manualAttendance);
+router.post('/bulk', checkClassroomScope, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF']), attendanceController.bulkMarkAttendance);
+router.get('/daily', checkClassroomScope, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF']), attendanceController.getDailyAttendance);
+router.get('/student/:studentId', checkParentAccess, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'PARENT', 'CASHIER', 'STAFF']), attendanceController.getStudentAttendanceSummary);
 
 module.exports = router;
