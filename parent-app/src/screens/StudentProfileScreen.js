@@ -29,7 +29,10 @@ import {
     Minus,
     Palette,
     Globe,
-    Zap
+    Zap,
+    ChevronDown,
+    ChevronUp,
+    CheckCircle2
 } from 'lucide-react-native';
 import { requestMeeting } from '../services/meeting.service';
 import api from '../config/api';
@@ -63,6 +66,7 @@ const StudentProfileScreen = ({ route, navigation }) => {
     const [preferredDate, setPreferredDate] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [selectedTeacherId, setSelectedTeacherId] = useState(null);
+    const [expandedCategories, setExpandedCategories] = useState([]);
 
     // Edit State
     const [isEditModalVisible, setIsEditModalVisible] = useState(false);
@@ -395,6 +399,14 @@ const StudentProfileScreen = ({ route, navigation }) => {
             return maxScore > 0 ? Math.round((actualScore / maxScore) * 100) : 0;
         };
 
+        const toggleCategory = (catId) => {
+            setExpandedCategories(prev =>
+                prev.includes(catId)
+                    ? prev.filter(id => id !== catId)
+                    : [...prev, catId]
+            );
+        };
+
         const renderTermSelector = () => (
             <View style={styles.termSelector}>
                 {[1, 2, 3].map(t => (
@@ -483,26 +495,74 @@ const StudentProfileScreen = ({ route, navigation }) => {
                                     }
                                 }
 
-                                return (
-                                    <View key={cat.id} style={[styles.categoryCard, markedSkills === 0 && { opacity: 0.8 }]}>
-                                        <View style={styles.categoryHeader}>
-                                            <View style={[styles.themeBadge, { backgroundColor: bgColor }]}>
-                                                <Text style={[styles.themeBadgeText, { color: color }]}>{label}</Text>
-                                            </View>
-                                            <View style={styles.trendBox}>
-                                                <TrendIcon size={16} color={trendColor} />
-                                            </View>
-                                        </View>
-                                        <View style={styles.categoryMain}>
-                                            <Text numberOfLines={1} style={[styles.categoryTitle, markedSkills === 0 && { color: '#64748B' }]}>{cat.name}</Text>
-                                            <Text style={[styles.categoryPercent, { color: barColor }]}>{percentageDisplay}</Text>
-                                        </View>
-                                        <View style={styles.customProgressBar}>
-                                            <View style={[styles.customProgressFill, { width: `${percentage}%`, backgroundColor: barColor, opacity: markedSkills === 0 ? 0.2 : 1 }]} />
-                                        </View>
-                                    </View>
-                                );
-                            })}
+                                 const isExpanded = expandedCategories.includes(cat.id);
+
+                                 return (
+                                     <View key={cat.id} style={[styles.categoryCard, markedSkills === 0 && { opacity: 0.8 }]}>
+                                         <TouchableOpacity
+                                             activeOpacity={0.7}
+                                             onPress={() => toggleCategory(cat.id)}
+                                         >
+                                             <View style={styles.categoryHeader}>
+                                                 <View style={[styles.themeBadge, { backgroundColor: bgColor }]}>
+                                                     <Text style={[styles.themeBadgeText, { color: color }]}>{label}</Text>
+                                                 </View>
+                                                 <View style={styles.trendRow}>
+                                                     <View style={styles.trendBox}>
+                                                         <TrendIcon size={16} color={trendColor} />
+                                                     </View>
+                                                     <View style={[styles.expandIcon, { marginLeft: 10 }]}>
+                                                         {isExpanded ? <ChevronUp size={20} color="#94A3B8" /> : <ChevronDown size={20} color="#94A3B8" />}
+                                                     </View>
+                                                 </View>
+                                             </View>
+                                             <View style={styles.categoryMain}>
+                                                 <Text numberOfLines={1} style={[styles.categoryTitle, markedSkills === 0 && { color: '#64748B' }]}>{cat.name}</Text>
+                                                 <Text style={[styles.categoryPercent, { color: barColor }]}>{percentageDisplay}</Text>
+                                             </View>
+                                             <View style={styles.customProgressBar}>
+                                                 <View style={[styles.customProgressFill, { width: `${percentage}%`, backgroundColor: barColor, opacity: markedSkills === 0 ? 0.2 : 1 }]} />
+                                             </View>
+                                         </TouchableOpacity>
+
+                                         {isExpanded && markedSkills > 0 && (
+                                             <View style={styles.expandedContent}>
+                                                 <View style={styles.divider} />
+                                                 {cat.skills.map((skill) => {
+                                                     const scoreObj = catScores.find(s => s.subSkillId === skill.id);
+                                                     const score = scoreObj?.score || 0;
+                                                     let skillStatus = 'Pending';
+                                                     let statusColor = '#94A3B8';
+
+                                                     if (score === 3) { skillStatus = 'Well Developed'; statusColor = '#22C55E'; }
+                                                     else if (score === 2) { skillStatus = 'Progressing'; statusColor = '#3B82F6'; }
+                                                     else if (score === 1) { skillStatus = 'Emerging'; statusColor = '#EF4444'; }
+
+                                                     return (
+                                                         <View key={skill.id} style={styles.subSkillRow}>
+                                                             <View style={styles.subSkillInfo}>
+                                                                 <Text style={styles.subSkillName}>{skill.name}</Text>
+                                                                 <Text style={[styles.subSkillStatus, { color: statusColor }]}>{skillStatus}</Text>
+                                                             </View>
+                                                             <View style={styles.scoreIndicator}>
+                                                                 {[1, 2, 3].map(step => (
+                                                                     <View
+                                                                         key={step}
+                                                                         style={[
+                                                                             styles.scoreStep,
+                                                                             step <= score && { backgroundColor: statusColor, borderColor: statusColor }
+                                                                         ]}
+                                                                     />
+                                                                 ))}
+                                                             </View>
+                                                         </View>
+                                                     );
+                                                 })}
+                                             </View>
+                                         )}
+                                     </View>
+                                 );
+                             })}
                         </View>
 
                         <View style={styles.infoSection}>
@@ -1045,7 +1105,17 @@ const styles = StyleSheet.create({
     emptyFocusText: { color: '#22C55E', fontStyle: 'italic', fontSize: 13 },
     assessedBy: { marginTop: 12, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
     assessedByText: { fontSize: 11, color: '#94A3B8', textAlign: 'right' },
-    loaderContainer: { height: 200, justifyContent: 'center', alignItems: 'center' }
+    loaderContainer: { height: 200, justifyContent: 'center', alignItems: 'center' },
+
+    trendRow: { flexDirection: 'row', alignItems: 'center' },
+    expandedContent: { marginTop: 15, paddingTop: 15 },
+    divider: { height: 1, backgroundColor: '#F1F5F9', marginBottom: 15 },
+    subSkillRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+    subSkillInfo: { flex: 1, marginRight: 10 },
+    subSkillName: { fontSize: 14, color: '#475569', fontWeight: '500', marginBottom: 2 },
+    subSkillStatus: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
+    scoreIndicator: { flexDirection: 'row', gap: 4 },
+    scoreStep: { width: 14, height: 6, borderRadius: 3, backgroundColor: '#E2E8F0', borderWidth: 1, borderColor: '#E2E8F0' }
 });
 
 export default StudentProfileScreen;
