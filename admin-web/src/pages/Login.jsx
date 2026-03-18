@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Form, Input, Button, Card, Typography, Alert, Space, message, theme } from 'antd';
 import { UserOutlined, LockOutlined, BookOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
-import { changePassword } from '../api/services';
+import api from '../api/client';
 import { useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
@@ -74,7 +74,8 @@ const Login = () => {
                 setLoading(false);
                 return;
             }
-            await changePassword({
+            const token = localStorage.getItem('token');
+            await api.post('/auth/change-password', {
                 currentPassword: values.currentPassword,
                 newPassword: values.newPassword,
             });

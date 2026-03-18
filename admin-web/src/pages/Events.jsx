@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Tag, Modal, Form, Input, DatePicker, TimePicker, Select, Typography, message, Space, Row, Col, Upload, List, Avatar, theme } from 'antd';
 import { CalendarOutlined, PlusOutlined, EnvironmentOutlined, UserOutlined, FileTextOutlined, CheckCircleOutlined, DeleteOutlined, EditOutlined, UploadOutlined, EyeOutlined, ClockCircleOutlined } from '@ant-design/icons';
-import mockApi, { API_HOST } from '../api/client';
+import api, { getMediaUrl } from '../api/client';
 import dayjs from 'dayjs';
 import { useAuth } from '../context/AuthContext';
 
@@ -32,7 +32,7 @@ const Events = () => {
     const fetchEvents = async () => {
         setLoading(true);
         try {
-            const response = await mockApi.get('/events');
+            const response = await api.get('/events');
             setEvents(response.data);
         } catch (error) {
             message.error('Failed to fetch events');
@@ -43,7 +43,7 @@ const Events = () => {
 
     const fetchWaitingList = async () => {
         try {
-            const response = await mockApi.get('/events/waiting-list/all');
+            const response = await api.get('/events/waiting-list/all');
             setWaitingList(response.data);
         } catch (error) {
             console.error('Failed to fetch waiting list');
@@ -52,7 +52,7 @@ const Events = () => {
 
     const fetchClassrooms = async () => {
         try {
-            const response = await mockApi.get('/classrooms');
+            const response = await api.get('/classrooms');
             setClassrooms(response.data);
         } catch (error) {
             console.error('Failed to fetch classrooms');
@@ -74,7 +74,7 @@ const Events = () => {
                 startTime: values.startTime.format('HH:mm'),
                 endTime: values.endTime.format('HH:mm'),
             };
-            await mockApi.post('/events', payload);
+            await api.post('/events', payload);
             message.success('Event created successfully');
             setIsModalVisible(false);
             form.resetFields();
@@ -88,7 +88,7 @@ const Events = () => {
 
     const handleApprovePayload = async (id) => {
         try {
-            await mockApi.put(`/events/waiting-list/${id}/approve`);
+            await api.put(`/events/waiting-list/${id}/approve`);
             message.success('Request approved');
             fetchWaitingList();
             fetchEvents(); // Update event counts
@@ -97,18 +97,9 @@ const Events = () => {
         }
     };
 
-    // Verify user role for Approval permission
-    // Assuming we have access to user payload (need to import useAuth)
-    // But since this is inside the component, we can assume we might need to fetch user.
-    // However, MainLayout passed it? No.
-    // Let's import useAuth.
-
-    // TEMPORARY: Adding useAuth hook at top level.
-    // const { user } = useAuth(); // Need to add this to component body logic.
-
     const handleApproveEvent = async (id) => {
         try {
-            await mockApi.put(`/events/${id}/approve`);
+            await api.put(`/events/${id}/approve`);
             message.success('Event approved and published');
             fetchEvents();
         } catch (error) {
@@ -136,7 +127,7 @@ const Events = () => {
                 startTime: values.startTime.format('HH:mm'),
                 endTime: values.endTime.format('HH:mm'),
             };
-            await mockApi.put(`/events/${editingEvent.id}/status`, payload);
+            await api.put(`/events/${editingEvent.id}/status`, payload);
             message.success('Event updated successfully');
             setIsModalVisible(false);
             setEditingEvent(null);
@@ -158,7 +149,7 @@ const Events = () => {
             cancelText: 'No',
             onOk: async () => {
                 try {
-                    await mockApi.delete(`/events/${id}`);
+                    await api.delete(`/events/${id}`);
                     message.success('Event deleted');
                     fetchEvents();
                 } catch (error) {
@@ -189,7 +180,7 @@ const Events = () => {
                 });
             }
 
-            await mockApi.post(`/events/${selectedEventForMedia.id}/media`, formData, {
+            await api.post(`/events/${selectedEventForMedia.id}/media`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
@@ -199,7 +190,7 @@ const Events = () => {
 
             // Refresh both the list and the active detail view if open
             if (selectedEventForDetails) {
-                const updatedEvent = await mockApi.get(`/events/${selectedEventForDetails.id}`);
+                const updatedEvent = await api.get(`/events/${selectedEventForDetails.id}`);
                 setSelectedEventForDetails(updatedEvent.data);
             }
             fetchEvents();
@@ -212,25 +203,17 @@ const Events = () => {
 
     const handleDeleteMedia = async (mediaId) => {
         try {
-            await mockApi.delete(`/events/media/${mediaId}`);
+            await api.delete(`/events/media/${mediaId}`);
             message.success('Media deleted');
             // Refresh the selected event data to update the gallery
             if (selectedEventForDetails) {
-                const updatedEvent = await mockApi.get(`/events/${selectedEventForDetails.id}`);
+                const updatedEvent = await api.get(`/events/${selectedEventForDetails.id}`);
                 setSelectedEventForDetails(updatedEvent.data);
             }
             fetchEvents();
         } catch (error) {
             message.error('Failed to delete media');
         }
-    };
-
-
-
-    const getMediaUrl = (path) => {
-        if (!path) return null;
-        if (path.startsWith('http')) return path;
-        return `${API_HOST}${path}`;
     };
 
     const filteredEvents = events.filter(event => {

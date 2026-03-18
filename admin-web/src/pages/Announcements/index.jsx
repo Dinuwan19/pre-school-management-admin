@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Typography, List, Modal, Form, Input, Select, message, Tag, Space, Avatar, Divider, Row, Col, theme } from 'antd';
 import { PlusOutlined, BellOutlined, UserOutlined, DeleteOutlined, GlobalOutlined, TeamOutlined } from '@ant-design/icons';
-import { fetchClassrooms, fetchNotifications, createNotification, deleteNotification } from '../../api/services';
+import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import dayjs from 'dayjs';
 
@@ -20,7 +20,7 @@ const Announcements = () => {
 
     const fetchClassrooms = async () => {
         try {
-            const res = await fetchClassrooms();
+            const res = await api.get('/classrooms');
             setClassrooms(res.data);
         } catch (error) {
             console.error('Failed to load classrooms');
@@ -30,7 +30,7 @@ const Announcements = () => {
     const fetchAnnouncements = async () => {
         setLoading(true);
         try {
-            const res = await fetchNotifications();
+            const res = await api.get('/notifications');
             setAnnouncements(res.data);
         } catch (error) {
             message.error(error.errorMessage || 'Failed to load announcements');
@@ -54,7 +54,7 @@ const Announcements = () => {
             };
 
             setLoading(true);
-            await createNotification(payload);
+            await api.post('/notifications', payload);
             message.success('Announcement published');
             setIsModalVisible(false);
             form.resetFields();
@@ -69,7 +69,7 @@ const Announcements = () => {
 
     const handleDelete = async (id) => {
         try {
-            await deleteNotification(id);
+            await api.delete(`/notifications/${id}`);
             message.success('Announcement deleted');
             fetchAnnouncements();
         } catch (error) {

@@ -11,7 +11,7 @@ import {
     ArrowLeftOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { fetchStaff, fetchClassrooms, createStaff } from '../../api/services';
+import api from '../../api/client';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -30,7 +30,7 @@ const Staff = () => {
     const fetchStaff = async () => {
         setLoading(true);
         try {
-            const res = await fetchStaff();
+            const res = await api.get('/staff');
             setStaffList(res.data);
         } catch (error) {
             message.error(error.errorMessage || 'Failed to fetch staff');
@@ -41,7 +41,7 @@ const Staff = () => {
 
     const fetchClassrooms = async () => {
         try {
-            const res = await fetchClassrooms();
+            const res = await api.get('/classrooms');
             setClassrooms(res.data);
         } catch (error) { }
     };
@@ -55,7 +55,7 @@ const Staff = () => {
         try {
             const values = await form.validateFields();
             setLoading(true);
-            const res = await createStaff(values);
+            const res = await api.post('/staff', values);
             message.success('Staff member added successfully');
             setCredentialsModal({
                 visible: true,

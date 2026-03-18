@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Typography, Row, Col, Modal, Form, Input, DatePicker, Select, message, Space, Tag, Empty, List, Avatar, Divider, theme } from 'antd';
 import { PlusOutlined, BookOutlined, CalendarOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons';
-import { fetchHomework, fetchClassrooms, createHomework, deleteHomework } from '../../api/services';
+import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import dayjs from 'dayjs';
 
@@ -21,8 +21,8 @@ const Homework = () => {
         setLoading(true);
         try {
             const [hwRes, classRes] = await Promise.all([
-                fetchHomework(),
-                fetchClassrooms()
+                api.get('/homework'),
+                api.get('/classrooms')
             ]);
             setHomework(hwRes.data);
             setClassrooms(classRes.data);
@@ -41,7 +41,7 @@ const Homework = () => {
         try {
             const values = await form.validateFields();
             setLoading(true);
-            await createHomework(values);
+            await api.post('/homework', values);
             message.success('Homework assigned successfully');
             setIsModalVisible(false);
             form.resetFields();
@@ -55,7 +55,7 @@ const Homework = () => {
 
     const handleDelete = async (id) => {
         try {
-            await deleteHomework(id);
+            await api.delete(`/homework/${id}`);
             message.success('Homework deleted');
             fetchData();
         } catch (error) {

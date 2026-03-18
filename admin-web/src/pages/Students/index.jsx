@@ -3,7 +3,7 @@ import { Table, Button, Modal, Form, Input, DatePicker, Select, Card, Typography
 import { PlusOutlined, SearchOutlined, FilterOutlined, CopyOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { fetchStudents, fetchClassrooms, fetchParents, createStudent, createParent } from '../../api/services';
+import api from '../../api/client';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -33,9 +33,9 @@ const Students = () => {
         setLoading(true);
         try {
             const [stuRes, classRes, parentRes] = await Promise.all([
-                fetchStudents(),
-                fetchClassrooms(),
-                fetchParents()
+                api.get('/students'),
+                api.get('/classrooms'),
+                api.get('/parents')
             ]);
             setStudents(stuRes.data);
             setClassrooms(classRes.data);
@@ -87,7 +87,9 @@ const Students = () => {
             appendFileIfExist('birthCert', values.birthCert);
             appendFileIfExist('vaccineCard', values.vaccineCard);
 
-            await createStudent(formData);
+            await api.post('/students', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
 
             message.success('Student added successfully');
             setIsModalVisible(false);
@@ -105,11 +107,11 @@ const Students = () => {
             const values = await parentForm.validateFields();
             setLoading(true);
             const payload = { ...values, fullName: values.fullName.trim() };
-            const res = await createParent(payload);
+            const res = await api.post('/parents', payload);
             message.success('Parent added successfully');
 
             // Refresh parent list
-            const parentRes = await fetchParents();
+            const parentRes = await api.get('/parents');
             setParents(parentRes.data);
 
             // Auto-select new parent

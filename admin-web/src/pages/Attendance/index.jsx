@@ -7,7 +7,7 @@ import {
     UserOutlined,
     EditOutlined
 } from '@ant-design/icons';
-import { fetchClassrooms, fetchDailyAttendance, submitBulkAttendance, submitManualAttendance } from '../../api/services';
+import api from '../../api/client';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -27,7 +27,7 @@ const Attendance = () => {
 
     const fetchClassrooms = async () => {
         try {
-            const res = await fetchClassrooms();
+            const res = await api.get('/classrooms');
             setClassrooms(res.data);
             if (res.data.length > 0) setSelectedClassroom(res.data[0].id);
         } catch (e) {
@@ -39,7 +39,7 @@ const Attendance = () => {
         setLoading(true);
         try {
             const formattedDate = date.format('YYYY-MM-DD');
-            const res = await fetchDailyAttendance(formattedDate);
+            const res = await api.get(`/attendance/daily?date=${formattedDate}`);
             setAttendanceData(res.data);
         } catch (error) {
             message.error('Failed to fetch attendance');
@@ -63,7 +63,7 @@ const Attendance = () => {
         if (!selectedClassroom) return;
         setBulkLoading(true);
         try {
-            await submitBulkAttendance({
+            await api.post('/attendance/bulk', {
                 classroomId: selectedClassroom,
                 status,
                 date: selectedDate.format('YYYY-MM-DD')
@@ -120,7 +120,7 @@ const Attendance = () => {
                 checkOutTime: (values.status === 'COMPLETED' || values.status === 'EXCUSED') && values.checkOutTime ? values.checkOutTime.toISOString() : null,
                 reason: values.reason
             };
-            await submitManualAttendance(payload);
+            await api.post('/attendance/manual', payload);
             message.success(finalStatus === 'LATE' ? 'Attendance updated (Marked LATE)' : 'Attendance updated');
             setIsModalOpen(false);
             fetchAttendance(selectedDate);

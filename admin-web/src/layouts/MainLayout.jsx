@@ -18,7 +18,7 @@ import {
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import DarkModeToggle from '../components/DarkModeToggle';
-import { fetchDashboardStats } from '../api/services';
+import api from '../api/client';
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
@@ -42,7 +42,7 @@ const MainLayout = () => {
 
     const fetchPendingCount = async () => {
         try {
-            const res = await fetchDashboardStats();
+            const res = await api.get('/dashboard/stats');
             setPendingMeetings(res.data?.counts?.pendingMeetings || 0);
         } catch (error) {
             console.error('Failed to fetch pending meetings count', error);

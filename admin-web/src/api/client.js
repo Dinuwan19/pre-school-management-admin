@@ -1,17 +1,25 @@
 import axios from 'axios';
 
-export const API_HOST = import.meta.env.VITE_API_HOST || 'http://127.0.0.1:5000';
-export const BASE_URL = import.meta.env.VITE_API_BASE_URL || `${API_HOST}/api`;
+const apiURL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000/api';
+const mediaBaseURL = apiURL.replace(/\/api\/?$/, '');
 
-const mockApi = axios.create({
-    baseURL: BASE_URL,
+const api = axios.create({
+    baseURL: apiURL,
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
+// Helper to get full URL for media/uploads
+export const getMediaUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    return `${mediaBaseURL}${normalizedPath}`;
+};
+
 // Add a request interceptor to inject the JWT token
-mockApi.interceptors.request.use(
+api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
         if (token) {
@@ -23,7 +31,7 @@ mockApi.interceptors.request.use(
 );
 
 // Add a response interceptor to handle errors
-mockApi.interceptors.response.use(
+api.interceptors.response.use(
     (response) => response,
     (error) => {
         // Handle 401 Unauthorized
@@ -53,4 +61,4 @@ mockApi.interceptors.response.use(
     }
 );
 
-export default mockApi;
+export default api;
