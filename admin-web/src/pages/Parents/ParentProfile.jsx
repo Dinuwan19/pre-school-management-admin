@@ -6,7 +6,7 @@ import {
   EnvironmentOutlined, MailOutlined, SafetyCertificateOutlined,
   TeamOutlined, SolutionOutlined, InfoCircleOutlined
 } from '@ant-design/icons';
-import api from '../../api/client';
+import { fetchParentById, updateParent } from '../../api/services';
 import dayjs from 'dayjs';
 import { useAuth } from '../../context/AuthContext';
 
@@ -25,7 +25,7 @@ const ParentProfile = () => {
 
   const fetchParent = async () => {
     try {
-      const res = await api.get(`/parents/${id}`);
+      const res = await fetchParentById(id);
       setParent(res.data);
     } catch (error) {
       message.error('Failed to load parent profile');
@@ -42,7 +42,7 @@ const ParentProfile = () => {
     try {
       const values = await editForm.validateFields();
       setSaving(true);
-      await api.put(`/parents/${id}`, values);
+      await updateParent(id, values);
       message.success('Parent profile updated');
       setIsEditModalVisible(false);
       fetchParent();

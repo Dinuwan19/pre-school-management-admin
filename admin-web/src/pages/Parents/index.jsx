@@ -3,7 +3,7 @@ import { Table, Button, Modal, Form, Input, Select, Card, Typography, message, S
 import { PlusOutlined, SearchOutlined, EyeOutlined, CopyOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../api/client';
+import { fetchParents, createParent, updateParent } from '../../api/services';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -28,7 +28,7 @@ const Parents = () => {
     const fetchParents = async () => {
         setLoading(true);
         try {
-            const res = await api.get('/parents');
+            const res = await fetchParents();
             setParents(res.data);
         } catch (error) {
             message.error(error.errorMessage || 'Failed to load system data');
@@ -49,7 +49,7 @@ const Parents = () => {
                 fullName: values.fullName.trim()
             };
             setLoading(true);
-            const res = await api.post('/parents', payload);
+            const res = await createParent(payload);
             message.success('Parent added successfully');
             setIsModalVisible(false);
             setSuccessModal({ visible: true, data: res.data });
@@ -72,7 +72,7 @@ const Parents = () => {
         try {
             const values = await editForm.validateFields();
             setLoading(true);
-            await api.put(`/parents/${editingParent.id}`, values);
+            await updateParent(editingParent.id, values);
             message.success('Parent updated successfully');
             setIsEditModalVisible(false);
             fetchParents();

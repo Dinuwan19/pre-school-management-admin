@@ -7,7 +7,8 @@ import {
     DownloadOutlined, HeartOutlined, UploadOutlined,
     CheckCircleOutlined, InfoCircleOutlined, BookOutlined, BulbOutlined, MedicineBoxOutlined, HomeOutlined, PlusOutlined
 } from '@ant-design/icons';
-import api from '../../api/client';
+import { API_HOST } from '../../api/client';
+import { fetchStudentById, fetchStudentSkillsMetadata, fetchStudentAttendance, fetchParents, fetchClassrooms, updateStudent, updateStudentProgress, createSubSkill, scanAttendance } from '../../api/services';
 import dayjs from 'dayjs';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -94,9 +95,9 @@ const StudentProfile = () => {
         setLoading(true);
         try {
             const [studentRes, metaRes, attendRes] = await Promise.all([
-                api.get(`/students/${id}`),
-                api.get('/students/metadata/skills'),
-                api.get(`/attendance/student/${id}`)
+                fetchStudentById(id),
+                fetchStudentSkillsMetadata(),
+                fetchStudentAttendance(id)
             ]);
             setStudent(studentRes.data);
             setSkillMetadata(metaRes.data);
@@ -106,8 +107,8 @@ const StudentProfile = () => {
             // Fetch secondary data
             if (user?.role !== 'TEACHER' && user?.role !== 'PARENT') {
                 const [pRes, cRes] = await Promise.all([
-                    api.get('/parents').catch(() => ({ data: [] })),
-                    api.get('/classrooms').catch(() => ({ data: [] }))
+                    fetchParents().catch(() => ({ data: [] })),
+                    fetchClassrooms().catch(() => ({ data: [] }))
                 ]);
                 setParents(pRes.data);
                 setClassrooms(cRes.data);
@@ -124,7 +125,7 @@ const StudentProfile = () => {
 
     const fetchSkillMetadata = async () => {
         try {
-            const res = await api.get('/students/metadata/skills');
+            const res = await fetchStudentSkillsMetadata();
             setSkillMetadata(res.data);
         } catch (error) {
             console.error('Error fetching skill metadata:', error);
@@ -179,9 +180,7 @@ const StudentProfile = () => {
                 console.log(pair[0] + ': ', pair[1]);
             }
 
-            await api.put(`/students/${id}`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            await updateStudent(id, formData);
 
             message.success('Student updated successfully');
             setIsEditModalVisible(false);
@@ -201,7 +200,7 @@ const StudentProfile = () => {
                 score
             }));
 
-            await api.put(`/students/${id}/progress`, {
+            await updateStudentProgress(id, {
                 term: selectedTerm,
                 remarks: progressForm.getFieldValue('remarks'),
                 scores: scorePayload
@@ -221,12 +220,12 @@ const StudentProfile = () => {
         if (!newSubSkillName.trim()) return;
         setAddingSubSkill(true);
         try {
-            const res = await api.post(`/students/metadata/skills/${activeCategoryId}/subskills`, { name: newSubSkillName });
+            const res = await createSubSkill(activeCategoryId, { name: newSubSkillName });
             message.success('Skill added to category');
             setNewSubSkillName('');
             setIsAddSubSkillModalVisible(false);
             // Refresh metadata
-            const metaRes = await api.get('/students/metadata/skills');
+            const metaRes = await fetchStudentSkillsMetadata();
             setSkillMetadata(metaRes.data);
         } catch (error) {
             message.error('Failed to add skill');
@@ -238,7 +237,7 @@ const StudentProfile = () => {
     const handleMarkAttendance = async () => {
         setMarkingAttendance(true);
         try {
-            await api.post('/attendance/scan', {
+            await scanAttendance({
                 studentId: parseInt(id)
             });
             message.success('Attendance processed');
@@ -964,7 +963,7 @@ const StudentProfile = () => {
         if (!path) return null;
         if (path.startsWith('http') || path.startsWith('data:')) return path;
         // Fallback to local API URL if path is relative
-        return `http://localhost:5000${path}`;
+        return `${API_HOST}${path}`;
     };
 
     return (

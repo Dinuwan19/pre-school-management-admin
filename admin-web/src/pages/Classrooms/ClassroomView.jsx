@@ -6,7 +6,7 @@ import {
     SolutionOutlined, CalendarOutlined, InfoCircleOutlined,
     UserOutlined, ClockCircleOutlined, BulbOutlined
 } from '@ant-design/icons';
-import api from '../../api/client';
+import { fetchClassroomById, updateClassroom, fetchStaff, assignTeacherToClassroom } from '../../api/services';
 import { useAuth } from '../../context/AuthContext';
 import dayjs from 'dayjs';
 
@@ -33,7 +33,7 @@ const ClassroomView = () => {
     const fetchClassroom = async () => {
         setLoading(true);
         try {
-            const res = await api.get(`/classrooms/${id}`);
+            const res = await fetchClassroomById(id);
             if (res.data) {
                 setClassroom(res.data);
                 editForm.setFieldsValue({
@@ -61,7 +61,7 @@ const ClassroomView = () => {
         try {
             const values = await editForm.validateFields();
             setSaving(true);
-            await api.put(`/classrooms/${id}`, values);
+            await updateClassroom(id, values);
             message.success('Classroom updated successfully');
             setIsEditModalVisible(false);
             fetchClassroom();
@@ -99,7 +99,7 @@ const ClassroomView = () => {
             const newMealPlan = { ...derivedMealPlan };
             newMealPlan[editingDay] = { items: dayMealInput.split('\n').filter(i => i.trim() !== '') };
 
-            await api.put(`/classrooms/${id}`, {
+            await updateClassroom(id, {
                 mealPlan: JSON.stringify(newMealPlan)
             });
             message.success('Meal plan updated');
@@ -114,7 +114,7 @@ const ClassroomView = () => {
 
     const fetchAllTeachers = async () => {
         try {
-            const res = await api.get('/staff');
+            const res = await fetchStaff();
             setAllTeachers(res.data.filter(s => s.role === 'TEACHER'));
         } catch (error) {
             console.error('Error fetching teachers:', error);
@@ -125,7 +125,7 @@ const ClassroomView = () => {
         try {
             const values = await teamForm.validateFields();
             setSaving(true);
-            await api.post(`/classrooms/${id}/teachers`, values);
+            await assignTeacherToClassroom(id, values);
             message.success('Team updated successfully');
             setIsTeamModalVisible(false);
             fetchClassroom();

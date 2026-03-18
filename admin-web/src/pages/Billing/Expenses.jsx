@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Typography, Card, Modal, Form, Input, DatePicker, Select, message, Statistic, Row, Col, Upload } from 'antd';
 import { PlusOutlined, DeleteOutlined, WalletOutlined, UploadOutlined, FileImageOutlined } from '@ant-design/icons';
-import api from '../../api/client';
+import { API_HOST } from '../../api/client';
+import { fetchExpenses, fetchExpenseSummary, createExpense } from '../../api/services';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -18,9 +19,9 @@ const Expenses = () => {
     const fetchExpenses = async () => {
         setLoading(true);
         try {
-            const res = await api.get('/expenses');
+            const res = await fetchExpenses();
             setExpenses(res.data);
-            const summaryRes = await api.get('/expenses/summary');
+            const summaryRes = await fetchExpenseSummary();
             setSummary(summaryRes.data);
         } catch (error) {
             console.error('Failed to fetch expenses');
@@ -52,9 +53,7 @@ const Expenses = () => {
                 formData.append('receipt', values.receipt.file.originFileObj);
             }
 
-            await api.post('/expenses', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            await createExpense(formData);
             message.success('Expense recorded successfully');
             setIsModalVisible(false);
             form.resetFields();
@@ -76,7 +75,7 @@ const Expenses = () => {
             key: 'receipt',
             render: (_, record) => {
                 if (!record.receiptUrl) return <Text type="secondary">-</Text>;
-                const fullUrl = record.receiptUrl.startsWith('http') ? record.receiptUrl : `http://127.0.0.1:5000${record.receiptUrl}`;
+                const fullUrl = record.receiptUrl.startsWith('http') ? record.receiptUrl : `${API_HOST}${record.receiptUrl}`;
                 return <Button type="link" icon={<FileImageOutlined />} onClick={() => window.open(fullUrl, '_blank')}>View</Button>;
             }
         },

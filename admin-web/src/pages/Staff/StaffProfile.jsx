@@ -6,7 +6,8 @@ import {
     PhoneOutlined, EnvironmentOutlined, DownloadOutlined,
     SafetyCertificateOutlined, HomeOutlined, EyeOutlined, UploadOutlined, FilePdfOutlined, CalendarOutlined, BulbOutlined, DeleteOutlined
 } from '@ant-design/icons';
-import api from '../../api/client';
+import { fetchStaffById, updateStaff, fetchClassrooms } from '../../api/services';
+import { API_HOST } from '../../api/client';
 import dayjs from 'dayjs';
 import { useAuth } from '../../context/AuthContext';
 
@@ -30,7 +31,7 @@ const StaffProfile = () => {
 
     const fetchStaffData = async () => {
         try {
-            const res = await api.get(`/staff/${id}`);
+            const res = await fetchStaffById(id);
             setStaff(res.data);
         } catch (error) {
             message.error('Failed to load staff profile');
@@ -42,7 +43,7 @@ const StaffProfile = () => {
     useEffect(() => {
         fetchStaffData();
         if (user?.role === 'SUPER_ADMIN') {
-            api.get('/classrooms').then(res => setClassrooms(res.data));
+            fetchClassrooms().then(res => setClassrooms(res.data));
         }
     }, [id]);
 
@@ -81,7 +82,7 @@ const StaffProfile = () => {
                 formData.append('qualifications', JSON.stringify(cleanQualifications));
             }
 
-            await api.put(`/staff/${id}`, formData);
+            await updateStaff(id, formData);
             message.success('Staff updated successfully');
             setIsEditModalVisible(false);
             fetchStaffData();
@@ -185,7 +186,7 @@ const StaffProfile = () => {
                         )}
                         {staff.teacherprofile?.qualificationPdf && (
                             <div style={{ marginTop: 16 }}>
-                                <Button icon={<FilePdfOutlined />} size="small" onClick={() => window.open(`${api.defaults.baseURL.replace('/api', '')}/${staff.teacherprofile.qualificationPdf.replace(/^\//, '')}`, '_blank')}>
+                                <Button icon={<FilePdfOutlined />} size="small" onClick={() => window.open(`${API_HOST}/${staff.teacherprofile.qualificationPdf.replace(/^\//, '')}`, '_blank')}>
                                     View Secondary Certificate PDF
                                 </Button>
                             </div>

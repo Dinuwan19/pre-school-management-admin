@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Form, Input, Button, Card, Typography, Alert, Space, message, theme } from 'antd';
 import { UserOutlined, LockOutlined, BookOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
+import { changePassword } from '../api/services';
 import { useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
@@ -74,12 +74,9 @@ const Login = () => {
                 setLoading(false);
                 return;
             }
-            const token = localStorage.getItem('token');
-            await axios.post('http://127.0.0.1:5000/api/auth/change-password', {
+            await changePassword({
                 currentPassword: values.currentPassword,
                 newPassword: values.newPassword,
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
             });
             message.success('Password updated successfully');
             navigate('/');

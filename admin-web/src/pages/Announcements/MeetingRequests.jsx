@@ -10,7 +10,7 @@ import {
     MessageOutlined,
     CheckOutlined
 } from '@ant-design/icons';
-import api from '../../api/client';
+import { fetchMeetingRequests, updateMeetingStatus } from '../../api/services';
 import { useAuth } from '../../context/AuthContext';
 import dayjs from 'dayjs';
 
@@ -29,7 +29,7 @@ const MeetingRequests = () => {
                 ? '/meetings/teacher' // Currently shared, but backend logic could filter.
                 : '/meetings/teacher';
 
-            const res = await api.get(endpoint);
+            const res = await fetchMeetingRequests(endpoint);
             setMeetings(res.data);
         } catch (error) {
             message.error('Failed to load meeting requests');
@@ -44,7 +44,7 @@ const MeetingRequests = () => {
 
     const handleStatusUpdate = async (id, status) => {
         try {
-            await api.put(`/meetings/${id}/status`, { status });
+            await updateMeetingStatus(id, status);
             message.success(`Meeting ${status.toLowerCase()} successfully`);
             fetchMeetings();
         } catch (error) {

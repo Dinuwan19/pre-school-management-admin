@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Typography, Card, Modal, Form, Input, DatePicker, Select, message, Statistic, Row, Col, Tag, Empty, Divider, Badge } from 'antd';
 import { PlusOutlined, DeleteOutlined, BarChartOutlined, CalendarOutlined, BankOutlined } from '@ant-design/icons';
-import api from '../../api/client';
+import { fetchBillingCategories, fetchClassrooms, createBillingCategory, deleteBillingCategory, fetchBillingCategoryStats } from '../../api/services';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -20,7 +20,7 @@ const CategoryManagementModal = ({ open, onCancel, onSuccess }) => {
     const fetchCategories = async () => {
         setLoading(true);
         try {
-            const res = await api.get('/billing-categories');
+            const res = await fetchBillingCategories();
             setCategories(res.data);
         } catch (error) {
             message.error('Failed to load billing categories');
@@ -31,7 +31,7 @@ const CategoryManagementModal = ({ open, onCancel, onSuccess }) => {
 
     const fetchClassrooms = async () => {
         try {
-            const res = await api.get('/classrooms');
+            const res = await fetchClassrooms();
             setClassrooms(res.data);
         } catch (error) {
             console.error('Failed to fetch classrooms');
@@ -55,7 +55,7 @@ const CategoryManagementModal = ({ open, onCancel, onSuccess }) => {
                 validUntil: values.validUntil.format('YYYY-MM-DD')
             };
 
-            await api.post('/billing-categories', payload);
+            await createBillingCategory(payload);
             message.success('Billing category created');
             setIsCreateVisible(false);
             form.resetFields();
@@ -76,7 +76,7 @@ const CategoryManagementModal = ({ open, onCancel, onSuccess }) => {
             okType: 'danger',
             onOk: async () => {
                 try {
-                    await api.delete(`/billing-categories/${id}`);
+                    await deleteBillingCategory(id);
                     message.success('Category deleted');
                     fetchCategories();
                     if (onSuccess) onSuccess();
@@ -92,7 +92,7 @@ const CategoryManagementModal = ({ open, onCancel, onSuccess }) => {
         setStatsModalVisible(true);
         setCategoryStats(null);
         try {
-            const res = await api.get(`/billing-categories/${category.id}/stats`);
+            const res = await fetchBillingCategoryStats(category.id);
             setCategoryStats(res.data);
         } catch (error) {
             message.error('Failed to load stats');

@@ -3,7 +3,7 @@ import { Typography, Row, Col, Card, Statistic, Space, Button, List, Tag } from 
 import { ArrowUpOutlined, ArrowDownOutlined, CreditCardOutlined, PlusOutlined, HistoryOutlined, WalletOutlined, CheckCircleOutlined, BarChartOutlined, CalculatorOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../api/client';
+import { fetchBillingStats } from '../../api/services';
 
 const { Title, Text } = Typography;
 
@@ -20,7 +20,7 @@ const BillingOverview = () => {
     useEffect(() => {
         const fetchSummary = async () => {
             try {
-                const res = await api.get('/billing/dashboard-stats');
+                const res = await fetchBillingStats();
                 setSummary({
                     totalIncome: res.data.incomeMTD,
                     pending: res.data.pendingTotal,

@@ -1,7 +1,10 @@
 import axios from 'axios';
 
+export const API_HOST = import.meta.env.VITE_API_HOST || 'http://127.0.0.1:5000';
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL || `${API_HOST}/api`;
+
 const mockApi = axios.create({
-    baseURL: 'http://127.0.0.1:5000/api',
+    baseURL: BASE_URL,
     headers: {
         'Content-Type': 'application/json',
     },

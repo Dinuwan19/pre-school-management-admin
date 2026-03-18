@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Button, Typography, Row, Col, Progress, Avatar, Tag, Modal, Form, Input, InputNumber, message, Space, Empty, Divider, Descriptions, List, theme } from 'antd';
 import { PlusOutlined, UserOutlined, TeamOutlined, ScheduleOutlined, EditOutlined, SaveOutlined } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../api/client';
+import { fetchClassrooms, createClassroom, updateClassroom } from '../../api/services';
 
 const { Title, Text } = Typography;
 
@@ -23,7 +23,7 @@ const Classrooms = () => {
     const fetchClassrooms = async () => {
         setLoading(true);
         try {
-            const res = await api.get('/classrooms');
+            const res = await fetchClassrooms();
             setClassrooms(res.data);
             // Update selected classroom if modal is open
             if (selectedClassroom) {
@@ -48,7 +48,7 @@ const Classrooms = () => {
         try {
             const values = await form.validateFields();
             setLoading(true);
-            await api.post('/classrooms', values);
+            await createClassroom(values);
             message.success('Classroom created');
             setIsModalVisible(false);
             fetchClassrooms();
@@ -69,7 +69,7 @@ const Classrooms = () => {
     const handleSaveSchedule = async () => {
         try {
             setLoading(true);
-            await api.put(`/classrooms/${selectedClassroom.id}`, { schedule: scheduleText });
+            await updateClassroom(selectedClassroom.id, { schedule: scheduleText });
             message.success('Schedule updated successfully');
             setIsEditingSchedule(false);
             fetchClassrooms();

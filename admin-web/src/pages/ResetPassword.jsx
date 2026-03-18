@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Card, Typography, Alert, message } from 'antd';
 import { LockOutlined, ArrowLeftOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import api from '../api/client';
+import { executePasswordReset } from '../api/services';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const { Title, Text, Paragraph } = Typography;
@@ -28,10 +28,7 @@ const ResetPassword = () => {
 
             setLoading(true);
             setError('');
-            await api.post('/auth/reset-password', {
-                token,
-                newPassword: values.newPassword
-            });
+            await executePasswordReset(token, values.newPassword);
             setSuccess(true);
             message.success('Password reset successfully');
         } catch (err) {

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Tag, Modal, Form, Input, Select, message, Typography, Card, Badge, Descriptions, Divider, List, Tabs } from 'antd';
 import { PlusOutlined, EyeOutlined, BellOutlined, CheckCircleOutlined, CloseCircleOutlined, WalletOutlined, EditOutlined, DownloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import api from '../../api/client';
+import { API_HOST } from '../../api/client';
+import { fetchBillingList, fetchPendingPayments, fetchStudents, fetchOverdueBilling, fetchActiveBillingCategories, fetchPaymentHistory, generateBilling, verifyPayment, notifyBilling, payBillingCash } from '../../api/services';
 import { useAuth } from '../../context/AuthContext';
 import CategoryManagementModal from '../../components/Billing/CategoryManagementModal';
 
@@ -38,11 +39,11 @@ const StudentBilling = () => {
         try {
             // Critical Data
             const [billRes, payRes, stuRes, overdueRes, catRes] = await Promise.all([
-                api.get('/billing'),
-                api.get('/payments/pending'),
-                api.get('/students'),
-                api.get('/billing/overdue'),
-                api.get('/billing-categories?activeOnly=true')
+                fetchBillingList(),
+                fetchPendingPayments(),
+                fetchStudents(),
+                fetchOverdueBilling(),
+                fetchActiveBillingCategories()
             ]);
             setBillings(billRes.data);
             setPendingPayments(payRes.data);
@@ -52,7 +53,7 @@ const StudentBilling = () => {
 
             // Non-Critical Data (History) - Fetch separately to avoid blocking
             try {
-                const historyRes = await api.get('/payments/history');
+                const historyRes = await fetchPaymentHistory();
                 if (Array.isArray(historyRes.data)) {
                     setHistoryPayments(historyRes.data);
                 } else {
@@ -123,7 +124,7 @@ const StudentBilling = () => {
             render: (_, item) => item?.receiptUrl ? (
                 <Button
                     onClick={() => {
-                        const url = item.receiptUrl.startsWith('http') ? item.receiptUrl : `http://127.0.0.1:5000${item.receiptUrl}`;
+                        const url = item.receiptUrl.startsWith('http') ? item.receiptUrl : `${API_HOST}${item.receiptUrl}`;
                         window.open(url, '_blank');
                     }}
                     style={{
@@ -157,7 +158,7 @@ const StudentBilling = () => {
                 categoryId: values.categoryId === 'monthly' ? null : values.categoryId,
                 billingMonths: isOneTime ? [selectedCat.name || 'One-Time Payment'] : values.billingMonths
             };
-            await api.post('/billing/generate', payload);
+            await generateBilling(payload);
             message.success('Billing record generated');
             setIsAddModalVisible(false);
             form.resetFields();
@@ -184,7 +185,7 @@ const StudentBilling = () => {
     const handleVerify = async (paymentId, status) => {
         try {
             setLoading(true);
-            await api.post('/payments/verify', { paymentId, status });
+            await verifyPayment({ paymentId, status });
             message.success(`Payment ${status.toLowerCase()}ed`);
             setIsVerifyModalVisible(false);
             fetchData();
@@ -198,7 +199,7 @@ const StudentBilling = () => {
 
     const handleNotify = async (billingId) => {
         try {
-            await api.post('/billing/notify', { billingId });
+            await notifyBilling({ billingId });
             message.success('Fee reminder sent to parent');
         } catch (error) {
             message.error('Failed to send notification');
@@ -432,7 +433,7 @@ const StudentBilling = () => {
                                         content: `Receive Rs. ${record.amount} in CASH for ${record.billingMonth}?`,
                                         onOk: async () => {
                                             try {
-                                                await api.post('/billing/pay-cash', { billingId: record.id });
+                                                await payBillingCash({ billingId: record.id });
                                                 message.success('Cash payment recorded');
                                                 fetchData();
                                              } catch (e) {
@@ -456,7 +457,7 @@ const StudentBilling = () => {
                             onClick={() => {
                                 const invUrl = (record.paymentInfo || record).invoiceUrl;
                                 if (invUrl) {
-                                    const fullUrl = invUrl.startsWith('http') ? invUrl : `http://127.0.0.1:5000${invUrl}`;
+                                    const fullUrl = invUrl.startsWith('http') ? invUrl : `${API_HOST}${invUrl}`;
                                     window.open(fullUrl, '_blank');
                                 } else {
                                     message.warning('Invoice not found');
@@ -474,7 +475,7 @@ const StudentBilling = () => {
                             icon={<EyeOutlined />}
                             onClick={() => {
                                 const url = (record.paymentInfo || record).receiptUrl;
-                                const fullUrl = url.startsWith('http') ? url : `http://127.0.0.1:5000${url}`;
+                                const fullUrl = url.startsWith('http') ? url : `${API_HOST}${url}`;
                                 window.open(fullUrl, '_blank');
                             }}
                             title="View Receipt"
@@ -697,7 +698,7 @@ const StudentBilling = () => {
                         // displayRef = displayRef.replace(/\[(.*?)\]/g, '').trim();
 
                         // Fix Receipt URL
-                        const receiptUrl = item.receiptUrl ? (item.receiptUrl.startsWith('http') ? item.receiptUrl : `http://127.0.0.1:5000${item.receiptUrl}`) : null;
+                        const receiptUrl = item.receiptUrl ? (item.receiptUrl.startsWith('http') ? item.receiptUrl : `${API_HOST}${item.receiptUrl}`) : null;
 
                         return (
                             <Card style={{ marginBottom: 16, borderRadius: 12, borderLeft: '4px solid #7B57E4' }}>

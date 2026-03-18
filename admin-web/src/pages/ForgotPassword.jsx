@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Card, Typography, Alert, Space, message } from 'antd';
 import { UserOutlined, ArrowLeftOutlined, MailOutlined } from '@ant-design/icons';
-import api from '../api/client';
+import { requestOtp, validateOtp, verifyOtpResetPassword } from '../api/services';
 import { useNavigate } from 'react-router-dom';
 
 const { Title, Text, Paragraph } = Typography;
@@ -19,7 +19,7 @@ const ForgotPassword = () => {
             setLoading(true);
             setError('');
             setUsername(values.username);
-            await api.post('/auth/forgot-password', { username: values.username });
+            await requestOtp({ username: values.username });
             setStep('verify');
             message.success('OTP has been sent to your email');
         } catch (err) {
@@ -33,7 +33,7 @@ const ForgotPassword = () => {
         try {
             setLoading(true);
             setError('');
-            await api.post('/auth/validate-otp', {
+            await validateOtp({
                 username,
                 otp: values.otp
             });
@@ -56,7 +56,7 @@ const ForgotPassword = () => {
                 return;
             }
 
-            await api.post('/auth/verify-otp', {
+            await verifyOtpResetPassword({
                 username,
                 otp,
                 newPassword: values.newPassword

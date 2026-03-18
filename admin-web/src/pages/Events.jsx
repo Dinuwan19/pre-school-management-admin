@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Tag, Modal, Form, Input, DatePicker, TimePicker, Select, Typography, message, Space, Row, Col, Upload, List, Avatar, theme } from 'antd';
 import { CalendarOutlined, PlusOutlined, EnvironmentOutlined, UserOutlined, FileTextOutlined, CheckCircleOutlined, DeleteOutlined, EditOutlined, UploadOutlined, EyeOutlined, ClockCircleOutlined } from '@ant-design/icons';
-import mockApi from '../api/client';
+import mockApi, { API_HOST } from '../api/client';
 import dayjs from 'dayjs';
 import { useAuth } from '../context/AuthContext';
 
@@ -230,7 +230,7 @@ const Events = () => {
     const getMediaUrl = (path) => {
         if (!path) return null;
         if (path.startsWith('http')) return path;
-        return `http://127.0.0.1:5000${path}`;
+        return `${API_HOST}${path}`;
     };
 
     const filteredEvents = events.filter(event => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Button, Table, Tag, DatePicker, Select, Typography, message, Space, Statistic } from 'antd';
 import { FilePdfOutlined, DownloadOutlined, ReloadOutlined, BarChartOutlined } from '@ant-design/icons';
-import mockApi from '../api/client';
+import mockApi, { API_HOST } from '../api/client';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -67,7 +67,7 @@ const Reports = () => {
     };
 
     const handleDownload = async (id, filePath) => {
-        const BASE_URL = 'http://127.0.0.1:5000';
+        const BASE_URL = API_HOST;
         if (filePath) {
             const fullPath = filePath.startsWith('http') ? filePath : `${BASE_URL}/${filePath.replace(/^\//, '')}`;
             window.open(fullPath, '_blank');
