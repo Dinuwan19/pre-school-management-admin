@@ -13,7 +13,7 @@ exports.createParent = async (req, res, next) => {
         const { relationship, nationalId, occupation, address, phone, email } = req.body;
         const fullName = req.body.fullName.trim();
 
-        // 1. Pre-check for duplicate Phone, Email, or National ID
+
         if (phone || email || nationalId) {
             const existing = await prisma.parent.findFirst({
                 where: {
@@ -35,7 +35,7 @@ exports.createParent = async (req, res, next) => {
             }
         }
 
-        // 2. Generate unique parent ID based on last existing ID (Race-safe approach)
+
         const lastParent = await prisma.parent.findFirst({
             orderBy: { parentUniqueId: 'desc' }
         });
@@ -51,7 +51,7 @@ exports.createParent = async (req, res, next) => {
 
         let photoUrl = req.body.photoUrl || null;
         if (req.files && req.files['photo']) {
-            photoUrl = await uploadFile(req.files['photo'][0], 'student photos');
+            photoUrl = await uploadFile(req.files['photo'][0], 'student');
         }
 
         const parent = await prisma.parent.create({
@@ -73,7 +73,6 @@ exports.createParent = async (req, res, next) => {
 
         res.status(201).json(parent);
     } catch (error) {
-        // Handle race conditions for unique parent ID
         if (error.code === 'P2002' && error.meta?.target?.includes('parentUniqueId')) {
             return res.status(409).json({ message: 'A conflict occurred while generating Parent ID. Please try again.' });
         }
@@ -171,7 +170,7 @@ exports.updateParent = async (req, res, next) => {
         const data = { ...req.body };
 
         if (req.files && req.files['photo']) {
-            data.photoUrl = await uploadFile(req.files['photo'][0], 'student photos');
+            data.photoUrl = await uploadFile(req.files['photo'][0], 'student');
         }
 
         const parent = await prisma.parent.update({

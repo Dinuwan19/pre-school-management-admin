@@ -1,5 +1,6 @@
 const prisma = require('../config/prisma');
 const { logAction } = require('../services/audit.service');
+const { uploadFile } = require('../services/storage.service');
 
 exports.createExpense = async (req, res, next) => {
     try {
@@ -7,7 +8,7 @@ exports.createExpense = async (req, res, next) => {
 
         let receiptUrl = null;
         if (req.files && req.files['receipt']) {
-            receiptUrl = `/uploads/${req.files['receipt'][0].filename}`;
+            receiptUrl = await uploadFile(req.files['receipt'][0], 'receipts');
         }
 
         const expense = await prisma.expense.create({
@@ -15,7 +16,7 @@ exports.createExpense = async (req, res, next) => {
                 category,
                 amount: parseFloat(amount),
                 expenseDate: new Date(expenseDate),
-                description,
+                description: description === 'undefined' ? null : description,
                 receiptUrl
             }
         });

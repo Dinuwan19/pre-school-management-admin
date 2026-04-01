@@ -981,8 +981,16 @@ const StudentProfile = () => {
                 <Col xs={24} md={6}>
                     <Card bordered={false} style={{ borderRadius: 16, textAlign: 'center', height: '100%', background: colorBgContainer }}>
                         <div style={{ padding: '24px 0' }}>
-                            <Avatar size={120} src={getMediaUrl(student.photoUrl)} icon={<UserOutlined />} style={{ background: colorBgLayout }} />
-                            <Title level={4} style={{ marginTop: 16, marginBottom: 4 }}>{student.fullName}</Title>
+                            <div style={{
+                                display: 'inline-block',
+                                padding: '6px',
+                                background: isDarkMode ? 'rgba(255,255,255,0.05)' : '#fff',
+                                borderRadius: '50%',
+                                boxShadow: '0 8px 24px rgba(123, 87, 228, 0.2)',
+                                border: '2px solid #7B57E4'
+                            }}>
+                                <Avatar size={120} src={getMediaUrl(student.photoUrl)} icon={<UserOutlined />} style={{ background: colorBgLayout }} />
+                            </div>                            <Title level={4} style={{ marginTop: 16, marginBottom: 4 }}>{student.fullName}</Title>
                             <Text type="secondary">{student.studentUniqueId}</Text>
                         </div>
                         <div style={{ textAlign: 'left', marginTop: 24 }}>

@@ -170,7 +170,17 @@ exports.register = async (req, res, next) => {
 exports.requestPasswordReset = async (req, res, next) => {
     try {
         const { username } = req.body;
-        const user = await prisma.user.findUnique({ where: { username } });
+        
+        // Search by username, email, or NIC
+        const user = await prisma.user.findFirst({ 
+            where: { 
+                OR: [
+                    { username: username },
+                    { email: username },
+                    { nationalId: username }
+                ]
+            } 
+        });
 
         if (!user || !user.email) {
             return res.json({ message: 'If an account exists, an OTP will be sent to your email.' });
@@ -212,7 +222,15 @@ exports.requestPasswordReset = async (req, res, next) => {
 exports.verifyOTPOnly = async (req, res, next) => {
     try {
         const { username, otp } = req.body;
-        const user = await prisma.user.findUnique({ where: { username } });
+        const user = await prisma.user.findFirst({
+            where: {
+                OR: [
+                    { username: username },
+                    { email: username },
+                    { nationalId: username }
+                ]
+            }
+        });
 
         if (!user) return res.status(404).json({ message: 'User not found' });
 
@@ -239,7 +257,15 @@ exports.verifyOTPOnly = async (req, res, next) => {
 exports.verifyOTPAndReset = async (req, res, next) => {
     try {
         const { username, otp, newPassword } = req.body;
-        const user = await prisma.user.findUnique({ where: { username } });
+        const user = await prisma.user.findFirst({
+            where: {
+                OR: [
+                    { username: username },
+                    { email: username },
+                    { nationalId: username }
+                ]
+            }
+        });
 
         if (!user) return res.status(404).json({ message: 'User not found' });
 

@@ -1,9 +1,7 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-// Replace with your PC's IP address (ipconfig)
-// Replace with your PC's IP address (ipconfig)
-export const BASE_URL = 'http://192.168.1.2:5000';
+export const BASE_URL = 'https://malkakulufuturemind.me';
 const API_URL = `${BASE_URL}/api`;
 
 const api = axios.create({

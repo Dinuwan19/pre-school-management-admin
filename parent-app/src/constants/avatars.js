@@ -41,7 +41,9 @@ export const getAvatarSource = (photoUrl, type = 'CHILD', relationship = null, g
             return { uri: photoUrl };
         }
         if (photoUrl.startsWith('/uploads')) {
-            return { uri: `${BASE_URL}${photoUrl}` };
+            // For hosted environments using Nginx, we need to ensure /api prefix is present
+            const finalPath = photoUrl.startsWith('/api') ? photoUrl : `/api${photoUrl}`;
+            return { uri: `${BASE_URL}${finalPath}` };
         }
     }
 

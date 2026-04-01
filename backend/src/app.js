@@ -40,6 +40,7 @@ if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir);
 }
 app.use('/uploads', express.static(uploadsDir));
+app.use('/api/uploads', express.static(uploadsDir)); // For Nginx compatibility
 
 // Routes
 app.use('/api/auth', authRoutes);

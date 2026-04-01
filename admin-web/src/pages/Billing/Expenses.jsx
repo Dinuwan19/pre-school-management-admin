@@ -75,8 +75,8 @@ const Expenses = () => {
             title: 'Receipt',
             key: 'receipt',
             render: (_, record) => {
-                if (!record.receiptUrl) return <Text type="secondary">-</Text>;
-                        const fullUrl = record.receiptUrl.startsWith('http') ? record.receiptUrl : getMediaUrl(record.receiptUrl);
+                if (!record.receiptUrl || record.receiptUrl.includes('undefined')) return <Text type="secondary">-</Text>;
+                const fullUrl = record.receiptUrl.startsWith('http') ? record.receiptUrl : getMediaUrl(record.receiptUrl);
                 return <Button type="link" icon={<FileImageOutlined />} onClick={() => window.open(fullUrl, '_blank')}>View</Button>;
             }
         },

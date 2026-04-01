@@ -50,7 +50,7 @@ exports.createStaff = async (req, res, next) => {
 
         const prefix = role === 'TEACHER' ? 'T' : 'A';
         
-        // Find the highest existing employeeId for this prefix (Move into transaction if possible, or handle collision)
+        // Find the highest existing employeeId for this prefix
         const lastUser = await prisma.user.findFirst({
             where: { employeeId: { startsWith: prefix } },
             orderBy: { employeeId: 'desc' }
@@ -71,7 +71,7 @@ exports.createStaff = async (req, res, next) => {
         const tempPassword = cleanName.split(/\s+/)[0].toLowerCase() + '@123';
         const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
-        // Handle uploaded files (Supabase) - BEFORE transaction
+        // Handle uploaded files (Supabase)
         let photoUrl = req.body.photoUrl;
         let qualificationPdf = null;
 
@@ -161,7 +161,6 @@ exports.createStaff = async (req, res, next) => {
             }
         });
     } catch (error) {
-        // Prisma P2002 is Unique Constraint violation (handle for employeeId race condition)
         if (error.code === 'P2002' && error.meta?.target?.includes('employeeId')) {
             return res.status(409).json({ message: 'A conflict occurred while generating Employee ID. Please try again.' });
         }

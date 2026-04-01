@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Card, Typography, Alert, Space, message } from 'antd';
+import { Form, Input, Button, Card, Typography, Alert, Space, message, theme } from 'antd';
 import { UserOutlined, ArrowLeftOutlined, MailOutlined } from '@ant-design/icons';
 import api from '../api/client';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 const { Title, Text, Paragraph } = Typography;
 
 const ForgotPassword = () => {
+    const { token } = theme.useToken();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState('request'); // 'request' | 'verify' | 'reset'
@@ -72,14 +73,15 @@ const ForgotPassword = () => {
     };
 
     const primaryColor = '#7B57E4';
-    const backgroundColor = '#F3F1FB';
+    const backgroundColor = token.colorBgLayout;
     const cardStyle = {
         width: 440,
         borderRadius: 24,
         boxShadow: '0 4px 20px rgba(123, 87, 228, 0.08)',
         padding: 32,
         border: 'none',
-        textAlign: 'center'
+        textAlign: 'center',
+        background: token.colorBgContainer
     };
 
     return (
@@ -103,7 +105,7 @@ const ForgotPassword = () => {
                     }}>
                         M
                     </div>
-                    <Title level={4} style={{ color: '#000000', marginBottom: 4 }}>
+                    <Title level={4} style={{ color: token.colorText, marginBottom: 4 }}>
                         Malkakulu Future Mind
                     </Title>
                     <Text style={{ fontSize: 13, color: '#888888', letterSpacing: '0.5px' }}>MONTESSORI MANAGEMENT</Text>
@@ -120,7 +122,7 @@ const ForgotPassword = () => {
                             />
                             <div>
                                 <Title level={4} style={{ margin: 0, color: '#333' }}>Forgot Password</Title>
-                                <Text type="secondary" style={{ fontSize: 13 }}>Enter your username to receive an OTP</Text>
+                                <Text type="secondary" style={{ fontSize: 13 }}>Enter your username or NIC to receive an OTP</Text>
                             </div>
                         </div>
 
@@ -128,14 +130,14 @@ const ForgotPassword = () => {
 
                         <Form onFinish={onFinishRequest} layout="vertical" size="large">
                             <Form.Item
-                                label={<span style={{ color: '#444', fontWeight: 600, fontSize: 13 }}>USERNAME</span>}
+                                label={<span style={{ color: '#444', fontWeight: 600, fontSize: 13 }}>USERNAME OR NIC</span>}
                                 name="username"
-                                rules={[{ required: true, message: 'Please input your Username!' }]}
+                                rules={[{ required: true, message: 'Please input your Username or NIC!' }]}
                             >
                                 <Input
                                     prefix={<UserOutlined style={{ color: '#aaa', marginRight: 8 }} />}
                                     style={{ background: '#F8F8F8', border: '1px solid #EAEAEA', borderRadius: 10, padding: '10px 14px' }}
-                                    placeholder="Enter your username"
+                                    placeholder="Enter your username or NIC"
                                 />
                             </Form.Item>
 

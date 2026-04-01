@@ -27,7 +27,6 @@ exports.parentSignup = async (req, res, next) => {
         });
 
         if (!parentRecord) {
-            console.log(`[Signup Attempt] NIC Not Found: ${nationalId}`);
             return res.status(404).json({
                 message: `No active parent record found with NIC: ${nationalId}. Please contact school administration to register first.`
             });

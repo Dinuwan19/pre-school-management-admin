@@ -15,7 +15,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
     const [loading, setLoading] = useState(false);
 
     const handleRequestOTP = async () => {
-        if (!username) return Alert.alert('Error', 'Please enter your username');
+        if (!username) return Alert.alert('Error', 'Please enter your username or NIC');
         setLoading(true);
         try {
             await api.post('/auth/forgot-password', { username });
@@ -77,11 +77,11 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                     {step === 'request' && (
                         <>
-                            {renderHeader('Recover Account', 'Enter your username to receive a security code', <Smartphone color={COLORS.primary} size={30} />)}
+                            {renderHeader('Recover Account', 'Enter your username or NIC to receive a security code', <Smartphone color={COLORS.primary} size={30} />)}
                             <View style={styles.form}>
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Username"
+                                    placeholder="Username or NIC"
                                     value={username}
                                     onChangeText={setUsername}
                                     autoCapitalize="none"

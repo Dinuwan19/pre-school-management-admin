@@ -1,9 +1,7 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-// Android Emulator uses 10.0.2.2 to access host localhost
-// For physical device, change this to your PC's LAN IP (e.g., 172.x.x.x)
-const API_URL = 'http://192.168.1.2:5000/api';
+const API_URL = 'https://malkakulufuturemind.me/api';
 
 const api = axios.create({
     baseURL: API_URL,

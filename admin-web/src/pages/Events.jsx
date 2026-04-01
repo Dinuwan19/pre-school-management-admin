@@ -522,9 +522,6 @@ const Events = () => {
                             </Form.Item>
                         </Col>
                     </Row>
-                    <Button type="primary" htmlType="submit" loading={submitting} block style={{ background: '#7B57E4', borderColor: '#7B57E4', height: 40, borderRadius: 8 }}>
-                        {editingEvent ? "Update Event" : "Create Event"}
-                    </Button>
                 </Form>
             </Modal>
 

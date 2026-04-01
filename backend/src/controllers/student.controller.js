@@ -19,20 +19,18 @@ exports.createStudent = async (req, res, next) => {
         const nameToUse = (fullName || `${firstName} ${lastName}`).trim();
         const studentDob = dob ? new Date(dob) : null;
 
-        // 1. Pre-check for potential duplicate student (Same name, parent, and DOB)
+        // 1. Pre-check for potential duplicate student (Same name under the same parent)
         const existing = await prisma.student.findFirst({
             where: {
                 fullName: nameToUse,
-                parentId: parseInt(parentId),
-                dateOfBirth: studentDob
+                parentId: parseInt(parentId)
             }
         });
 
         if (existing) {
-            return res.status(400).json({ message: 'A student with this name and date of birth is already registered under this parent.' });
+            return res.status(400).json({ message: 'A student with this exact name is already registered under your account.' });
         }
 
-        // 2. Generate unique student ID based on last existing ID (Race-safe approach)
         const lastStudent = await prisma.student.findFirst({
             orderBy: { studentUniqueId: 'desc' }
         });
@@ -44,20 +42,19 @@ exports.createStudent = async (req, res, next) => {
         }
         const studentUniqueId = `S${String(nextNum).padStart(4, '0')}`;
 
-        // Handle uploaded files (Supabase)
         let photoUrl = req.body.photoUrl;
         let birthCertPdf = null;
         let vaccineCardPdf = null;
 
         if (req.files) {
             if (req.files['photo']) {
-                photoUrl = await uploadFile(req.files['photo'][0], 'student photos');
+                photoUrl = await uploadFile(req.files['photo'][0], 'student');
             }
             if (req.files['birthCert']) {
-                birthCertPdf = await uploadFile(req.files['birthCert'][0], 'student-documents');
+                birthCertPdf = await uploadFile(req.files['birthCert'][0], 'student');
             }
             if (req.files['vaccineCard']) {
-                vaccineCardPdf = await uploadFile(req.files['vaccineCard'][0], 'student-documents');
+                vaccineCardPdf = await uploadFile(req.files['vaccineCard'][0], 'student');
             }
         }
 
@@ -87,7 +84,7 @@ exports.createStudent = async (req, res, next) => {
         let qrCodeUrl = null;
         if (qrBuffer) {
             const qrFilename = `qr-${student.studentUniqueId}-${Date.now()}.png`;
-            qrCodeUrl = await uploadLocalFile(qrFilename, qrBuffer, 'image/png', 'student-documents');
+            qrCodeUrl = await uploadLocalFile(qrFilename, qrBuffer, 'image/png', 'student');
         }
 
         const updatedStudent = await prisma.student.update({
@@ -99,7 +96,6 @@ exports.createStudent = async (req, res, next) => {
 
         res.status(201).json(updatedStudent);
     } catch (error) {
-        // Handle race conditions for unique student ID
         if (error.code === 'P2002' && error.meta?.target?.includes('studentUniqueId')) {
             return res.status(409).json({ message: 'A conflict occurred while generating Student ID. Please try again.' });
         }
@@ -371,13 +367,13 @@ exports.updateStudent = async (req, res, next) => {
         // Handle uploaded files (Supabase)
         if (req.files) {
             if (req.files['photo']) {
-                data.photoUrl = await uploadFile(req.files['photo'][0], 'student photos');
+                data.photoUrl = await uploadFile(req.files['photo'][0], 'student');
             }
             if (req.files['birthCert']) {
-                data.birthCertPdf = await uploadFile(req.files['birthCert'][0], 'student-documents');
+                data.birthCertPdf = await uploadFile(req.files['birthCert'][0], 'student');
             }
             if (req.files['vaccineCard']) {
-                data.vaccineCardPdf = await uploadFile(req.files['vaccineCard'][0], 'student-documents');
+                data.vaccineCardPdf = await uploadFile(req.files['vaccineCard'][0], 'student');
             }
         }
 
