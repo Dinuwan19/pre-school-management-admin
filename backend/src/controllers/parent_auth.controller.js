@@ -82,14 +82,11 @@ exports.parentSignup = async (req, res, next) => {
             return user;
         });
 
-        // Send Verification Email
+        // Send Verification Email asynchronously (Non-blocking / Background)
         if (email || parentRecord.email) {
-            try {
-                await sendOTPEmail(email || parentRecord.email, otpCode, 'Email Verification');
-            } catch (mailErr) {
+            sendOTPEmail(email || parentRecord.email, otpCode, 'Email Verification').catch(mailErr => {
                 console.error(`❌ [SMTP ERROR] Hosted environment might be blocking port 465: ${mailErr.message}`);
-                // Don't fail the signup if only email fails
-            }
+            });
         }
 
         res.status(201).json({
@@ -199,11 +196,10 @@ exports.publicSignup = async (req, res, next) => {
             return { user, parent };
         });
 
-        try {
-            await sendOTPEmail(email, otpCode, 'Email Verification');
-        } catch (mailErr) {
+        // Send Verification Email asynchronously (Non-blocking)
+        sendOTPEmail(email, otpCode, 'Email Verification').catch(mailErr => {
             console.error(`❌ [SMTP ERROR] Hosted environment might be blocking port 465: ${mailErr.message}`);
-        }
+        });
 
         res.status(201).json({
             message: 'Registration successful.',

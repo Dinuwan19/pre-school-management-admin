@@ -143,13 +143,11 @@ exports.createStaff = async (req, res, next) => {
 
         await logAction(req.user?.id || 1, `CREATE_STAFF: Created staff ${user.employeeId}`);
 
-        // Send email credentials (Non-blocking / Handled Error)
+        // Send email credentials asynchronously (Non-blocking / Background)
         if (email) {
-            try {
-                await sendTempPasswordEmail(email, username, tempPassword);
-            } catch (err) {
-                console.warn('⚠️ Could not send email credential:', err.message);
-            }
+            sendTempPasswordEmail(email, username, tempPassword).catch(err => {
+                console.warn('⚠️ Could not send email credential in background:', err.message);
+            });
         }
 
         res.status(201).json({
