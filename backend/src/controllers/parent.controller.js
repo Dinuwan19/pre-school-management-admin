@@ -13,8 +13,40 @@ exports.createParent = async (req, res, next) => {
         const { relationship, nationalId, occupation, address, phone, email } = req.body;
         const fullName = req.body.fullName.trim();
 
-        const count = await prisma.parent.count();
-        const parentUniqueId = `P${String(count + 1).padStart(4, '0')}`;
+        // 1. Pre-check for duplicate Phone, Email, or National ID
+        if (phone || email || nationalId) {
+            const existing = await prisma.parent.findFirst({
+                where: {
+                    OR: [
+                        phone ? { phone } : null,
+                        email ? { email } : null,
+                        nationalId ? { nationalId } : null
+                    ].filter(Boolean)
+                }
+            });
+
+            if (existing) {
+                let field = 'record';
+                if (existing.phone === phone) field = 'Phone number';
+                else if (existing.email === email) field = 'Email';
+                else if (existing.nationalId === nationalId) field = 'National ID (NIC)';
+                
+                return res.status(400).json({ message: `${field} is already associated with another parent.` });
+            }
+        }
+
+        // 2. Generate unique parent ID based on last existing ID (Race-safe approach)
+        const lastParent = await prisma.parent.findFirst({
+            orderBy: { parentUniqueId: 'desc' }
+        });
+
+        let nextNum = 1;
+        if (lastParent && lastParent.parentUniqueId) {
+            const lastNum = parseInt(lastParent.parentUniqueId.replace('P', ''));
+            if (!isNaN(lastNum)) nextNum = lastNum + 1;
+        }
+        const parentUniqueId = `P${String(nextNum).padStart(4, '0')}`;
+
         const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
         let photoUrl = req.body.photoUrl || null;
@@ -41,6 +73,10 @@ exports.createParent = async (req, res, next) => {
 
         res.status(201).json(parent);
     } catch (error) {
+        // Handle race conditions for unique parent ID
+        if (error.code === 'P2002' && error.meta?.target?.includes('parentUniqueId')) {
+            return res.status(409).json({ message: 'A conflict occurred while generating Parent ID. Please try again.' });
+        }
         next(error);
     }
 };

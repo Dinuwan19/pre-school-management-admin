@@ -16,9 +16,33 @@ exports.createStudent = async (req, res, next) => {
             medicalInfo, emergencyContact, enrollmentDate, secondParentId
         } = req.body;
 
-        const count = await prisma.student.count();
-        const studentUniqueId = `S${(count + 1).toString().padStart(4, '0')}`;
-        const nameToUse = fullName || `${firstName} ${lastName}`;
+        const nameToUse = (fullName || `${firstName} ${lastName}`).trim();
+        const studentDob = dob ? new Date(dob) : null;
+
+        // 1. Pre-check for potential duplicate student (Same name, parent, and DOB)
+        const existing = await prisma.student.findFirst({
+            where: {
+                fullName: nameToUse,
+                parentId: parseInt(parentId),
+                dateOfBirth: studentDob
+            }
+        });
+
+        if (existing) {
+            return res.status(400).json({ message: 'A student with this name and date of birth is already registered under this parent.' });
+        }
+
+        // 2. Generate unique student ID based on last existing ID (Race-safe approach)
+        const lastStudent = await prisma.student.findFirst({
+            orderBy: { studentUniqueId: 'desc' }
+        });
+
+        let nextNum = 1;
+        if (lastStudent && lastStudent.studentUniqueId) {
+            const lastNum = parseInt(lastStudent.studentUniqueId.replace('S', ''));
+            if (!isNaN(lastNum)) nextNum = lastNum + 1;
+        }
+        const studentUniqueId = `S${String(nextNum).padStart(4, '0')}`;
 
         // Handle uploaded files (Supabase)
         let photoUrl = req.body.photoUrl;
@@ -41,7 +65,7 @@ exports.createStudent = async (req, res, next) => {
             data: {
                 fullName: nameToUse,
                 studentUniqueId,
-                dateOfBirth: dob ? new Date(dob) : null,
+                dateOfBirth: studentDob,
                 enrollmentDate: enrollmentDate ? new Date(enrollmentDate) : new Date(),
                 gender,
                 photoUrl,
@@ -75,6 +99,10 @@ exports.createStudent = async (req, res, next) => {
 
         res.status(201).json(updatedStudent);
     } catch (error) {
+        // Handle race conditions for unique student ID
+        if (error.code === 'P2002' && error.meta?.target?.includes('studentUniqueId')) {
+            return res.status(409).json({ message: 'A conflict occurred while generating Student ID. Please try again.' });
+        }
         next(error);
     }
 };

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const apiURL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000/api';
+const apiURL = import.meta.env.VITE_API_URL || 'malkakulufuturemind.me/api';
 const mediaBaseURL = apiURL.replace(/\/api\/?$/, '');
 
 const api = axios.create({

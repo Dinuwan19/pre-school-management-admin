@@ -18,7 +18,7 @@ exports.parentSignup = async (req, res, next) => {
     try {
         const { nationalId, email, password, username } = req.body;
 
-        // 1. Verify parent exists in our records via NIC only (Email check removed as requested)
+        // 1. Verify parent exists in our records via NIC
         const parentRecord = await prisma.parent.findFirst({
             where: {
                 nationalId: nationalId,
@@ -27,8 +27,9 @@ exports.parentSignup = async (req, res, next) => {
         });
 
         if (!parentRecord) {
+            console.log(`[Signup Attempt] NIC Not Found: ${nationalId}`);
             return res.status(404).json({
-                message: 'No active parent record found with this NIC. Please contact school admin.'
+                message: `No active parent record found with NIC: ${nationalId}. Please contact school administration to register first.`
             });
         }
 
@@ -45,13 +46,10 @@ exports.parentSignup = async (req, res, next) => {
             return res.status(400).json({ message: 'Username is already taken' });
         }
 
-        // 4. Create User Record
         const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Generate Verification OTP
         const otpCode = generateOTP();
         const otpHash = hashToken(otpCode);
-        const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes for verification
+        const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
         const newUser = await prisma.$transaction(async (tx) => {
             const user = await tx.user.create({
@@ -86,14 +84,17 @@ exports.parentSignup = async (req, res, next) => {
         });
 
         // Send Verification Email
-        try {
-            await sendOTPEmail(email || parentRecord.email, otpCode, 'Email Verification');
-        } catch (mailErr) {
-            console.error('Failed to send verification email:', mailErr);
+        if (email || parentRecord.email) {
+            try {
+                await sendOTPEmail(email || parentRecord.email, otpCode, 'Email Verification');
+            } catch (mailErr) {
+                console.error(`❌ [SMTP ERROR] Hosted environment might be blocking port 465: ${mailErr.message}`);
+                // Don't fail the signup if only email fails
+            }
         }
 
         res.status(201).json({
-            message: 'Parent account created. Please verify your email.',
+            message: 'Parent account created successfully.',
             requiresVerification: true,
             user: { id: newUser.id, username: newUser.username, role: 'PARENT' }
         });
@@ -130,7 +131,6 @@ exports.publicSignup = async (req, res, next) => {
             const inputEmail = email.toLowerCase().trim();
             const storedEmail = existingParent.email ? existingParent.email.toLowerCase().trim() : '';
 
-            // If stored email exists and doesn't match input -> BLOCK
             if (storedEmail && storedEmail !== inputEmail) {
                 return res.status(400).json({
                     message: 'Identity verification failed. The provided email does not match our records for this NIC.'
@@ -144,7 +144,6 @@ exports.publicSignup = async (req, res, next) => {
         const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
         const result = await prisma.$transaction(async (tx) => {
-            // Create User
             const user = await tx.user.create({
                 data: {
                     username,
@@ -157,17 +156,24 @@ exports.publicSignup = async (req, res, next) => {
                 }
             });
 
-            // Create or Link Parent
             let parent;
             if (existingParent) {
                 parent = await tx.parent.update({
                     where: { id: existingParent.id },
-                    data: { userId: user.id } // Only link UserID. Do NOT overwrite Name/Email/Phone from unauthorized input.
+                    data: { userId: user.id }
                 });
             } else {
-                // Generate a unique Parent ID
-                const count = await tx.parent.count();
-                const parentUniqueId = `P${String(count + 1).padStart(4, '0')}`;
+                // RACE-SAFE Generation: Find last ID
+                const lastParent = await tx.parent.findFirst({
+                    orderBy: { parentUniqueId: 'desc' }
+                });
+
+                let nextNum = 1;
+                if (lastParent && lastParent.parentUniqueId) {
+                    const lastNum = parseInt(lastParent.parentUniqueId.replace('P', ''));
+                    if (!isNaN(lastNum)) nextNum = lastNum + 1;
+                }
+                const parentUniqueId = `P${String(nextNum).padStart(4, '0')}`;
 
                 parent = await tx.parent.create({
                     data: {
@@ -197,16 +203,19 @@ exports.publicSignup = async (req, res, next) => {
         try {
             await sendOTPEmail(email, otpCode, 'Email Verification');
         } catch (mailErr) {
-            console.error('Mail error in public signup:', mailErr);
+            console.error(`❌ [SMTP ERROR] Hosted environment might be blocking port 465: ${mailErr.message}`);
         }
 
         res.status(201).json({
-            message: 'Registration successful. Please verify your email.',
+            message: 'Registration successful.',
             requiresVerification: true,
             userId: result.user.id
         });
 
     } catch (error) {
+        if (error.code === 'P2002' && error.meta?.target?.includes('parentUniqueId')) {
+            return res.status(409).json({ message: 'A conflict occurred while generating Parent ID. Please try again.' });
+        }
         next(error);
     }
 };
