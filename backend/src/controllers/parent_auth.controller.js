@@ -274,7 +274,10 @@ exports.resendVerification = async (req, res, next) => {
             }
         });
 
-        await sendOTPEmail(user.email || email, otpCode, 'Email Verification');
+        // Send OTP via Email in background (Non-blocking)
+        sendOTPEmail(user.email || email, otpCode, 'Email Verification').catch(mailErr => {
+            console.error(`❌ Background SMTP Error (Resend OTP): ${mailErr.message}`);
+        });
         res.json({ message: 'A new verification code has been sent to your email.' });
     } catch (error) {
         next(error);

@@ -146,19 +146,11 @@ exports.register = async (req, res, next) => {
             }
         });
 
-        // Send email with credentials
+        // Send email with credentials in background (Non-blocking)
         if (email) {
-            try {
-                await sendTempPasswordEmail(email, username, tempRawPassword);
-            } catch (mailError) {
-                console.error('Failed to send credential email:', mailError);
-                // We still return success as user is created, but notify about email failure
-                return res.status(201).json({
-                    message: 'User created but email failed. Please provide temp password manually.',
-                    userId: user.id,
-                    _dev_temp_pass: tempRawPassword
-                });
-            }
+            sendTempPasswordEmail(email, username, tempRawPassword).catch(mailError => {
+                console.error('❌ Background SMTP Error (Staff Register):', mailError.message);
+            });
         }
 
         res.status(201).json({ message: 'User created and credentials emailed successfully', userId: user.id });
@@ -199,17 +191,10 @@ exports.requestPasswordReset = async (req, res, next) => {
             }
         });
 
-        // Send OTP via Email
-        try {
-            await sendOTPEmail(user.email, otpCode, 'Password Reset');
-        } catch (mailError) {
-            console.error('OTP Mail Error:', mailError);
-            // Developer fallback for testing without SMTP
-            return res.json({
-                message: 'OTP generation failed. (Dev: Check server logs)',
-                _dev_otp: otpCode
-            });
-        }
+        // Send OTP via Email (Non-blocking)
+        sendOTPEmail(user.email, otpCode, 'Password Reset').catch(mailError => {
+            console.error('❌ Background SMTP Error (Password Reset):', mailError.message);
+        });
 
         await logAction(user.id, `PASSWORD_RESET_OTP: Sent to ${user.email}`);
 
