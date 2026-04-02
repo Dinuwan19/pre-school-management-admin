@@ -159,7 +159,6 @@ exports.getParentStats = async (req, res, next) => {
                         classroom: {
                             include: {
                                 teacherprofiles: {
-                                    where: { designation: 'LEAD' },
                                     include: { user: true }
                                 }
                             }
@@ -171,7 +170,6 @@ exports.getParentStats = async (req, res, next) => {
                         classroom: {
                             include: {
                                 teacherprofiles: {
-                                    where: { designation: 'LEAD' },
                                     include: { user: true }
                                 }
                             }
@@ -251,7 +249,7 @@ exports.getParentStats = async (req, res, next) => {
                 photoUrl: child.photoUrl,
                 classroomId: child.classroomId,
                 classroom: child.classroom?.name,
-                teacherName: child.classroom?.teacherprofiles?.[0]?.user?.fullName || 'Ms. Dilani',
+                teacherName: child.classroom?.teacherprofiles?.[0]?.user?.fullName || 'Teacher Not Assigned',
                 attendance: attendance ? 'Present' : 'Absent',
                 attendanceRate,
                 feeStatus,
@@ -353,6 +351,7 @@ exports.getParentStats = async (req, res, next) => {
         ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
 
         const sortedCombined = [
+            ...meetings.map(m => ({ ...m, sortDate: m.requestDate, uiType: 'MEETING' })),
             ...schoolEvents.map(e => ({ ...e, sortDate: e.eventDate, uiType: 'EVENT' }))
         ].sort((a, b) => new Date(a.sortDate) - new Date(b.sortDate)).slice(0, 5);
 

@@ -318,21 +318,50 @@ const UpdatesScreen = ({ navigation }) => {
         </TouchableOpacity>
     );
 
-    const renderMeetingItem = (item) => (
-        <TouchableOpacity key={`meeting-${item.id}`} style={styles.card} onPress={() => { }}>
-            <View style={[styles.iconContainer, { backgroundColor: '#F3F0FF' }]}>
-                <MessageSquare size={24} color="#9D5BF0" />
-            </View>
-            <View style={styles.content}>
-                <Text style={styles.title}>{item.title}</Text>
-                <Text style={styles.message} numberOfLines={2}>
-                    {dayjs(item.requestDate).format('MMM DD, YYYY')} • {item.preferredTime}
-                </Text>
-                <Text style={styles.date}>Status: {item.status}</Text>
-            </View>
-            <ChevronRight size={20} color="#CBD5E1" />
-        </TouchableOpacity>
-    );
+    const renderMeetingItem = (item) => {
+        let statusColor = '#64748B';
+        let statusBg = '#F1F5F9';
+
+        if (item.status === 'APPROVED') {
+            statusColor = '#10B981';
+            statusBg = '#ECFDF5';
+        } else if (item.status === 'REJECTED') {
+            statusColor = '#EF4444';
+            statusBg = '#FEF2F2';
+        } else if (item.status === 'PENDING') {
+            statusColor = '#F59E0B';
+            statusBg = '#FFFBEB';
+        }
+
+        return (
+            <TouchableOpacity 
+                key={`meeting-${item.id}`} 
+                style={styles.card} 
+                onPress={() => openDetail({ ...item, type: 'Meeting' })}
+            >
+                <View style={[styles.iconContainer, { backgroundColor: '#F3EFFF' }]}>
+                    <MessageSquare size={24} color="#9D5BF0" />
+                </View>
+                <View style={styles.content}>
+                    <Text style={styles.title}>{item.title}</Text>
+                    <Text style={styles.message} numberOfLines={2}>
+                        {dayjs(item.requestDate).format('MMM DD, YYYY')} • {item.preferredTime}
+                    </Text>
+                    <View style={styles.cardFooter}>
+                        <View style={[styles.statusBadgeSmall, { backgroundColor: statusBg }]}>
+                            <Text style={[styles.statusBadgeTextSmall, { color: statusColor }]}>
+                                {item.status}
+                            </Text>
+                        </View>
+                        {item.teacher?.fullName && (
+                            <Text style={styles.date}>With: {item.teacher.fullName}</Text>
+                        )}
+                    </View>
+                </View>
+                <ChevronRight size={20} color="#CBD5E1" />
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <View style={styles.container}>
@@ -473,6 +502,29 @@ const UpdatesScreen = ({ navigation }) => {
                             <Text style={styles.itemBody}>
                                 {selectedItem?.description || selectedItem?.message || 'No details content.'}
                             </Text>
+
+                            {selectedItem?.type === 'Meeting' && (
+                                <View style={styles.meetingDetailsBox}>
+                                    <View style={styles.meetingDetailRow}>
+                                        <Clock size={16} color="#64748B" />
+                                        <Text style={styles.meetingDetailText}>
+                                            {dayjs(selectedItem.requestDate).format('dddd, MMM DD, YYYY')} at {selectedItem.preferredTime}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.meetingDetailRow}>
+                                        <User size={16} color="#64748B" />
+                                        <Text style={styles.meetingDetailText}>
+                                            Requested Teacher: {selectedItem.teacher?.fullName || 'Not assigned'}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.meetingDetailRow}>
+                                        <CheckCircle2 size={16} color="#64748B" />
+                                        <Text style={styles.meetingDetailText}>
+                                            Status: {selectedItem.status}
+                                        </Text>
+                                    </View>
+                                </View>
+                            )}
 
                             {/* Event Media Gallery */}
                             {selectedItem?.type === 'Event' && selectedItem?.event_media?.length > 0 && (
@@ -673,6 +725,36 @@ const styles = StyleSheet.create({
     },
     emptyContainer: { alignItems: 'center', marginTop: 100 },
     emptyText: { marginTop: 16, fontSize: 16, color: '#94A3B8' },
+    statusBadgeSmall: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 6,
+        alignSelf: 'flex-start',
+        marginTop: 6
+    },
+    statusBadgeTextSmall: {
+        fontSize: 10,
+        fontWeight: 'bold'
+    },
+    meetingDetailsBox: {
+        backgroundColor: '#F8FAFC',
+        borderRadius: 16,
+        padding: 16,
+        marginTop: 10,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#F1F5F9'
+    },
+    meetingDetailRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 8
+    },
+    meetingDetailText: {
+        fontSize: 14,
+        color: '#475569'
+    },
 
     // Switcher Overlay Styles
     dropdownOverlay: {

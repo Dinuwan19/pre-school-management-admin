@@ -217,7 +217,6 @@ exports.getStudentById = async (req, res, next) => {
                 classroom: {
                     include: {
                         teacherprofiles: {
-                            where: { designation: 'LEAD' },
                             include: { user: { select: { id: true, fullName: true, role: true } } }
                         }
                     }

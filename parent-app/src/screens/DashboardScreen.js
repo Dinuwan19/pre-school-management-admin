@@ -68,12 +68,17 @@ const DashboardScreen = ({ navigation }) => {
         const today = dayjs().startOf('day');
 
         return stats.upcomingEvents.filter(event => {
+            if (event.type === 'MEETING') {
+                return true; // Assume meetings are already filtered for this parent and are future
+            }
+
             const eventClassroomIds = (event.classrooms || []).map(c => Number(c.id));
             const isSchoolWide = eventClassroomIds.length === 0;
             const isForChildClass = selectedChild.classroomId && eventClassroomIds.includes(Number(selectedChild.classroomId));
 
             // Date Check
-            const isFutureOrToday = dayjs(event.eventDate).isSame(today, 'day') || dayjs(event.eventDate).isAfter(today);
+            const eventDate = event.eventDate || event.date; // fallback to generic date
+            const isFutureOrToday = dayjs(eventDate).isSame(today, 'day') || dayjs(eventDate).isAfter(today);
 
             return (isSchoolWide || isForChildClass) && isFutureOrToday;
         });
@@ -203,7 +208,7 @@ const DashboardScreen = ({ navigation }) => {
                                         <Text style={styles.mainChildName}>{selectedChild.fullName}</Text>
                                         <ChevronDown size={18} color="#94A3B8" style={{ marginLeft: 8 }} />
                                     </View>
-                                    <Text style={styles.mainChildSub}>{selectedChild.classroom || 'Nursery'} • {selectedChild.teacherName || 'Ms. Dilani'}</Text>
+                                    <Text style={styles.mainChildSub}>{selectedChild.classroom || 'Nursery'} • {selectedChild.teacherName || 'Teacher Not Assigned'}</Text>
                                     <View style={styles.badgeRow}>
                                         <View style={[styles.badge, selectedChild.attendance === 'Present' ? styles.presentBadge : styles.absentBadge]}>
                                             <Text style={[styles.presentBadgeText, selectedChild.attendance !== 'Present' && { color: '#EF4444' }]}>

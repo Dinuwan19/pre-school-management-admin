@@ -197,7 +197,7 @@ const StudentProfileScreen = ({ route, navigation }) => {
                 <InfoRow
                     icon={<View style={[styles.iconCircle, { backgroundColor: '#F3E8FF' }]}><User size={18} color="#9D5BF0" /></View>}
                     label="Class Teacher"
-                    value={student?.classroom?.teacherprofile?.[0]?.user?.fullName || 'Ms. Dilani'}
+                    value={student?.classroom?.teacherprofiles?.[0]?.user?.fullName || 'Teacher Not Assigned'}
                 />
 
                 <InfoRow
@@ -615,12 +615,15 @@ const StudentProfileScreen = ({ route, navigation }) => {
                 <LinearGradient colors={['#9D5BF0', '#7C3AED']} style={styles.headerBackground}>
                     <SafeAreaView edges={['top']} style={{ paddingBottom: 60 }}>
                         <View style={styles.profileContainer}>
-                            <View style={styles.profileImgContainer}>
+                            <TouchableOpacity style={styles.profileImgContainer} onPress={() => setIsAvatarModalVisible(true)}>
                                 <Image
                                     source={getAvatarSource(student?.photoUrl, 'CHILD', null, student?.gender)}
                                     style={styles.profileImg}
                                 />
-                            </View>
+                                <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: '#fff', borderRadius: 12, padding: 4, elevation: 2 }}>
+                                    <Pencil size={12} color="#9D5BF0" />
+                                </View>
+                            </TouchableOpacity>
                             <View style={styles.profileInfo}>
                                 <Text style={styles.studentName}>{student?.fullName}</Text>
                                 <Text style={styles.studentSub}>ID: {student?.studentUniqueId}</Text>

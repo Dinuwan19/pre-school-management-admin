@@ -174,7 +174,11 @@ const Events = () => {
         setSubmitting(true);
         try {
             const formData = new FormData();
-            if (values.media && values.media.fileList) {
+            if (Array.isArray(values.media)) {
+                values.media.forEach(file => {
+                    formData.append('media', file.originFileObj || file);
+                });
+            } else if (values.media && values.media.fileList) {
                 values.media.fileList.forEach(file => {
                     formData.append('media', file.originFileObj);
                 });
@@ -536,6 +540,13 @@ const Events = () => {
                     <Form.Item
                         name="media"
                         label="Select Images/Files"
+                        valuePropName="fileList"
+                        getValueFromEvent={(e) => {
+                            if (Array.isArray(e)) {
+                                return e;
+                            }
+                            return e?.fileList;
+                        }}
                         rules={[{ required: true, message: 'Please select at least one file' }]}
                     >
                         <Upload
