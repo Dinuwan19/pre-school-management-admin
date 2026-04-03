@@ -84,6 +84,7 @@ const ParentProfile = () => {
             <Space direction="vertical" style={{ width: '100%' }}>
               <div><MailOutlined style={{ marginRight: 8, color: '#7B57E4' }} /><Text>{parent.email}</Text></div>
               <div><PhoneOutlined style={{ marginRight: 8, color: '#7B57E4' }} /><Text>{parent.phone}</Text></div>
+              <div><SafetyCertificateOutlined style={{ marginRight: 8, color: '#7B57E4' }} /><Text>NIC: {parent.nationalId || 'N/A'}</Text></div>
               <div><EnvironmentOutlined style={{ marginRight: 8, color: '#7B57E4' }} /><Text>{parent.address}</Text></div>
               <div><SolutionOutlined style={{ marginRight: 8, color: '#7B57E4' }} /><Text>{parent.occupation}</Text></div>
             </Space>
@@ -125,6 +126,7 @@ const ParentProfile = () => {
           </Form.Item>
           <Form.Item name="email" label="Email"><Input /></Form.Item>
           <Form.Item name="phone" label="Phone" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="nationalId" label="National ID (NIC)"><Input /></Form.Item>
           <Form.Item name="address" label="Address"><Input.TextArea rows={2} /></Form.Item>
           <Form.Item name="occupation" label="Occupation"><Input /></Form.Item>
         </Form>

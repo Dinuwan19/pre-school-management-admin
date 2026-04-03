@@ -60,6 +60,7 @@ app.use('/api/parent-auth', parentAuthRoutes);
 app.use('/api/meetings', meetingRoutes);
 app.use('/api/reports', require('./routes/report.routes'));
 app.use('/api/events', require('./routes/event.routes'));
+app.use('/api/special-days', require('./routes/specialDay.routes'));
 
 // Error Handler Middleware
 app.use(errorHandler);

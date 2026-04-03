@@ -448,6 +448,15 @@ model temppasswordlog {
   @@index([userId], map: "TempPasswordLog_userId_fkey")
 }
 
+model special_day {
+  id          Int      @id @default(autoincrement())
+  date        DateTime @db.Date @unique
+  name        String
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 enum user_role {
   SUPER_ADMIN
   ADMIN

@@ -99,6 +99,11 @@ const MainLayout = () => {
                 label: 'Attendance',
             },
             {
+                key: '/special-days',
+                icon: <ScheduleOutlined />,
+                label: 'Special Days',
+            },
+            {
                 key: 'edu-comm-sub',
                 icon: <BellOutlined />,
                 label: 'Education & Communication',
@@ -164,6 +169,7 @@ const MainLayout = () => {
         if (path.startsWith('/staff')) return ['/staff'];
         if (path.startsWith('/classrooms')) return ['/classrooms'];
         if (path.startsWith('/attendance')) return ['/attendance'];
+        if (path.startsWith('/special-days')) return ['/special-days'];
         if (path.startsWith('/announcements')) return ['/announcements'];
         if (path.startsWith('/meetings')) return ['/meetings'];
         if (path.startsWith('/homework')) return ['/homework'];

@@ -140,6 +140,10 @@ const StaffProfile = () => {
                                     <span>{staff.address || 'N/A'}</span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                    <SafetyCertificateOutlined style={{ color: '#999' }} />
+                                    <span>NIC: {staff.nationalId || 'N/A'}</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                     <CalendarOutlined style={{ color: '#999' }} />
                                     <span>Joined: {dayjs(staff.joiningDate).format('M/D/YYYY')}</span>
                                 </div>
@@ -231,6 +235,7 @@ const StaffProfile = () => {
                         <Col span={12}><Form.Item name="fullName" label="Full Name" rules={[{ required: true }]}><Input /></Form.Item></Col>
                         <Col span={12}><Form.Item name="email" label="Email"><Input /></Form.Item></Col>
                         <Col span={12}><Form.Item name="phone" label="Phone" rules={[{ required: true }]}><Input /></Form.Item></Col>
+                        <Col span={12}><Form.Item name="nationalId" label="National ID (NIC)"><Input /></Form.Item></Col>
                         <Col span={12}><Form.Item name="joiningDate" label="Joining Date"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
                         <Col span={12}><Form.Item name="role" label="Role"><Select><Option value="ADMIN">Admin</Option><Option value="TEACHER">Teacher</Option></Select></Form.Item></Col>
                         {staff.role === 'TEACHER' && (

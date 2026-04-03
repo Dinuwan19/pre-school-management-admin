@@ -1,8 +1,13 @@
 import axios from 'axios';
 
-const apiURL = import.meta.env.VITE_API_URL || 'malkakulufuturemind.me/api';
+let rawApiURL = import.meta.env.VITE_API_URL || 'https://malkakulufuturemind.me/api';
+if (rawApiURL && !rawApiURL.startsWith('http')) {
+    rawApiURL = `https://${rawApiURL}`;
+}
+const apiURL = rawApiURL;
+
 // Map uploads requests directly through the API proxy on frontend
-const mediaBaseURL = apiURL.endsWith('/api') ? apiURL.replace(/\/api$/, '/api') : apiURL.replace(/\/api\/?$/, '') + '/api';
+const mediaBaseURL = apiURL.endsWith('/api') ? apiURL.replace(/\/api$/, '') : apiURL.replace(/\/api\/?$/, '');
 
 const api = axios.create({
     baseURL: apiURL,

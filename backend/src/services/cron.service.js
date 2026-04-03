@@ -77,9 +77,49 @@ const initAttendanceCron = () => {
     console.log('[Cron] Attendance Auto-Absent service initialized (9:30 AM daily).');
 };
 
+const checkTomorrowSpecialDay = async () => {
+    try {
+        const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
+        console.log(`[Special Day Service] Checking for special day on: ${tomorrow}`);
+
+        const specialDay = await prisma.special_day.findUnique({
+            where: { date: new Date(tomorrow) }
+        });
+
+        if (specialDay) {
+            console.log(`[Special Day Service] Found special day: ${specialDay.name}. Sending notifications...`);
+            
+            // Create a global notification for all parents
+            await prisma.notification.create({
+                data: {
+                    title: `Special Day Tomorrow: ${specialDay.name}`,
+                    message: `Reminder: Tomorrow (${tomorrow}) is a special day (${specialDay.name}). Preschool will not be held. ${specialDay.description || ''}`,
+                    targetRole: 'PARENT',
+                    createdById: 1 // System user
+                }
+            });
+            console.log(`[Special Day Service] Notification sent successfully.`);
+        } else {
+            console.log(`[Special Day Service] No special day found for tomorrow.`);
+        }
+    } catch (error) {
+        console.error('[Special Day Service] Error in checkTomorrowSpecialDay:', error);
+    }
+};
+
+const initSpecialDayNotifications = () => {
+    // Run at 20:00 (8 PM) every day
+    cron.schedule('0 20 * * *', async () => {
+        console.log('[Cron] Triggering 8:00 PM Special Day check...');
+        await checkTomorrowSpecialDay();
+    });
+
+    console.log('[Cron] Special Day notification service initialized (8:00 PM daily).');
+};
+
 const initCronJobs = () => {
     initAttendanceCron();
-    // Add other cron jobs here in the future
+    initSpecialDayNotifications();
 };
 
 module.exports = { initCronJobs, markAbsentStudents };

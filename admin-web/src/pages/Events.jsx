@@ -174,19 +174,19 @@ const Events = () => {
         setSubmitting(true);
         try {
             const formData = new FormData();
-            if (Array.isArray(values.media)) {
-                values.media.forEach(file => {
-                    formData.append('media', file.originFileObj || file);
-                });
-            } else if (values.media && values.media.fileList) {
-                values.media.fileList.forEach(file => {
+            
+            // Extract file objects from Ant Design Upload component
+            const fileList = values.media?.fileList || (Array.isArray(values.media) ? values.media : []);
+            
+            fileList.forEach(file => {
+                if (file.originFileObj) {
                     formData.append('media', file.originFileObj);
-                });
-            }
-
-            await api.post(`/events/${selectedEventForMedia.id}/media`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
+                } else if (file instanceof File) {
+                    formData.append('media', file);
+                }
             });
+
+            await api.post(`/events/${selectedEventForMedia.id}/media`, formData);
 
             message.success('Media uploaded successfully');
             setMediaModalVisible(false);

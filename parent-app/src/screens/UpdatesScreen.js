@@ -14,7 +14,11 @@ import {
     Dimensions,
     Linking
 } from 'react-native';
-import { Bell, Info, Calendar, ChevronRight, ChevronLeft, ChevronDown, CheckCircle2, Camera, Download, X, BookOpen, MessageSquare } from 'lucide-react-native';
+import { 
+    Bell, Info, Calendar, ChevronRight, ChevronLeft, ChevronDown, 
+    CheckCircle2, Camera, Download, X, BookOpen, MessageSquare, 
+    Clock, User 
+} from 'lucide-react-native';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 import api from '../config/api';
@@ -25,6 +29,7 @@ import { getParentMeetings } from '../services/meeting.service';
 import { getAvatarSource } from '../constants/avatars';
 
 const { width } = Dimensions.get('window');
+const BASE_URL = api.defaults.baseURL.replace('/api', '');
 
 const UpdatesScreen = ({ navigation }) => {
     // Data State

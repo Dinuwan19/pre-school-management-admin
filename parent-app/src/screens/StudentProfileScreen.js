@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import {
     ChevronLeft,
     User,
@@ -62,8 +63,10 @@ const StudentProfileScreen = ({ route, navigation }) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [meetingTitle, setMeetingTitle] = useState('');
     const [meetingDesc, setMeetingDesc] = useState('');
-    const [preferredTime, setPreferredTime] = useState('');
-    const [preferredDate, setPreferredDate] = useState('');
+    const [preferredTime, setPreferredTime] = useState(new Date());
+    const [preferredDate, setPreferredDate] = useState(new Date());
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [showTimePicker, setShowTimePicker] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [selectedTeacherId, setSelectedTeacherId] = useState(null);
     const [expandedCategories, setExpandedCategories] = useState([]);
@@ -134,20 +137,18 @@ const StudentProfileScreen = ({ route, navigation }) => {
     };
 
     const handleRequestMeeting = async () => {
-        if (!meetingTitle || !preferredTime || !preferredDate) {
-            Alert.alert('Error', 'Please fill all fields');
+        if (!meetingTitle) {
+            Alert.alert('Error', 'Please enter a reason for the meeting');
             return;
         }
         setSubmitting(true);
         try {
-            const [day, month, year] = preferredDate.split('/');
-            const formattedDate = `${year}-${month}-${day}`;
             await requestMeeting(
                 student.id,
                 meetingTitle,
                 meetingDesc,
-                formattedDate,
-                preferredTime,
+                dayjs(preferredDate).format('YYYY-MM-DD'),
+                dayjs(preferredTime).format('hh:mm A'),
                 selectedTeacherId
             );
             Alert.alert('Success', 'Request sent successfully!');
@@ -798,13 +799,53 @@ const StudentProfileScreen = ({ route, navigation }) => {
                             <View style={{ flexDirection: 'row', gap: 10 }}>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.label}>Preferred Date</Text>
-                                    <TextInput style={styles.input} value={preferredDate} onChangeText={setPreferredDate} placeholder="DD/MM/YYYY" />
+                                    <TouchableOpacity 
+                                        style={styles.input} 
+                                        onPress={() => setShowDatePicker(true)}
+                                    >
+                                        <Text style={styles.inputText}>
+                                            {dayjs(preferredDate).format('DD/MM/YYYY')}
+                                        </Text>
+                                    </TouchableOpacity>
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.label}>Preferred Time</Text>
-                                    <TextInput style={styles.input} value={preferredTime} onChangeText={setPreferredTime} placeholder="HH:mm AM" />
+                                    <TouchableOpacity 
+                                        style={styles.input} 
+                                        onPress={() => setShowTimePicker(true)}
+                                    >
+                                        <Text style={styles.inputText}>
+                                            {dayjs(preferredTime).format('hh:mm A')}
+                                        </Text>
+                                    </TouchableOpacity>
                                 </View>
                             </View>
+
+                            {showDatePicker && (
+                                <DateTimePicker
+                                    value={preferredDate}
+                                    mode="date"
+                                    display="default"
+                                    minimumDate={new Date()}
+                                    onChange={(event, selectedDate) => {
+                                        setShowDatePicker(false);
+                                        if (selectedDate) setPreferredDate(selectedDate);
+                                    }}
+                                />
+                            )}
+
+                            {showTimePicker && (
+                                <DateTimePicker
+                                    value={preferredTime}
+                                    mode="time"
+                                    is24Hour={false}
+                                    display="default"
+                                    onChange={(event, selectedTime) => {
+                                        setShowTimePicker(false);
+                                        if (selectedTime) setPreferredTime(selectedTime);
+                                    }}
+                                />
+                            )}
 
                             <Text style={styles.label}>Reason for Meeting</Text>
                             <TextInput
@@ -1020,11 +1061,12 @@ const styles = StyleSheet.create({
 
     modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40, maxHeight: '80%' },
     label: { fontSize: 14, fontWeight: '600', color: '#64748B', marginBottom: 6, marginTop: 12 },
-    staticInput: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', padding: 14, borderRadius: 12, gap: 10, marginBottom: 8 },
-    staticText: { color: '#475569', fontWeight: '600' },
-    input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E2E8F0', padding: 14, borderRadius: 12, fontSize: 15, color: '#1E293B', marginBottom: 10 },
+    staticInput: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3EFFF', padding: 14, borderRadius: 12, gap: 10, marginBottom: 8 },
+    staticText: { color: '#9D5BF0', fontWeight: 'bold' },
+    input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E2E8F0', padding: 14, borderRadius: 12, justifyContent: 'center', marginBottom: 10 },
+    inputText: { fontSize: 15, color: '#1E293B' },
     submitBtn: { backgroundColor: '#8B5CF6', padding: 18, borderRadius: 16, alignItems: 'center', marginTop: 20, marginBottom: 20 },
-    submitBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+    submitBtnText: { color: '#ffffff', fontWeight: 'bold', fontSize: 16 },
 
     modalInput: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', padding: 16, borderRadius: 16, fontSize: 16, color: '#1E293B', marginBottom: 20 },
     modalActions: { flexDirection: 'row', gap: 12 },

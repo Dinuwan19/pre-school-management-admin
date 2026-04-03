@@ -52,9 +52,7 @@ const Expenses = () => {
                 formData.append('receipt', values.receipt.file.originFileObj);
             }
 
-            await api.post('/expenses', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            await api.post('/expenses', formData);
             message.success('Expense recorded successfully');
             setIsModalVisible(false);
             form.resetFields();

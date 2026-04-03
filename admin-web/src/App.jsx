@@ -28,6 +28,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Reports from './pages/Reports';
 import Events from './pages/Events';
+import SpecialDays from './pages/SpecialDays';
 
 const InitialRedirect = () => {
   const { user, loading } = useAuth();
@@ -165,6 +166,11 @@ const AppContent = () => {
             <Route path="/attendance" element={
               <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF']}>
                 <Attendance />
+              </ProtectedRoute>
+            } />
+            <Route path="/special-days" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+                <SpecialDays />
               </ProtectedRoute>
             } />
 

@@ -113,6 +113,19 @@ exports.updateClassroom = async (req, res, next) => {
         });
 
         await logAction(req.user.id, `UPDATE_CLASSROOM: Updated classroom ${classroom.name}`);
+        
+        // Task 5: If mealPlan is updated, create an announcement for classroom parents
+        if (req.body.mealPlan) {
+            await prisma.notification.create({
+                data: {
+                    title: `Meal Plan Updated: ${classroom.name}`,
+                    message: `A new meal plan has been updated for your child's classroom. Please check the meal plan section in the app.`,
+                    targetRole: 'PARENT',
+                    targetClassroomId: classroom.id,
+                    createdById: req.user.id
+                }
+            });
+        }
 
         res.json(classroom);
     } catch (error) {
