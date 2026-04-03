@@ -104,14 +104,17 @@ const PaymentsScreen = ({ navigation }) => {
             }
 
             // B. Extra Payments (Uniforms, etc.)
-            // Logic: If PAID, show in Payment Month. If UNPAID, show in Issued Month.
-            // Note: We need payment date. Using 'updatedAt' as proxy for Payment Date if status is PAID.
-            // Ideally backend should provide 'paidAt' or we check linked payments.
-
+            // Logic: 
+            // 1. If PAID, show it in the month it was PAID (updatedAt).
+            // 2. If UNPAID, show it in the Issued Month (createdAt) AND the CURRENT Month (so they don't miss it).
+            
+            const isCurrentMonth = selectedMonth.isSame(dayjs(), 'month');
+            
             if (b.status === 'PAID') {
                 return dayjs(b.updatedAt).isSame(selectedMonth, 'month');
             } else {
-                return dayjs(b.createdAt).isSame(selectedMonth, 'month');
+                // Show in issued month OR always show in the current month if it's still unpaid
+                return dayjs(b.createdAt).isSame(selectedMonth, 'month') || isCurrentMonth;
             }
         });
 

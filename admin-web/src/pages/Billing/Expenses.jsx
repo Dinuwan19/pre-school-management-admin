@@ -59,13 +59,21 @@ const Expenses = () => {
                 }
             }
 
-            await api.post('/expenses', formData);
+            await api.post('/expenses', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
             message.success('Expense recorded successfully');
             setIsModalVisible(false);
             form.resetFields();
             fetchExpenses();
         } catch (error) {
             console.error('[Expenses] Create Error:', error);
+            if (error.response) {
+                console.error('[Expenses] Server response error:', error.response.data);
+            }
             message.error(error.response?.data?.message || 'Failed to record expense');
         } finally {
             setLoading(false);

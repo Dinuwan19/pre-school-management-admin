@@ -197,7 +197,11 @@ const Events = () => {
                 }
             });
 
-            await api.post(`/events/${selectedEventForMedia.id}/media`, formData);
+            await api.post(`/events/${selectedEventForMedia.id}/media`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
 
             message.success('Media uploaded successfully');
             setMediaModalVisible(false);
@@ -211,6 +215,10 @@ const Events = () => {
             fetchEvents();
         } catch (error) {
             console.error('[Events] Media Upload Error:', error);
+            // Better error detail log
+            if (error.response) {
+                console.error('[Events] Server response error:', error.response.data);
+            }
             message.error(error.response?.data?.message || 'Failed to upload media');
         } finally {
             setSubmitting(false);

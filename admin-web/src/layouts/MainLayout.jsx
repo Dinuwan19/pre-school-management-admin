@@ -94,14 +94,13 @@ const MainLayout = () => {
         // ATTENDANCE & COMMUNICATION
         ...(userRole !== 'PARENT' && userRole !== 'CASHIER' ? [
             {
-                key: '/attendance',
+                key: 'attendance-sub',
                 icon: <CalendarOutlined />,
                 label: 'Attendance',
-            },
-            {
-                key: '/special-days',
-                icon: <ScheduleOutlined />,
-                label: 'Special Days',
+                children: [
+                    { key: '/attendance', label: 'Attendance Overview' },
+                    { key: '/special-days', label: 'Special Days' }
+                ]
             },
             {
                 key: 'edu-comm-sub',

@@ -68,7 +68,11 @@ exports.createStaff = async (req, res, next) => {
 
         const cleanName = fullName.trim();
         const username = cleanName.toLowerCase().split(/\s+/).join('.') + Math.floor(Math.random() * 100);
-        const tempPassword = cleanName.split(/\s+/)[0].toLowerCase() + '@123';
+        
+        // Generate secure 10-character alphanumeric temporary password
+        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        const tempPassword = Array.from({ length: 10 }, () => charset[Math.floor(Math.random() * charset.length)]).join('');
+        
         const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
         // Handle uploaded files (Supabase)
