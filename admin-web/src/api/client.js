@@ -20,7 +20,17 @@ const api = axios.create({
 export const getMediaUrl = (path) => {
     if (!path) return null;
     if (path.startsWith('http')) return path;
+    
+    // Ensure path doesn't start with /api if we are about to prepend apiURL
+    // The path in DB is usually /uploads/...
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    
+    // Use apiURL instead of mediaBaseURL to route static files through /api/uploads if needed
+    // In app.js we have app.use('/api/uploads', express.static(uploadsDir))
+    if (normalizedPath.startsWith('/uploads/')) {
+        return `${apiURL}${normalizedPath}`;
+    }
+    
     return `${mediaBaseURL}${normalizedPath}`;
 };
 

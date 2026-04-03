@@ -10,7 +10,9 @@ const fs = require('fs');
  */
 exports.uploadFile = async (file, bucket, folder = '') => {
     try {
+        console.log(`[Storage] Attempting to upload file: ${file?.originalname} to bucket: ${bucket}`);
         if (!file || !file.buffer) {
+            console.error('[Storage] Error: No file buffer provided.');
             throw new Error('No file buffer found. Ensure Multer is using MemoryStorage.');
         }
 
@@ -21,19 +23,23 @@ exports.uploadFile = async (file, bucket, folder = '') => {
 
         // 2. Upload to Local
         const uploadDir = path.join(__dirname, '../../uploads', bucket, folder);
+        console.log(`[Storage] Checking directory: ${uploadDir}`);
         if (!fs.existsSync(uploadDir)) {
+            console.log(`[Storage] Creating directory: ${uploadDir}`);
             fs.mkdirSync(uploadDir, { recursive: true });
         }
         
         const filePath = path.join(uploadDir, filename);
+        console.log(`[Storage] Writing file to: ${filePath}`);
         fs.writeFileSync(filePath, file.buffer);
+        console.log(`[Storage] Successfully wrote file: ${filename}`);
 
         // 3. Get Public URL (relative path)
         const relativeUrl = `/uploads/${bucket}${folder ? '/' + folder : ''}/${filename}`;
         
         return relativeUrl;
     } catch (error) {
-        console.error('Storage Service Error:', error);
+        console.error('[Storage] CRITICAL UPLOAD ERROR:', error);
         throw error;
     }
 };

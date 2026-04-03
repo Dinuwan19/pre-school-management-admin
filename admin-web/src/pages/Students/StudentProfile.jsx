@@ -161,11 +161,18 @@ const StudentProfile = () => {
                 if (values[key] !== undefined && values[key] !== null) {
                     if (key === 'dob' || key === 'enrollmentDate') {
                         formData.append(key, values[key].format('YYYY-MM-DD'));
-                    } else if (key === 'photo' || key === 'birthCert') {
-                        // Handle Ant Design Upload structure
-                        const fileObj = values[key]?.file || values[key]?.fileList?.[0] || (values[key] instanceof File ? values[key] : null);
-                        if (fileObj && (fileObj.originFileObj || fileObj instanceof File)) {
-                            formData.append(key, fileObj.originFileObj || fileObj);
+                    } else if (key === 'photo' || key === 'birthCert' || key === 'vaccineCard') {
+                        // Robustly extract file object from Ant Design Upload component
+                        const uploadObj = values[key];
+                        const fileList = uploadObj?.fileList || (Array.isArray(uploadObj) ? uploadObj : (uploadObj?.file ? [uploadObj.file] : []));
+                        
+                        if (fileList.length > 0) {
+                            const file = fileList[0];
+                            const actualFile = file.originFileObj || (file instanceof File ? file : null);
+                            if (actualFile) {
+                                console.log(`[StudentProfile] Appending file for ${key}:`, actualFile.name);
+                                formData.append(key, actualFile);
+                            }
                         }
                     } else {
                         formData.append(key, values[key]);
@@ -344,15 +351,20 @@ const StudentProfile = () => {
                                     <Space size={12}>
                                         <Avatar src={getMediaUrl(p.photoUrl)}>{p.fullName[0]}</Avatar>
                                         <div>
-                                            <div style={{ fontWeight: 500 }}>{p.fullName}</div>
-                                            <Text type="secondary" style={{ fontSize: 12 }}>{idx === 0 ? 'father' : 'mother'}</Text>
+                                            <div style={{ fontWeight: 600 }}>{p.fullName}</div>
+                                            <Tag size="small" style={{ fontSize: 10, borderRadius: 4 }}>{idx === 0 ? 'PRIMARY' : 'SECONDARY'}</Tag>
                                         </div>
                                     </Space>
                                     <div style={{ textAlign: 'right', fontSize: 12 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', color: '#555' }}>
+                                        {p.nationalId && (
+                                            <div style={{ fontWeight: 700, color: colorPrimary, marginBottom: 4 }}>
+                                                NIC: {p.nationalId}
+                                            </div>
+                                        )}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', color: colorTextSecondary }}>
                                             <PhoneOutlined /> {p.phone || 'N/A'}
                                         </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', color: '#888', marginTop: 2 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', color: colorTextSecondary, marginTop: 2 }}>
                                             <EnvironmentOutlined /> {p.address || 'N/A'}
                                         </div>
                                     </div>

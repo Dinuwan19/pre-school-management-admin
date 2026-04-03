@@ -37,19 +37,26 @@ const Expenses = () => {
         try {
             const values = await form.validateFields();
             setLoading(true);
-            const payload = {
-                ...values,
-                amount: parseFloat(values.amount),
-                expenseDate: values.expenseDate.format('YYYY-MM-DD')
-            };
+            console.log('[Expenses] Creating expense with values:', values);
 
             const formData = new FormData();
-            Object.keys(payload).forEach(key => {
-                if (key !== 'receipt') formData.append(key, payload[key]);
-            });
+            formData.append('category', values.category);
+            formData.append('amount', parseFloat(values.amount));
+            formData.append('expenseDate', values.expenseDate.format('YYYY-MM-DD'));
+            
+            // Fix: Only append description if it exists to avoid "undefined" string
+            if (values.description) {
+                formData.append('description', values.description);
+            }
 
-            if (values.receipt?.file) {
-                formData.append('receipt', values.receipt.file.originFileObj);
+            // Extract file robustly
+            const fileList = values.receipt?.fileList || (values.receipt?.file ? [values.receipt.file] : []);
+            if (fileList.length > 0) {
+                const actualFile = fileList[0].originFileObj || (fileList[0] instanceof File ? fileList[0] : null);
+                if (actualFile) {
+                    console.log('[Expenses] Appending receipt:', actualFile.name);
+                    formData.append('receipt', actualFile);
+                }
             }
 
             await api.post('/expenses', formData);
@@ -58,7 +65,8 @@ const Expenses = () => {
             form.resetFields();
             fetchExpenses();
         } catch (error) {
-            message.error('Failed to record expense');
+            console.error('[Expenses] Create Error:', error);
+            message.error(error.response?.data?.message || 'Failed to record expense');
         } finally {
             setLoading(false);
         }
