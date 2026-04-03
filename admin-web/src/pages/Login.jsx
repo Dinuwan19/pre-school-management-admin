@@ -88,29 +88,38 @@ const Login = () => {
         }
     };
 
+    const primaryColor = '#7B57E4';
+    const backgroundColor = '#0A0C1B'; // Deep Navy
+    const cardBg = '#161931'; // Navy/Charcoal
+    const inputBg = 'rgba(255, 255, 255, 0.05)';
+    const borderColor = 'rgba(255, 255, 255, 0.1)';
+    const textColor = '#FFFFFF';
+    const secondaryTextColor = 'rgba(255, 255, 255, 0.7)';
+
     const cardStyle = {
         width: 440,
         borderRadius: 24,
-        boxShadow: boxShadow,
-        padding: 32,
-        border: 'none',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+        padding: 40,
+        border: '1px solid rgba(255, 255, 255, 0.05)',
         textAlign: 'center',
-        background: colorBgContainer
+        background: cardBg
     };
 
     const getRoleButtonStyle = (role) => {
         const isHovered = hoveredRole === role;
+        const isSelected = selectedRole === role;
         return {
             width: 140, height: 140,
-            background: isHovered ? colorBgContainer : colorBgLayout, // Use layout bg for default, container for hover
-            border: `2px solid ${isHovered ? colorPrimary : 'transparent'}`,
-            borderRadius: 20,
+            background: isHovered || isSelected ? 'rgba(123, 87, 228, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+            border: `2px solid ${isHovered || isSelected ? primaryColor : 'rgba(255, 255, 255, 0.05)'}`,
+            borderRadius: 24,
             cursor: 'pointer',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            transition: 'all 0.2s ease',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             outline: 'none',
-            boxShadow: isHovered ? '0 8px 20px rgba(123, 87, 228, 0.15)' : 'none',
-            transform: isHovered ? 'translateY(-4px)' : 'none'
+            boxShadow: isHovered || isSelected ? `0 0 20px ${primaryColor}33` : 'none',
+            transform: isHovered ? 'translateY(-6px)' : 'none'
         };
     };
 
@@ -121,7 +130,7 @@ const Login = () => {
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            background: colorBgLayout,
+            background: backgroundColor,
             fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
         }}>
 
@@ -131,22 +140,23 @@ const Login = () => {
                 <div style={{ marginBottom: 40 }}>
                     <div style={{
                         width: 72, height: 72, margin: '0 auto 16px',
-                        background: colorPrimary, borderRadius: '50%',
+                        background: primaryColor, borderRadius: '50%',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#fff', fontSize: 28, fontWeight: 'bold'
+                        color: '#fff', fontSize: 28, fontWeight: 'bold',
+                        boxShadow: `0 0 20px ${primaryColor}44`
                     }}>
                         M
                     </div>
-                    <Title level={4} style={{ color: colorText, marginBottom: 4 }}>
+                    <Title level={4} style={{ color: textColor, marginBottom: 4, letterSpacing: '-0.5px' }}>
                         Malkakulu Future Mind
                     </Title>
-                    <Text style={{ fontSize: 13, color: colorTextSecondary, letterSpacing: '0.5px' }}>MONTESSORI MANAGEMENT</Text>
+                    <Text style={{ fontSize: 13, color: secondaryTextColor, letterSpacing: '1px', textTransform: 'uppercase', fontWeight: 500 }}>MONTESSORI MANAGEMENT</Text>
                 </div>
 
                 {step === 'role-selection' && (
                     <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-                        <Title level={3} style={{ marginBottom: 12, color: colorText }}>Welcome!</Title>
-                        <Text type="secondary" style={{ display: 'block', marginBottom: 32, fontSize: 15, color: colorTextSecondary }}>
+                        <Title level={3} style={{ marginBottom: 12, color: textColor }}>Welcome!</Title>
+                        <Text style={{ display: 'block', marginBottom: 32, fontSize: 15, color: secondaryTextColor }}>
                             Please select your role to continue.
                         </Text>
 
@@ -159,12 +169,12 @@ const Login = () => {
                                 style={getRoleButtonStyle('ADMIN')}
                             >
                                 <div style={{
-                                    background: 'rgba(123, 87, 228, 0.1)',
-                                    padding: 12, borderRadius: '50%', marginBottom: 12
+                                    background: 'rgba(123, 87, 228, 0.15)',
+                                    padding: 16, borderRadius: '50%', marginBottom: 12
                                 }}>
-                                    <UserOutlined style={{ fontSize: 28, color: colorPrimary }} />
+                                    <UserOutlined style={{ fontSize: 28, color: primaryColor }} />
                                 </div>
-                                <Text strong style={{ color: colorText, fontSize: 16 }}>Admin</Text>
+                                <Text strong style={{ color: textColor, fontSize: 16 }}>Admin</Text>
                             </button>
 
                             {/* Teacher Button */}
@@ -175,12 +185,12 @@ const Login = () => {
                                 style={getRoleButtonStyle('TEACHER')}
                             >
                                 <div style={{
-                                    background: 'rgba(123, 87, 228, 0.1)',
-                                    padding: 12, borderRadius: '50%', marginBottom: 12
+                                    background: 'rgba(123, 87, 228, 0.15)',
+                                    padding: 16, borderRadius: '50%', marginBottom: 12
                                 }}>
-                                    <BookOutlined style={{ fontSize: 28, color: colorPrimary }} />
+                                    <BookOutlined style={{ fontSize: 28, color: primaryColor }} />
                                 </div>
-                                <Text strong style={{ color: colorText, fontSize: 16 }}>Teacher</Text>
+                                <Text strong style={{ color: textColor, fontSize: 16 }}>Teacher</Text>
                             </button>
                         </Space>
                     </div>
@@ -191,19 +201,19 @@ const Login = () => {
                         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32 }}>
                             <Button
                                 type="text"
-                                icon={<ArrowLeftOutlined style={{ fontSize: 18, color: colorText }} />}
+                                icon={<ArrowLeftOutlined style={{ fontSize: 18, color: textColor }} />}
                                 onClick={onBack}
                                 style={{ marginRight: 8, padding: 4 }}
                             />
                             <div>
-                                <Title level={4} style={{ margin: 0, color: colorText }}>
+                                <Title level={4} style={{ margin: 0, color: textColor }}>
                                     {selectedRole === 'ADMIN' ? 'Admin' : 'Teacher'} Login
                                 </Title>
-                                <Text type="secondary" style={{ fontSize: 13, color: colorTextSecondary }}>Enter your credentials</Text>
+                                <Text style={{ fontSize: 13, color: secondaryTextColor }}>Enter your credentials</Text>
                             </div>
                         </div>
 
-                        {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 24, borderRadius: 8 }} />}
+                        {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 24, borderRadius: 8, background: 'rgba(255, 77, 79, 0.1)', border: '1px solid rgba(255, 77, 79, 0.2)', color: '#ff4d4f' }} />}
 
                         <Form
                             name="login_form"
@@ -213,31 +223,31 @@ const Login = () => {
                             size="large"
                         >
                             <Form.Item
-                                label={<span style={{ color: colorTextSecondary, fontWeight: 600, fontSize: 13 }}>USERNAME</span>}
+                                label={<span style={{ color: secondaryTextColor, fontWeight: 600, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Username</span>}
                                 name="username"
                                 rules={[{ required: true, message: 'Please input your Username!' }]}
                                 style={{ marginBottom: 20 }}
                             >
                                 <Input
-                                    style={{ background: colorBgLayout, border: `1px solid ${colorBorder}`, borderRadius: 10, padding: '10px 14px', color: colorText }}
+                                    style={{ background: inputBg, border: `1px solid ${borderColor}`, borderRadius: 12, padding: '12px 16px', color: textColor }}
                                     placeholder="e.g. admin"
                                 />
                             </Form.Item>
 
                             <Form.Item
-                                label={<span style={{ color: colorTextSecondary, fontWeight: 600, fontSize: 13 }}>PASSWORD</span>}
+                                label={<span style={{ color: secondaryTextColor, fontWeight: 600, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Password</span>}
                                 name="password"
                                 rules={[{ required: true, message: 'Please input your Password!' }]}
                                 style={{ marginBottom: 8 }}
                             >
                                 <Input.Password
-                                    style={{ background: colorBgLayout, border: `1px solid ${colorBorder}`, borderRadius: 10, padding: '10px 14px', color: colorText }}
+                                    style={{ background: inputBg, border: `1px solid ${borderColor}`, borderRadius: 12, padding: '12px 16px', color: textColor }}
                                     placeholder="••••••••"
                                 />
                             </Form.Item>
 
                             <div style={{ textAlign: 'right', marginBottom: 24 }}>
-                                <a onClick={() => navigate('/forgot-password')} style={{ color: colorPrimary, fontSize: 13, fontWeight: 500 }}>
+                                <a onClick={() => navigate('/forgot-password')} style={{ color: primaryColor, fontSize: 13, fontWeight: 600 }}>
                                     Forgot Password?
                                 </a>
                             </div>
@@ -252,10 +262,10 @@ const Login = () => {
                                         height: 52,
                                         fontSize: 16,
                                         fontWeight: 600,
-                                        background: colorPrimary,
-                                        borderColor: colorPrimary,
+                                        background: primaryColor,
+                                        borderColor: primaryColor,
                                         borderRadius: 12,
-                                        boxShadow: '0 4px 14px rgba(123, 87, 228, 0.4)'
+                                        boxShadow: `0 4px 14px ${primaryColor}66`
                                     }}
                                 >
                                     Sign in
@@ -268,11 +278,11 @@ const Login = () => {
                 {step === 'reset-password' && (
                     <div style={{ animation: 'slideIn 0.3s ease-out', textAlign: 'left' }}>
                         <div style={{ marginBottom: 24 }}>
-                            <Title level={4} style={{ margin: 0, color: colorText }}>Reset Password</Title>
-                            <Text type="secondary" style={{ fontSize: 13, color: colorTextSecondary }}>First login detected. Please change your password.</Text>
+                            <Title level={4} style={{ margin: 0, color: textColor }}>Reset Password</Title>
+                            <Text style={{ fontSize: 13, color: secondaryTextColor }}>First login detected. Please change your password.</Text>
                         </div>
 
-                        {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 24, borderRadius: 8 }} />}
+                        {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 24, borderRadius: 8, background: 'rgba(255, 77, 79, 0.1)', border: '1px solid rgba(255, 77, 79, 0.2)', color: '#ff4d4f' }} />}
 
                         <Form
                             name="reset_form"
@@ -281,15 +291,15 @@ const Login = () => {
                             size="large"
                         >
                             <Form.Item
-                                label="CURRENT TEMPORARY PASSWORD"
+                                label={<span style={{ color: secondaryTextColor, fontWeight: 600, fontSize: 12, textTransform: 'uppercase' }}>Current Temporary Password</span>}
                                 name="currentPassword"
                                 rules={[{ required: true }]}
                             >
-                                <Input.Password placeholder="••••••••" style={{ background: colorBgLayout, border: `1px solid ${colorBorder}`, color: colorText }} />
+                                <Input.Password placeholder="••••••••" style={{ background: inputBg, border: `1px solid ${borderColor}`, color: textColor, borderRadius: 12, padding: '12px 16px' }} />
                             </Form.Item>
 
                             <Form.Item
-                                label="NEW PASSWORD"
+                                label={<span style={{ color: secondaryTextColor, fontWeight: 600, fontSize: 12, textTransform: 'uppercase' }}>New Password</span>}
                                 name="newPassword"
                                 rules={[
                                     { required: true, message: 'New password is required' },
@@ -305,15 +315,15 @@ const Login = () => {
                                     }
                                 ]}
                             >
-                                <Input.Password placeholder="••••••••" style={{ background: colorBgLayout, border: `1px solid ${colorBorder}`, color: colorText }} />
+                                <Input.Password placeholder="••••••••" style={{ background: inputBg, border: `1px solid ${borderColor}`, color: textColor, borderRadius: 12, padding: '12px 16px' }} />
                             </Form.Item>
 
                             <Form.Item
-                                label="CONFIRM NEW PASSWORD"
+                                label={<span style={{ color: secondaryTextColor, fontWeight: 600, fontSize: 12, textTransform: 'uppercase' }}>Confirm New Password</span>}
                                 name="confirmPassword"
                                 rules={[{ required: true }]}
                             >
-                                <Input.Password placeholder="••••••••" style={{ background: colorBgLayout, border: `1px solid ${colorBorder}`, color: colorText }} />
+                                <Input.Password placeholder="••••••••" style={{ background: inputBg, border: `1px solid ${borderColor}`, color: textColor, borderRadius: 12, padding: '12px 16px' }} />
                             </Form.Item>
 
                             <Form.Item>
@@ -324,8 +334,11 @@ const Login = () => {
                                     block
                                     style={{
                                         height: 52,
-                                        background: colorPrimary,
+                                        background: primaryColor,
+                                        borderColor: primaryColor,
                                         borderRadius: 12,
+                                        fontWeight: 600,
+                                        boxShadow: `0 4px 14px ${primaryColor}66`
                                     }}
                                 >
                                     Update Password & Login
@@ -337,12 +350,24 @@ const Login = () => {
             </Card>
 
             <style>{`
+        input, .ant-input-password input {
+            color: white !important;
+        }
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.2) !important;
+        }
+        .ant-input-password {
+            color: white !important;
+        }
+        .ant-form-item-label > label {
+            color: rgba(255, 255, 255, 0.7) !important;
+        }
         @keyframes fadeIn {
           from { opacity: 0; transform: scale(0.98); }
           to { opacity: 1; transform: scale(1); }
         }
         @keyframes slideIn {
-          from { opacity: 0; transform: translateX(20px); }
+          from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateX(0); }
         }
       `}</style>

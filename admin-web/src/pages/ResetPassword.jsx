@@ -42,14 +42,21 @@ const ResetPassword = () => {
     };
 
     const primaryColor = '#7B57E4';
-    const backgroundColor = '#F3F1FB';
+    const backgroundColor = '#0A0C1B'; // Deep Navy
+    const cardBg = '#161931'; // Navy/Charcoal
+    const inputBg = 'rgba(255, 255, 255, 0.05)';
+    const borderColor = 'rgba(255, 255, 255, 0.1)';
+    const textColor = '#FFFFFF';
+    const secondaryTextColor = 'rgba(255, 255, 255, 0.7)';
+
     const cardStyle = {
         width: 440,
         borderRadius: 24,
-        boxShadow: '0 4px 20px rgba(123, 87, 228, 0.08)',
-        padding: 32,
-        border: 'none',
-        textAlign: 'center'
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+        padding: 40,
+        border: '1px solid rgba(255, 255, 255, 0.05)',
+        textAlign: 'center',
+        background: cardBg
     };
 
     return (
@@ -69,29 +76,30 @@ const ResetPassword = () => {
                         width: 72, height: 72, margin: '0 auto 16px',
                         background: primaryColor, borderRadius: '50%',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: 'white', fontSize: 28, fontWeight: 'bold'
+                        color: 'white', fontSize: 28, fontWeight: 'bold',
+                        boxShadow: `0 0 20px ${primaryColor}44`
                     }}>
                         M
                     </div>
-                    <Title level={4} style={{ color: '#000000', marginBottom: 4 }}>
+                    <Title level={4} style={{ color: textColor, marginBottom: 4, letterSpacing: '-0.5px' }}>
                         Malkakulu Future Mind
                     </Title>
-                    <Text style={{ fontSize: 13, color: '#888888', letterSpacing: '0.5px' }}>MONTESSORI MANAGEMENT</Text>
+                    <Text style={{ fontSize: 13, color: secondaryTextColor, letterSpacing: '1px', textTransform: 'uppercase', fontWeight: 500 }}>MONTESSORI MANAGEMENT</Text>
                 </div>
 
                 {!success ? (
                     <div style={{ animation: 'slideIn 0.3s ease-out', textAlign: 'left' }}>
                         <div style={{ marginBottom: 32 }}>
-                            <Title level={4} style={{ margin: 0, color: '#333' }}>Set New Password</Title>
-                            <Text type="secondary" style={{ fontSize: 13 }}>Enter your new secure password below</Text>
+                            <Title level={4} style={{ margin: 0, color: textColor }}>Reset Password</Title>
+                            <Text style={{ fontSize: 13, color: secondaryTextColor }}>Set a new secure password</Text>
                         </div>
 
-                        {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 24, borderRadius: 8 }} />}
+                        {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 24, borderRadius: 8, background: 'rgba(255, 77, 79, 0.1)', border: '1px solid rgba(255, 77, 79, 0.2)', color: '#ff4d4f' }} />}
                         {!token && <Alert message="Missing reset token in URL" type="warning" showIcon style={{ marginBottom: 24, borderRadius: 8 }} />}
 
                         <Form onFinish={onFinish} layout="vertical" size="large">
                             <Form.Item
-                                label={<span style={{ color: '#444', fontWeight: 600, fontSize: 13 }}>NEW PASSWORD</span>}
+                                label={<span style={{ color: secondaryTextColor, fontWeight: 600, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.5px' }}>New Password</span>}
                                 name="newPassword"
                                 rules={[
                                     { required: true, message: 'New password is required' },
@@ -108,20 +116,32 @@ const ResetPassword = () => {
                                 ]}
                             >
                                 <Input.Password
-                                    prefix={<LockOutlined style={{ color: '#aaa', marginRight: 8 }} />}
-                                    style={{ background: '#F8F8F8', border: '1px solid #EAEAEA', borderRadius: 10, padding: '10px 14px' }}
+                                    prefix={<LockOutlined style={{ color: secondaryTextColor, marginRight: 8, opacity: 0.5 }} />}
+                                    style={{ 
+                                        background: inputBg, 
+                                        border: `1px solid ${borderColor}`, 
+                                        borderRadius: 12, 
+                                        padding: '12px 16px',
+                                        color: textColor
+                                    }}
                                     placeholder="••••••••"
                                 />
                             </Form.Item>
 
                             <Form.Item
-                                label={<span style={{ color: '#444', fontWeight: 600, fontSize: 13 }}>CONFIRM NEW PASSWORD</span>}
+                                label={<span style={{ color: secondaryTextColor, fontWeight: 600, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Confirm Password</span>}
                                 name="confirmPassword"
-                                rules={[{ required: true }]}
+                                rules={[{ required: true, message: 'Please confirm your password' }]}
                             >
                                 <Input.Password
-                                    prefix={<LockOutlined style={{ color: '#aaa', marginRight: 8 }} />}
-                                    style={{ background: '#F8F8F8', border: '1px solid #EAEAEA', borderRadius: 10, padding: '10px 14px' }}
+                                    prefix={<LockOutlined style={{ color: secondaryTextColor, marginRight: 8, opacity: 0.5 }} />}
+                                    style={{ 
+                                        background: inputBg, 
+                                        border: `1px solid ${borderColor}`, 
+                                        borderRadius: 12, 
+                                        padding: '12px 16px',
+                                        color: textColor
+                                    }}
                                     placeholder="••••••••"
                                 />
                             </Form.Item>
@@ -137,9 +157,10 @@ const ResetPassword = () => {
                                     fontSize: 16,
                                     fontWeight: 600,
                                     background: primaryColor,
+                                    borderColor: primaryColor,
                                     borderRadius: 12,
                                     marginTop: 16,
-                                    boxShadow: '0 4px 14px rgba(123, 87, 228, 0.4)'
+                                    boxShadow: `0 4px 14px ${primaryColor}66`
                                 }}
                             >
                                 Reset Password
@@ -149,21 +170,28 @@ const ResetPassword = () => {
                 ) : (
                     <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
                         <div style={{
-                            width: 64, height: 64, background: '#F6FFED',
+                            width: 64, height: 64, background: 'rgba(82, 196, 26, 0.1)',
                             borderRadius: '50%', display: 'flex', alignItems: 'center',
-                            justifyContent: 'center', margin: '0 auto 24px'
+                            justifyContent: 'center', margin: '0 auto 24px',
+                            border: '1px solid rgba(82, 196, 26, 0.2)'
                         }}>
                             <CheckCircleOutlined style={{ fontSize: 32, color: '#52C41A' }} />
                         </div>
-                        <Title level={3} style={{ marginBottom: 12 }}>Success!</Title>
-                        <Paragraph style={{ color: '#666', marginBottom: 32 }}>
+                        <Title level={3} style={{ marginBottom: 12, color: textColor }}>Success!</Title>
+                        <Paragraph style={{ color: secondaryTextColor, marginBottom: 32 }}>
                             Your password has been successfully reset. You can now log in with your new credentials.
                         </Paragraph>
                         <Button
                             type="primary"
                             block
                             onClick={() => navigate('/login')}
-                            style={{ height: 52, background: primaryColor, borderRadius: 12 }}
+                            style={{ 
+                                height: 52, 
+                                background: primaryColor, 
+                                borderColor: primaryColor, 
+                                borderRadius: 12,
+                                fontWeight: 600 
+                            }}
                         >
                             Back to Login
                         </Button>
@@ -172,9 +200,21 @@ const ResetPassword = () => {
             </Card>
 
             <style>{`
+                input, .ant-input-password input {
+                    color: white !important;
+                }
+                input::placeholder {
+                    color: rgba(255, 255, 255, 0.2) !important;
+                }
+                .ant-input-password {
+                    color: white !important;
+                }
+                .ant-form-item-label > label {
+                    color: rgba(255, 255, 255, 0.7) !important;
+                }
                 @keyframes slideIn {
-                    from { opacity: 0; transform: translateX(20px); }
-                    to { opacity: 1; transform: translateX(0); }
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
                 }
                 @keyframes fadeIn {
                     from { opacity: 0; transform: scale(0.95); }
