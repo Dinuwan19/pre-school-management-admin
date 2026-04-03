@@ -68,7 +68,10 @@ const PaymentsScreen = ({ navigation }) => {
                 const filtered = data.filter(b => b.studentId == studentId);
                 setBillings(filtered);
             } else {
-                const bList = data.billings?.filter(b => b.studentId == studentId) || [];
+                const bList = data.billings?.filter(b => 
+                    b.studentId == studentId || 
+                    b.student?.studentUniqueId == studentId
+                ) || [];
                 setBillings(bList);
             }
         } catch (error) {

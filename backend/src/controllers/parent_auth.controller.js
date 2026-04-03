@@ -446,9 +446,16 @@ exports.getParentBillings = async (req, res, next) => {
             return res.json({ billings: [], payments: [] });
         }
 
-        // 1. Get Official Billings
+        const studentUniqueIds = students.map(s => s.studentUniqueId);
+
+        // 1. Get Official Billings (Searching by both internal ID and Unique ID for robustness)
         const billings = await prisma.billing.findMany({
-            where: { studentId: { in: studentIds } },
+            where: { 
+                OR: [
+                    { studentId: { in: studentIds } },
+                    { student: { studentUniqueId: { in: studentUniqueIds } } }
+                ]
+            },
             include: {
                 student: { select: { fullName: true } },
                 billingCategory: true, // Added to fetch category details
