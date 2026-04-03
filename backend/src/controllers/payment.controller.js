@@ -127,8 +127,7 @@ exports.submitPayment = async (req, res, next) => {
             }
             // --- END ALLOCATION LOGIC ---
 
-            // Ad-hoc Flow: If categoryId provided, create a new Billing first
-            // FIX: Prevent double allocation if billingMonths were processed (User intended Monthly Payment, not Adhoc)
+            // Ad-hoc Flow: If categoryId provided, use existing bill or create a new one
             if (req.body.categoryId && parsedBillingMonths.length === 0) {
                 const catId = parseInt(req.body.categoryId);
                 const sId = parseInt(req.body.studentId);
@@ -136,20 +135,29 @@ exports.submitPayment = async (req, res, next) => {
                 // Fetch category details for amount validation or description
                 const category = await tx.billingCategory.findUnique({ where: { id: catId } });
 
-                // Create Ad-hoc Billing
-                const newBilling = await tx.billing.create({
-                    data: {
-                        studentId: sId,
-                        billingMonth: 'Adhoc',
-                        amount: parseFloat(amountPaid), // Use paid amount or category amount
-                        status: paymentMethod === 'CASH' ? 'PAID' : 'PENDING',
-                        categoryId: catId
-                    }
+                // DUP-CHECK: See if there is an existing UNPAID/PENDING bill for this student and category
+                let targetBilling = await tx.billing.findFirst({
+                    where: { studentId: sId, categoryId: catId, status: { in: ['UNPAID', 'PENDING', 'OVERDUE'] } }
                 });
 
+                if (targetBilling) {
+                    // Reuse found
+                } else {
+                    // Create NEW Ad-hoc Billing if none exists
+                    targetBilling = await tx.billing.create({
+                        data: {
+                            studentId: sId,
+                            billingMonth: 'Adhoc',
+                            amount: parseFloat(amountPaid), // Use paid amount
+                            status: paymentMethod === 'CASH' ? 'PAID' : 'PENDING',
+                            categoryId: catId
+                        }
+                    });
+                }
+
                 // Add to billingIds list for linking
-                if (!billingIds.includes(newBilling.id)) {
-                    billingIds.push(newBilling.id);
+                if (!billingIds.includes(targetBilling.id)) {
+                    billingIds.push(targetBilling.id);
                 }
             }
 

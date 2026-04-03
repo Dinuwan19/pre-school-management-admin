@@ -65,30 +65,11 @@ const PaymentsScreen = ({ navigation }) => {
             const data = await getChildBillings(studentId);
             // Handle both legacy array and new object response { billings, payments }
             if (Array.isArray(data)) {
-                const filtered = data.filter(b => b.studentId === studentId);
+                const filtered = data.filter(b => b.studentId == studentId);
                 setBillings(filtered);
             } else {
-                const bList = data.billings?.filter(b => b.studentId === studentId) || [];
-                const pList = data.payments || [];
-                
-                // Merge unlinked payments into billings state for display
-                const unlinkedAsBillings = pList
-                    .filter(p => p.isUnlinked)
-                    .map(p => ({
-                        id: `PAY-${p.id}`,
-                        studentId,
-                        amount: p.amountPaid,
-                        status: p.status === 'APPROVED' ? 'PAID' : 'PENDING',
-                        billingMonth: 'Adhoc',
-                        createdAt: p.createdAt,
-                        updatedAt: p.verifiedAt || p.createdAt,
-                        isUnlinked: true, // Tag for naming logic
-                        extractedName: p.extractedCategory || 'Direct Payment',
-                        transactionRef: p.transactionRef,
-                        invoiceUrl: p.invoiceUrl || p.receiptUrl
-                    }));
-                
-                setBillings([...bList, ...unlinkedAsBillings]);
+                const bList = data.billings?.filter(b => b.studentId == studentId) || [];
+                setBillings(bList);
             }
         } catch (error) {
             console.error(error);
@@ -130,17 +111,16 @@ const PaymentsScreen = ({ navigation }) => {
             // B. Extra Payments (Uniforms, etc.)
             // Logic: 
             // 1. If PAID, show it in the month it was PAID (updatedAt).
-            // 2. If UNPAID, show it in the Issued Month (createdAt) AND the CURRENT Month (so they don't miss it).
+            // 2. If UNPAID/PENDING, show it in its Issued Month OR the REAL Current Month (persistent reminder).
             
-            const isCurrentMonth = selectedMonth.isSame(dayjs(), 'month');
-            const isWithin30DaysOfPayment = b.status === 'PAID' && dayjs().diff(dayjs(b.updatedAt), 'day') <= 30;
+            const isSelectedMonthCurrent = selectedMonth.isSame(dayjs(), 'month');
+            const isRecentlyPaid = b.status === 'PAID' && dayjs().diff(dayjs(b.updatedAt), 'day') <= 30;
             
             if (b.status === 'PAID') {
-                // Show in the month it was paid OR consistently in the current month if recently paid (last 30 days)
-                return dayjs(b.updatedAt).isSame(selectedMonth, 'month') || (isCurrentMonth && isWithin30DaysOfPayment);
+                return dayjs(b.updatedAt).isSame(selectedMonth, 'month') || (isSelectedMonthCurrent && isRecentlyPaid);
             } else {
-                // Always show UNPAID items in the current month as a reminder, or in their issued month
-                return dayjs(b.createdAt).isSame(selectedMonth, 'month') || isCurrentMonth;
+                // Persistent reminder: Show in its issued month OR always show in the current real-world month
+                return dayjs(b.createdAt).isSame(selectedMonth, 'month') || isSelectedMonthCurrent;
             }
         });
 
@@ -309,13 +289,16 @@ const PaymentsScreen = ({ navigation }) => {
 
                             {filteredBillings.length > 0 ? (
                                 filteredBillings.map((bill) => {
-                                    // Naming Logic
-                                    const isMonthly = !bill.categoryId && !bill.billingCategory && !bill.isUnlinked;
-                                    const displayName = bill.isUnlinked
-                                        ? bill.extractedName
-                                        : isMonthly
-                                            ? `Monthly Fee (${bill.billingMonth})`
-                                            : (bill.billingCategory?.name || 'Extra Payment');
+                                    // Naming Logic with typo-fix
+                                    const isMonthly = !bill.categoryId && !bill.billingCategory;
+                                    let displayName = isMonthly
+                                        ? `Monthly Fee (${bill.billingMonth})`
+                                        : (bill.billingCategory?.name || 'Extra Payment');
+
+                                    // Typo fix for Uniform
+                                    if (displayName?.toLowerCase()?.includes('unifrom')) {
+                                        displayName = 'Uniform Fee';
+                                    }
 
                                     return (
                                         <View key={bill.id} style={styles.detailCard}>

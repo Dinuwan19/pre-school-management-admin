@@ -430,7 +430,12 @@ exports.getParentBillings = async (req, res, next) => {
                     { parentId: parentRecord.id },
                     { secondParentId: parentRecord.id }
                 ],
-                ...(studentId ? { id: parseInt(studentId) } : {})
+                ...(studentId ? {
+                    OR: [
+                        { id: !isNaN(parseInt(studentId)) ? parseInt(studentId) : -1 },
+                        { studentUniqueId: studentId }
+                    ]
+                } : {})
             },
             select: { id: true, fullName: true, studentUniqueId: true }
         });
@@ -481,12 +486,7 @@ exports.getParentBillings = async (req, res, next) => {
         // Return object structure
         res.json({
             billings,
-            payments: payments.map(p => ({
-                ...p,
-                isUnlinked: p.billingpayment?.length === 0,
-                // Add a helper for the frontend to identify the category from the note if unlinked
-                extractedCategory: p.billingpayment?.length === 0 ? (p.transactionRef?.match(/\[Type:\s(.*?)]/)?.[1] || 'Direct Payment') : null
-            }))
+            payments
         });
     } catch (error) {
         next(error);

@@ -28,7 +28,7 @@ export const getChildBillings = async (studentId) => {
         // If it's the new unified object { billings, payments, stats }
         return {
             ...response.data,
-            billings: response.data.billings?.filter(b => b.studentId === studentId) || [],
+            billings: response.data.billings?.filter(b => b.studentId == studentId) || [],
             payments: response.data.payments?.filter(p => true) // All payments for this student context
         };
     } catch (error) {
