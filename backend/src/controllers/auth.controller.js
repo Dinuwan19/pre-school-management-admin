@@ -32,17 +32,18 @@ exports.login = async (req, res, next) => {
 
         // Portal Role Isolation
         if (intendedRole) {
+            // Check if a parent is trying to access Admin/Teacher portals
+            if (user.role === 'PARENT' && (intendedRole === 'ADMIN' || intendedRole === 'TEACHER')) {
+                return res.status(403).json({ message: 'Access denied: Parents must use the mobile application.' });
+            }
+
             if (intendedRole === 'ADMIN' && !(user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')) {
                 return res.status(403).json({ message: 'Access Denied: Only Admins can access this section.' });
             }
+
             if (intendedRole === 'TEACHER' && !(user.role === 'TEACHER' || user.role === 'STAFF')) {
                 return res.status(403).json({ message: 'Access Denied: Only Teachers can access this section.' });
             }
-        }
-
-        // Admin Portal: Block PARENT role (redundancy check)
-        if (user.role === 'PARENT') {
-            return res.status(403).json({ message: 'Access denied: Parents must use the mobile application.' });
         }
 
         let isMatch = await bcrypt.compare(password, user.password);
