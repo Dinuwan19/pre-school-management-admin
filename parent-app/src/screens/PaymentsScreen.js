@@ -63,10 +63,33 @@ const PaymentsScreen = ({ navigation }) => {
     const fetchBillings = async (studentId) => {
         try {
             const data = await getChildBillings(studentId);
-            // Handle both legacy array and new object response
-            const billingList = Array.isArray(data) ? data : (data.billings || []);
-            const filtered = billingList.filter(b => b.studentId === studentId);
-            setBillings(filtered);
+            // Handle both legacy array and new object response { billings, payments }
+            if (Array.isArray(data)) {
+                const filtered = data.filter(b => b.studentId === studentId);
+                setBillings(filtered);
+            } else {
+                const bList = data.billings?.filter(b => b.studentId === studentId) || [];
+                const pList = data.payments || [];
+                
+                // Merge unlinked payments into billings state for display
+                const unlinkedAsBillings = pList
+                    .filter(p => p.isUnlinked)
+                    .map(p => ({
+                        id: `PAY-${p.id}`,
+                        studentId,
+                        amount: p.amountPaid,
+                        status: p.status === 'APPROVED' ? 'PAID' : 'PENDING',
+                        billingMonth: 'Adhoc',
+                        createdAt: p.createdAt,
+                        updatedAt: p.verifiedAt || p.createdAt,
+                        isUnlinked: true, // Tag for naming logic
+                        extractedName: p.extractedCategory || 'Direct Payment',
+                        transactionRef: p.transactionRef,
+                        invoiceUrl: p.invoiceUrl || p.receiptUrl
+                    }));
+                
+                setBillings([...bList, ...unlinkedAsBillings]);
+            }
         } catch (error) {
             console.error(error);
         }
@@ -287,10 +310,12 @@ const PaymentsScreen = ({ navigation }) => {
                             {filteredBillings.length > 0 ? (
                                 filteredBillings.map((bill) => {
                                     // Naming Logic
-                                    const isMonthly = !bill.categoryId && !bill.billingCategory;
-                                    const displayName = isMonthly
-                                        ? `Monthly Fee (${bill.billingMonth})`
-                                        : (bill.billingCategory?.name || 'Extra Payment');
+                                    const isMonthly = !bill.categoryId && !bill.billingCategory && !bill.isUnlinked;
+                                    const displayName = bill.isUnlinked
+                                        ? bill.extractedName
+                                        : isMonthly
+                                            ? `Monthly Fee (${bill.billingMonth})`
+                                            : (bill.billingCategory?.name || 'Extra Payment');
 
                                     return (
                                         <View key={bill.id} style={styles.detailCard}>

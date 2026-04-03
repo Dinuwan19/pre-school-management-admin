@@ -1,0 +1,5 @@
+--- Billings for Student 5 ---
+ID: 27 | Month: 2026-03 | Amt: 15000 | Status: PAID | Cat: Monthly Fee
+ID: 29 | Month: Adhoc | Amt: 1000 | Status: PAID | Cat: Monthly Fee
+ID: 38 | Month: 2026-04 | Amt: 15000 | Status: PAID | Cat: Monthly Fee
+ID: 41 | Month: 2026-02 | Amt: 15000 | Status: OVERDUE | Cat: Monthly Fee

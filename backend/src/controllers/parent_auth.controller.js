@@ -481,7 +481,12 @@ exports.getParentBillings = async (req, res, next) => {
         // Return object structure
         res.json({
             billings,
-            payments
+            payments: payments.map(p => ({
+                ...p,
+                isUnlinked: p.billingpayment?.length === 0,
+                // Add a helper for the frontend to identify the category from the note if unlinked
+                extractedCategory: p.billingpayment?.length === 0 ? (p.transactionRef?.match(/\[Type:\s(.*?)]/)?.[1] || 'Direct Payment') : null
+            }))
         });
     } catch (error) {
         next(error);
