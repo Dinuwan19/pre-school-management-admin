@@ -196,8 +196,8 @@ const Classrooms = () => {
                             </Form.Item>
                         </Col>
                         <Col span={12}>
-                            <Form.Item name="capacity" label="Capacity" initialValue={20}>
-                                <InputNumber style={{ width: '100%' }} min={1} />
+                            <Form.Item name="capacity" label="Capacity" initialValue={20} rules={[{ required: true }]}>
+                                <InputNumber style={{ width: '100%' }} min={1} max={50} />
                             </Form.Item>
                         </Col>
                     </Row>

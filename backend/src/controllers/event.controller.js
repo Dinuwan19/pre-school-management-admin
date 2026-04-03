@@ -1,10 +1,23 @@
 const prisma = require('../config/prisma');
 const { uploadFile } = require('../services/storage.service');
 const auditService = require('../services/audit.service');
+const dayjs = require('dayjs');
 
 exports.createEvent = async (req, res, next) => {
     try {
         const { title, description, eventDate, startTime, endTime, location, targetClassroomIds } = req.body;
+        
+        // Date Validation: ±1 month window
+        if (eventDate) {
+            const eDate = dayjs(eventDate);
+            const now = dayjs();
+            if (eDate.isBefore(now.subtract(1, 'month'), 'day')) {
+                return res.status(400).json({ message: 'Events cannot be created more than 1 month in the past.' });
+            }
+            if (eDate.isAfter(now.add(1, 'month'), 'day')) {
+                return res.status(400).json({ message: 'Events cannot be scheduled more than 1 month in the future.' });
+            }
+        }
         const isTeacher = req.user.role === 'TEACHER';
 
         // If Teacher, status is PENDING. If Admin, status is UPCOMING (Published).

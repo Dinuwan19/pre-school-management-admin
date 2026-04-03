@@ -3,6 +3,10 @@ const bcrypt = require('bcryptjs');
 const { sendTempPasswordEmail } = require('../services/mailer.service');
 const { uploadFile } = require('../services/storage.service');
 const { logAction } = require('../services/audit.service');
+const dayjs = require('dayjs');
+
+const NIC_REGEX = /^([0-9]{9}[vVxX]|(19|20)[0-9]{10})$/;
+const EMAIL_REGEX = /^[^\s@]+@(gmail\.com|yahoo\.com|outlook\.com|icloud\.com)$/i;
 
 exports.getAllStaff = async (req, res, next) => {
     try {
@@ -29,7 +33,36 @@ exports.getAllStaff = async (req, res, next) => {
 
 exports.createStaff = async (req, res, next) => {
     try {
-        const { fullName, email, phone, role, address, nationalId, joiningDate, classroomIds, qualification, designation, qualifications } = req.body;
+        const { fullName, email, phone, role: inputRole, address, nationalId, joiningDate, classroomIds, qualification, designation, qualifications } = req.body;
+        const role = inputRole || 'TEACHER';
+
+        // 1. Mandatory Fields Validation
+        if (!email || !nationalId || !address || !fullName) {
+            return res.status(400).json({ message: 'Full Name, Email, NIC Number, and Address are mandatory for all staff.' });
+        }
+
+        // 2. NIC Format Validation
+        const cleanNIC = nationalId.trim().toUpperCase();
+        if (!NIC_REGEX.test(cleanNIC)) {
+            return res.status(400).json({ message: 'Invalid NIC Format. Use 9 digits with V/X or 12 digits starting with 19/20.' });
+        }
+
+        // 3. Email Domain Validation
+        if (!EMAIL_REGEX.test(email)) {
+            return res.status(400).json({ message: 'Please use a valid email address from supported providers (Gmail, Yahoo, Outlook, iCloud).' });
+        }
+
+        // 4. Joining Date Validation
+        if (joiningDate) {
+            const jDate = dayjs(joiningDate);
+            const now = dayjs();
+            if (jDate.isAfter(now, 'day')) {
+                return res.status(400).json({ message: 'Joining date cannot be in the future.' });
+            }
+            if (jDate.isBefore(now.subtract(1, 'month'), 'day')) {
+                return res.status(400).json({ message: 'Joining date cannot be more than 1 month in the past.' });
+            }
+        }
 
         // 1. Pre-check for duplicate Email or Phone
         if (email || phone) {
@@ -202,7 +235,27 @@ exports.updateStaff = async (req, res, next) => {
         }
 
         if (userData.joiningDate) {
-            userData.joiningDate = new Date(userData.joiningDate);
+            const jDate = dayjs(userData.joiningDate);
+            const now = dayjs();
+            if (jDate.isAfter(now, 'day')) {
+                return res.status(400).json({ message: 'Joining date cannot be in the future.' });
+            }
+            if (jDate.isBefore(now.subtract(1, 'month'), 'day')) {
+                return res.status(400).json({ message: 'Joining date cannot be more than 1 month in the past.' });
+            }
+            userData.joiningDate = jDate.toDate();
+        }
+
+        if (userData.nationalId) {
+            const cleanNIC = userData.nationalId.trim().toUpperCase();
+            if (!NIC_REGEX.test(cleanNIC)) {
+                return res.status(400).json({ message: 'Invalid NIC Format. Use 9 digits with V/X or 12 digits starting with 19/20.' });
+            }
+            userData.nationalId = cleanNIC;
+        }
+
+        if (userData.email && !EMAIL_REGEX.test(userData.email)) {
+            return res.status(400).json({ message: 'Please use a valid email address from supported providers (Gmail, Yahoo, Outlook, iCloud).' });
         }
 
         // Handle uploaded files (Supabase) - Photo removed for staff

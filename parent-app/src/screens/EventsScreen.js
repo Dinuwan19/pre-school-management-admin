@@ -17,7 +17,7 @@ const EventCard = React.memo(({ item, onPress, getMediaUri }) => (
     <TouchableOpacity style={styles.card} onPress={onPress}>
         {item.mediaUrl && (
             <Image
-                source={{ uri: item.mediaUrl.startsWith('http') ? item.mediaUrl : `${BASE_URL}${item.mediaUrl}` }}
+                source={{ uri: item.mediaUrl.startsWith('http') ? item.mediaUrl : (item.mediaUrl.startsWith('/uploads') ? `${BASE_URL}/api${item.mediaUrl}` : `${BASE_URL}${item.mediaUrl}`) }}
                 style={styles.commImage}
                 resizeMode="cover"
             />
@@ -74,7 +74,8 @@ const EventsScreen = ({ navigation }) => {
 
     const getMediaUri = useCallback((path) => {
         if (!path) return null;
-        return path.startsWith('http') ? path : `${BASE_URL}${path}`;
+        if (path.startsWith('http')) return path;
+        return path.startsWith('/uploads') ? `${BASE_URL}/api${path}` : `${BASE_URL}${path}`;
     }, []);
 
     // ... (Downloading & Modal logic remains same)
@@ -150,7 +151,7 @@ const EventsScreen = ({ navigation }) => {
                             {selectedEvent?.mediaUrl && (
                                 <TouchableOpacity
                                     activeOpacity={0.9}
-                                    onPress={() => openImageFullscreen(selectedEvent.mediaUrl.startsWith('http') ? selectedEvent.mediaUrl : `${BASE_URL}${selectedEvent.mediaUrl}`)}
+                                    onPress={() => openImageFullscreen(selectedEvent.mediaUrl.startsWith('http') ? selectedEvent.mediaUrl : (selectedEvent.mediaUrl.startsWith('/uploads') ? `${BASE_URL}/api${selectedEvent.mediaUrl}` : `${BASE_URL}${selectedEvent.mediaUrl}`))}
                                 >
                                     <Image
                                         source={{ uri: getMediaUri(selectedEvent.mediaUrl) }}
@@ -191,7 +192,7 @@ const EventsScreen = ({ navigation }) => {
                                                 key={media.id}
                                                 style={styles.galleryItem}
                                                 onPress={() => {
-                                                    const uri = media.url.startsWith('http') ? media.url : `${BASE_URL}${media.url}`;
+                                                    const uri = media.url.startsWith('http') ? media.url : (media.url.startsWith('/uploads') ? `${BASE_URL}/api${media.url}` : `${BASE_URL}${media.url}`);
                                                     if (media.type === 'IMAGE') {
                                                         openImageFullscreen(uri);
                                                     } else {

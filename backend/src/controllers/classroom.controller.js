@@ -4,11 +4,17 @@ const { logAction } = require('../services/audit.service');
 exports.createClassroom = async (req, res, next) => {
     try {
         const { name, ageGroup, capacity, mealPlan } = req.body;
+        const finalCapacity = parseInt(capacity);
+        
+        if (finalCapacity > 50) {
+            return res.status(400).json({ message: 'Classroom capacity cannot exceed 50 students.' });
+        }
+
         const classroom = await prisma.classroom.create({
             data: {
                 name,
                 ageGroup,
-                capacity: parseInt(capacity),
+                capacity: finalCapacity,
                 mealPlan,
                 status: 'ACTIVE'
             },
@@ -104,11 +110,17 @@ exports.getClassroomById = async (req, res, next) => {
 exports.updateClassroom = async (req, res, next) => {
     try {
         const { id } = req.params;
+        const finalCapacity = req.body.capacity ? parseInt(req.body.capacity) : undefined;
+        
+        if (finalCapacity > 50) {
+            return res.status(400).json({ message: 'Classroom capacity cannot exceed 50 students.' });
+        }
+
         const classroom = await prisma.classroom.update({
             where: { id: parseInt(id) },
             data: {
                 ...req.body,
-                capacity: req.body.capacity ? parseInt(req.body.capacity) : undefined
+                capacity: finalCapacity
             },
         });
 

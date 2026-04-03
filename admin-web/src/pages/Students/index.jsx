@@ -387,22 +387,39 @@ Instructions:
                                     { required: true, message: 'DOB is required' },
                                     {
                                         validator: (_, value) => {
-                                            if (value && value.isAfter(dayjs())) {
-                                                return Promise.reject(new Error('DOB cannot be a future date'));
+                                            if (!value) return Promise.resolve();
+                                            const age = dayjs().diff(value, 'year', true);
+                                            if (age < 3 || age > 6) {
+                                                return Promise.reject(new Error('Student must be between 3 and 6 years old'));
                                             }
                                             return Promise.resolve();
                                         }
                                     }
                                 ]}
                             >
-                                <DatePicker style={{ width: '100%' }} disabledDate={(current) => current && current > dayjs().endOf('day')} />
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    disabledDate={(current) => {
+                                        return current && (current > dayjs().subtract(3, 'year').endOf('day') || current < dayjs().subtract(6, 'year').startOf('day'));
+                                    }}
+                                />
                             </Form.Item>
                         </Col>
                     </Row>
                     <Row gutter={24}>
                         <Col span={12}>
-                            <Form.Item name="enrollmentDate" label="Enrollment Date" initialValue={dayjs()}>
-                                <DatePicker style={{ width: '100%' }} />
+                            <Form.Item
+                                name="enrollmentDate"
+                                label="Enrollment Date"
+                                initialValue={dayjs()}
+                                rules={[{ required: true }]}
+                            >
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    disabledDate={(current) => {
+                                        return current && (current > dayjs().endOf('day') || current < dayjs().subtract(1, 'month').startOf('day'));
+                                    }}
+                                />
                             </Form.Item>
                         </Col>
                         <Col span={12}>
@@ -458,7 +475,7 @@ Instructions:
 
                     <Row gutter={16}>
                         <Col span={12}>
-                            <Form.Item
+                             <Form.Item
                                 name="nationalId"
                                 label="NIC Number"
                                 rules={[
@@ -471,7 +488,7 @@ Instructions:
                                             const isNew = /^[0-9]{12}$/.test(val);
 
                                             if (!isOld && !isNew) {
-                                                return Promise.reject(new Error('Format: 99xxxxxxxV or 19xxxxxxxxxx'));
+                                                return Promise.reject(new Error('Format: 9 digits + V/X OR 12 digits'));
                                             }
 
                                             if (isNew && !(val.startsWith('19') || val.startsWith('20'))) {
@@ -496,14 +513,23 @@ Instructions:
                             </Form.Item>
                         </Col>
                     </Row>
-                    <Row gutter={16}>
+                     <Row gutter={16}>
                         <Col span={12}>
                             <Form.Item
                                 name="phone"
                                 label="Phone Number"
                                 rules={[
                                     { required: true, message: 'Phone is required' },
-                                    { pattern: /^(07|947)[0-9]{8}$/, message: 'Format: 07xxxxxxxx' }
+                                    {
+                                        validator: (_, value) => {
+                                            if (!value) return Promise.resolve();
+                                            const cleaned = value.replace(/[^0-9]/g, '');
+                                            if (!/^(07|947)[0-9]{8}$/.test(cleaned)) {
+                                                return Promise.reject(new Error('Format: 07XXXXXXXX or 947XXXXXXXX'));
+                                            }
+                                            return Promise.resolve();
+                                        }
+                                    }
                                 ]}
                             >
                                 <Input placeholder="07XXXXXXXX" />
@@ -512,8 +538,22 @@ Instructions:
                         <Col span={12}>
                             <Form.Item
                                 name="email"
-                                label="Email (Optional)"
-                                rules={[{ type: 'email' }]}
+                                label="Email Address"
+                                rules={[
+                                    { required: true, message: 'Email is mandatory' },
+                                    { type: 'email', message: 'Invalid format' },
+                                    {
+                                        validator: (_, value) => {
+                                            if (!value) return Promise.resolve();
+                                            const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'icloud.com'];
+                                            const domain = value.split('@')[1];
+                                            if (domain && !allowedDomains.includes(domain.toLowerCase())) {
+                                                return Promise.reject(new Error('Providers: Gmail, Yahoo, Outlook, iCloud'));
+                                            }
+                                            return Promise.resolve();
+                                        }
+                                    }
+                                ]}
                             >
                                 <Input placeholder="parent@example.com" />
                             </Form.Item>

@@ -93,7 +93,19 @@ const ResetPassword = () => {
                             <Form.Item
                                 label={<span style={{ color: '#444', fontWeight: 600, fontSize: 13 }}>NEW PASSWORD</span>}
                                 name="newPassword"
-                                rules={[{ required: true }, { min: 6, message: 'Password must be at least 6 characters' }]}
+                                rules={[
+                                    { required: true, message: 'New password is required' },
+                                    {
+                                        validator: (_, value) => {
+                                            if (!value) return Promise.resolve();
+                                            const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+                                            if (!regex.test(value)) {
+                                                return Promise.reject(new Error('Min 8 chars, 1 Uppercase, 1 Lowercase, 1 Number & 1 Special Char'));
+                                            }
+                                            return Promise.resolve();
+                                        }
+                                    }
+                                ]}
                             >
                                 <Input.Password
                                     prefix={<LockOutlined style={{ color: '#aaa', marginRight: 8 }} />}

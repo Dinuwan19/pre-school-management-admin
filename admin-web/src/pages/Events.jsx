@@ -525,7 +525,12 @@ const Events = () => {
                     <Row gutter={16}>
                         <Col span={12}>
                             <Form.Item name="eventDate" label="Date" rules={[{ required: true }]}>
-                                <DatePicker style={{ width: '100%' }} />
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    disabledDate={(current) => {
+                                        return current && (current > dayjs().add(1, 'month').endOf('day') || current < dayjs().subtract(1, 'month').startOf('day'));
+                                    }}
+                                />
                             </Form.Item>
                         </Col>
                         <Col span={12}>

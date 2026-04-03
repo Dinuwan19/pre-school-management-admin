@@ -46,7 +46,7 @@ const Login = () => {
             setLoading(true);
             setError('');
             // Attempt login
-            const result = await login(values.username, values.password);
+            const result = await login(values.username, values.password, selectedRole);
             setLoading(false);
 
             if (result.success) {
@@ -291,7 +291,19 @@ const Login = () => {
                             <Form.Item
                                 label="NEW PASSWORD"
                                 name="newPassword"
-                                rules={[{ required: true }, { min: 6, message: 'Minimum 6 characters' }]}
+                                rules={[
+                                    { required: true, message: 'New password is required' },
+                                    {
+                                        validator: (_, value) => {
+                                            if (!value) return Promise.resolve();
+                                            const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+                                            if (!regex.test(value)) {
+                                                return Promise.reject(new Error('Min 8 chars, 1 Uppercase, 1 Lowercase, 1 Number & 1 Special Char'));
+                                            }
+                                            return Promise.resolve();
+                                        }
+                                    }
+                                ]}
                             >
                                 <Input.Password placeholder="••••••••" style={{ background: colorBgLayout, border: `1px solid ${colorBorder}`, color: colorText }} />
                             </Form.Item>

@@ -5,6 +5,9 @@ const crypto = require('crypto');
 const { logAction } = require('../services/audit.service');
 const { generateOTP, generateTempPassword, hashToken } = require('../utils/auth.utils');
 const { sendTempPasswordEmail, sendOTPEmail } = require('../services/mailer.service');
+const dayjs = require('dayjs');
+
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
 const generateToken = (user) => {
     return jwt.sign(
@@ -16,7 +19,7 @@ const generateToken = (user) => {
 
 exports.login = async (req, res, next) => {
     try {
-        const { username, password } = req.body;
+        const { username, password, intendedRole } = req.body;
 
         const user = await prisma.user.findUnique({
             where: { username },
@@ -27,13 +30,19 @@ exports.login = async (req, res, next) => {
             return res.status(401).json({ message: 'Invalid credentials or inactive account' });
         }
 
-        // Parent specific verification check
-        if (user.role === 'PARENT' && !user.isEmailVerified) {
-            return res.status(403).json({
-                message: 'Your email is not verified yet.',
-                requiresVerification: true,
-                userId: user.id
-            });
+        // Portal Role Isolation
+        if (intendedRole) {
+            if (intendedRole === 'ADMIN' && !(user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')) {
+                return res.status(403).json({ message: 'Access Denied: Only Admins can access this section.' });
+            }
+            if (intendedRole === 'TEACHER' && !(user.role === 'TEACHER' || user.role === 'STAFF')) {
+                return res.status(403).json({ message: 'Access Denied: Only Teachers can access this section.' });
+            }
+        }
+
+        // Admin Portal: Block PARENT role (redundancy check)
+        if (user.role === 'PARENT') {
+            return res.status(403).json({ message: 'Access denied: Parents must use the mobile application.' });
         }
 
         let isMatch = await bcrypt.compare(password, user.password);
@@ -90,6 +99,10 @@ exports.changePassword = async (req, res, next) => {
         const isMatch = await bcrypt.compare(currentPassword, user.password);
         if (!isMatch) return res.status(400).json({ message: 'Incorrect current password' });
 
+        if (!PASSWORD_REGEX.test(newPassword)) {
+            return res.status(400).json({ message: 'Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters.' });
+        }
+
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         await prisma.user.update({
             where: { id: userId },
@@ -121,15 +134,23 @@ exports.register = async (req, res, next) => {
             return res.status(400).json({ message: 'Username already exists' });
         }
 
-        // Generate temporary password
-        const tempRawPassword = generateTempPassword();
+        // Generate secure 10-character alphanumeric temporary password meeting new standards
+        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+        const tempRawPassword = Array.from({ length: 12 }, (v, k) => {
+            if (k === 0) return "A"; // Force uppercase
+            if (k === 1) return "a"; // Force lowercase
+            if (k === 2) return "1"; // Force number
+            if (k === 3) return "!"; // Force special
+            return charset[Math.floor(Math.random() * charset.length)];
+        }).sort(() => Math.random() - 0.5).join('');
+
         const hashedPassword = await bcrypt.hash(tempRawPassword, 10);
 
         const user = await prisma.user.create({
             data: {
                 username,
                 email,
-                password: hashedPassword, // Store initially as standard password for first login
+                password: hashedPassword,
                 role: role || 'TEACHER',
                 fullName,
                 firstLogin: true,

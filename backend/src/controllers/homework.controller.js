@@ -1,8 +1,21 @@
 const prisma = require('../config/prisma');
+const dayjs = require('dayjs');
 
 exports.createHomework = async (req, res, next) => {
     try {
         const { title, description, dueDate, classroomId } = req.body;
+        
+        // Date Validation
+        if (dueDate) {
+            const dDate = dayjs(dueDate);
+            const now = dayjs();
+            if (dDate.isBefore(now, 'day')) {
+                return res.status(400).json({ message: 'Homework due date cannot be in the past.' });
+            }
+            if (dDate.isAfter(now.add(1, 'month'), 'day')) {
+                return res.status(400).json({ message: 'Homework due date cannot be more than 1 month in the future.' });
+            }
+        }
         const createdById = req.user.id;
 
         // Scoping for Teacher/Staff

@@ -183,7 +183,12 @@ const Expenses = () => {
                         <Input type="number" prefix="Rs." />
                     </Form.Item>
                     <Form.Item name="expenseDate" label="Expense Date" rules={[{ required: true }]} initialValue={dayjs()}>
-                        <DatePicker style={{ width: '100%' }} />
+                        <DatePicker
+                            style={{ width: '100%' }}
+                            disabledDate={(current) => {
+                                return current && (current > dayjs().endOf('day') || current < dayjs().subtract(1, 'month').startOf('day'));
+                            }}
+                        />
                     </Form.Item>
                     <Form.Item name="description" label="Description">
                         <Input.TextArea rows={3} placeholder="Add details about this expense..." />

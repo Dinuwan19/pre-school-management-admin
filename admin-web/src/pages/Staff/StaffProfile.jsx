@@ -233,10 +233,66 @@ const StaffProfile = () => {
                 }}>
                     <Row gutter={16}>
                         <Col span={12}><Form.Item name="fullName" label="Full Name" rules={[{ required: true }]}><Input /></Form.Item></Col>
-                        <Col span={12}><Form.Item name="email" label="Email"><Input /></Form.Item></Col>
+                        <Col span={12}>
+                            <Form.Item
+                                name="email"
+                                label="Email Address"
+                                rules={[
+                                    { required: true, message: 'Email is required' },
+                                    { type: 'email', message: 'Invalid format' },
+                                    {
+                                        validator: (_, value) => {
+                                            if (!value) return Promise.resolve();
+                                            const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'icloud.com'];
+                                            const domain = value.split('@')[1];
+                                            if (domain && !allowedDomains.includes(domain.toLowerCase())) {
+                                                return Promise.reject(new Error('Providers: Gmail, Yahoo, Outlook, iCloud'));
+                                            }
+                                            return Promise.resolve();
+                                        }
+                                    }
+                                ]}
+                            >
+                                <Input />
+                            </Form.Item>
+                        </Col>
                         <Col span={12}><Form.Item name="phone" label="Phone" rules={[{ required: true }]}><Input /></Form.Item></Col>
-                        <Col span={12}><Form.Item name="nationalId" label="National ID (NIC)"><Input /></Form.Item></Col>
-                        <Col span={12}><Form.Item name="joiningDate" label="Joining Date"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+                        <Col span={12}>
+                            <Form.Item
+                                name="nationalId"
+                                label="National ID (NIC)"
+                                rules={[
+                                    { required: true, message: 'NIC is mandatory' },
+                                    {
+                                        validator: (_, value) => {
+                                            if (!value) return Promise.resolve();
+                                            const val = value.toUpperCase();
+                                            const isOld = /^[0-9]{9}[V|X]$/.test(val);
+                                            const isNew = /^[0-9]{12}$/.test(val);
+                                            if (!isOld && !isNew) {
+                                                return Promise.reject(new Error('Format: 9 digits + V/X OR 12 digits'));
+                                            }
+                                            if (isNew && !(val.startsWith('19') || val.startsWith('20'))) {
+                                                return Promise.reject(new Error('12-digit NIC must start with 19 or 20'));
+                                            }
+                                            return Promise.resolve();
+                                        }
+                                    }
+                                ]}
+                            >
+                                <Input />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item name="joiningDate" label="Joining Date" rules={[{ required: true }]}>
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    disabledDate={(current) => {
+                                        return current && (current > dayjs().endOf('day') || current < dayjs().subtract(1, 'month').startOf('day'));
+                                    }}
+                                />
+                            </Form.Item>
+                        </Col>
                         <Col span={12}><Form.Item name="role" label="Role"><Select><Option value="ADMIN">Admin</Option><Option value="TEACHER">Teacher</Option></Select></Form.Item></Col>
                         {staff.role === 'TEACHER' && (
                             <Col span={24}>

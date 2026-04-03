@@ -29,7 +29,7 @@ import { getParentMeetings } from '../services/meeting.service';
 import { getAvatarSource } from '../constants/avatars';
 
 const { width } = Dimensions.get('window');
-const BASE_URL = api.defaults.baseURL.replace('/api', '');
+const BASE_URL = api.defaults.baseURL;
 
 const UpdatesScreen = ({ navigation }) => {
     // Data State
@@ -488,10 +488,10 @@ const UpdatesScreen = ({ navigation }) => {
                             {selectedItem?.type === 'Event' && selectedItem?.mediaUrl && (
                                 <TouchableOpacity
                                     activeOpacity={0.9}
-                                    onPress={() => openImageFullscreen(selectedItem.mediaUrl.startsWith('http') ? selectedItem.mediaUrl : `${BASE_URL}${selectedItem.mediaUrl}`)}
+                                    onPress={() => openImageFullscreen(selectedItem.mediaUrl.startsWith('http') ? selectedItem.mediaUrl : (selectedItem.mediaUrl.startsWith('/uploads') ? `${BASE_URL}${selectedItem.mediaUrl}` : `${BASE_URL.replace('/api', '')}${selectedItem.mediaUrl}`))}
                                 >
                                     <Image
-                                        source={{ uri: selectedItem.mediaUrl.startsWith('http') ? selectedItem.mediaUrl : `${BASE_URL}${selectedItem.mediaUrl}` }}
+                                        source={{ uri: selectedItem.mediaUrl.startsWith('http') ? selectedItem.mediaUrl : (selectedItem.mediaUrl.startsWith('/uploads') ? `${BASE_URL}${selectedItem.mediaUrl}` : `${BASE_URL.replace('/api', '')}${selectedItem.mediaUrl}`) }}
                                         style={styles.modalCover}
                                         resizeMode="cover"
                                     />
@@ -544,7 +544,7 @@ const UpdatesScreen = ({ navigation }) => {
                                                 key={media.id}
                                                 style={styles.galleryItem}
                                                 onPress={() => {
-                                                    const uri = media.url.startsWith('http') ? media.url : `${BASE_URL}${media.url}`;
+                                                    const uri = media.url.startsWith('http') ? media.url : (media.url.startsWith('/uploads') ? `${BASE_URL}${media.url}` : `${BASE_URL.replace('/api', '')}${media.url}`);
                                                     if (media.type === 'IMAGE') {
                                                         openImageFullscreen(uri);
                                                     } else {
@@ -554,7 +554,7 @@ const UpdatesScreen = ({ navigation }) => {
                                             >
                                                 {media.type === 'IMAGE' ? (
                                                     <Image
-                                                        source={{ uri: media.url.startsWith('http') ? media.url : `${BASE_URL}${media.url}` }}
+                                                        source={{ uri: media.url.startsWith('http') ? media.url : (media.url.startsWith('/uploads') ? `${BASE_URL}${media.url}` : `${BASE_URL.replace('/api', '')}${media.url}`) }}
                                                         style={styles.galleryImage}
                                                     />
                                                 ) : (

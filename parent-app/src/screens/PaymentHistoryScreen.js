@@ -20,7 +20,7 @@ import {
 import { ChevronLeft, ChevronRight, CreditCard, Calendar, Download, AlertCircle, CheckCircle2, Upload, Plus, X, User, ChevronDown, Check, CheckCircle, Lock } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
-import { BASE_URL } from '../config/api'; // Added BASE_URL import
+import { PROXY_BASE } from '../config/api'; // Added PROXY_BASE import
 import CommonHeader from '../components/CommonHeader'; // Added CommonHeader import
 import { AVATARS, getAvatarSource } from '../constants/avatars';
 import { getChildBillings, getLinkedChildren } from '../services/child.service';
@@ -403,7 +403,7 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                                 borderColor: isInvoice ? '#D8B4FE' : '#BAE6FD'
                             }}
                             onPress={() => {
-                                const finalUrl = downloadUrl.startsWith('http') ? downloadUrl : `${BASE_URL}${downloadUrl}`;
+                                const finalUrl = downloadUrl.startsWith('http') ? downloadUrl : `${PROXY_BASE}${downloadUrl}`;
                                 Linking.openURL(finalUrl).catch(err => Alert.alert('Error', 'Could not open link'));
                             }}
                         >

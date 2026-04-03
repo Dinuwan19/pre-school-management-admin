@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, Image, Dimensions, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getChildBillings, getLinkedChildren } from '../services/child.service';
 import { uploadPaymentReceipt } from '../services/payment.service';
@@ -22,6 +22,7 @@ import {
     Calendar // Added missing import
 } from 'lucide-react-native';
 
+import { PROXY_BASE } from '../config/api';
 const { width } = Dimensions.get('window');
 
 const PaymentsScreen = ({ navigation }) => {
@@ -109,11 +110,13 @@ const PaymentsScreen = ({ navigation }) => {
             // 2. If UNPAID, show it in the Issued Month (createdAt) AND the CURRENT Month (so they don't miss it).
             
             const isCurrentMonth = selectedMonth.isSame(dayjs(), 'month');
+            const isWithin30DaysOfPayment = b.status === 'PAID' && dayjs().diff(dayjs(b.updatedAt), 'day') <= 30;
             
             if (b.status === 'PAID') {
-                return dayjs(b.updatedAt).isSame(selectedMonth, 'month');
+                // Show in the month it was paid OR consistently in the current month if recently paid (last 30 days)
+                return dayjs(b.updatedAt).isSame(selectedMonth, 'month') || (isCurrentMonth && isWithin30DaysOfPayment);
             } else {
-                // Show in issued month OR always show in the current month if it's still unpaid
+                // Always show UNPAID items in the current month as a reminder, or in their issued month
                 return dayjs(b.createdAt).isSame(selectedMonth, 'month') || isCurrentMonth;
             }
         });
@@ -311,7 +314,18 @@ const PaymentsScreen = ({ navigation }) => {
                                                     </View>
                                                 )}
 
-                                                <TouchableOpacity style={styles.receiptBtn}>
+                                                <TouchableOpacity 
+                                                    style={styles.receiptBtn}
+                                                    onPress={() => {
+                                                        const invUrl = bill.billingpayment?.[0]?.payment?.invoiceUrl || bill.invoiceUrl || bill.receiptUrl;
+                                                        if (invUrl) {
+                                                            const finalUrl = invUrl.startsWith('http') ? invUrl : `${PROXY_BASE}${invUrl}`;
+                                                            Linking.openURL(finalUrl).catch(err => Alert.alert('Error', 'Could not open link'));
+                                                        } else {
+                                                            Alert.alert('Notice', 'No invoice available yet.');
+                                                        }
+                                                    }}
+                                                >
                                                     <Download size={14} color="#9D5BF0" />
                                                     <Text style={styles.receiptText}>Invoice</Text>
                                                 </TouchableOpacity>

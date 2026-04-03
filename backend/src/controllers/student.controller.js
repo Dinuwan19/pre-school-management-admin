@@ -18,6 +18,35 @@ exports.createStudent = async (req, res, next) => {
 
         const nameToUse = (fullName || `${firstName} ${lastName}`).trim();
         const studentDob = dob ? new Date(dob) : null;
+        const now = dayjs();
+
+        // 1. DOB Validation (3-6 years old)
+        if (studentDob) {
+            const ageInYears = now.diff(dayjs(studentDob), 'year', true);
+            if (ageInYears < 3 || ageInYears > 6) {
+                return res.status(400).json({ message: 'Student age must be between 3 and 6 years old.' });
+            }
+        }
+
+        // 2. Enrollment Date Validation
+        const eDate = enrollmentDate ? dayjs(enrollmentDate) : now;
+        if (eDate.isAfter(now, 'day')) {
+            return res.status(400).json({ message: 'Enrollment date cannot be in the future.' });
+        }
+        if (eDate.isBefore(now.subtract(1, 'month'), 'day')) {
+            return res.status(400).json({ message: 'Enrollment date cannot be more than 1 month in the past.' });
+        }
+
+        // 3. Classroom Capacity Check
+        const classroom = await prisma.classroom.findUnique({
+            where: { id: parseInt(classroomId) },
+            include: { _count: { select: { student: true } } }
+        });
+
+        if (!classroom) return res.status(404).json({ message: 'Classroom not found.' });
+        if (classroom._count.student >= classroom.capacity) {
+            return res.status(400).json({ message: `Classroom "${classroom.name}" is already at full capacity (${classroom.capacity}).` });
+        }
 
         // 1. Pre-check for potential duplicate student (Same name under the same parent)
         const existing = await prisma.student.findFirst({
@@ -356,8 +385,27 @@ exports.updateStudent = async (req, res, next) => {
         delete data.id;
         delete data.studentUniqueId;
 
-        if (data.dob) data.dateOfBirth = new Date(data.dob);
-        if (data.enrollmentDate) data.enrollmentDate = new Date(data.enrollmentDate);
+        if (data.dob) {
+            const studentDob = dayjs(data.dob);
+            const now = dayjs();
+            const ageInYears = now.diff(studentDob, 'year', true);
+            if (ageInYears < 3 || ageInYears > 6) {
+                return res.status(400).json({ message: 'Student age must be between 3 and 6 years old.' });
+            }
+            data.dateOfBirth = studentDob.toDate();
+        }
+
+        if (data.enrollmentDate) {
+            const eDate = dayjs(data.enrollmentDate);
+            const now = dayjs();
+            if (eDate.isAfter(now, 'day')) {
+                return res.status(400).json({ message: 'Enrollment date cannot be in the future.' });
+            }
+            if (eDate.isBefore(now.subtract(1, 'month'), 'day')) {
+                return res.status(400).json({ message: 'Enrollment date cannot be more than 1 month in the past.' });
+            }
+            data.enrollmentDate = eDate.toDate();
+        }
         if (data.classroomId) data.classroomId = parseInt(data.classroomId);
         if (data.parentId) data.parentId = parseInt(data.parentId);
         if (data.secondParentId) data.secondParentId = parseInt(data.secondParentId);

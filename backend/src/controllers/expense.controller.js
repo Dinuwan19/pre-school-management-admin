@@ -1,10 +1,21 @@
 const prisma = require('../config/prisma');
 const { logAction } = require('../services/audit.service');
 const { uploadFile } = require('../services/storage.service');
+const dayjs = require('dayjs');
 
 exports.createExpense = async (req, res, next) => {
     try {
         const { category, amount, expenseDate, description } = req.body;
+        
+        // Date Validation
+        const eDate = dayjs(expenseDate);
+        const now = dayjs();
+        if (eDate.isAfter(now, 'day')) {
+            return res.status(400).json({ message: 'Expense date cannot be in the future.' });
+        }
+        if (eDate.isBefore(now.subtract(1, 'month'), 'day')) {
+            return res.status(400).json({ message: 'Expense date cannot be more than 1 month in the past.' });
+        }
 
         let receiptUrl = null;
         if (req.files && req.files['receipt']) {

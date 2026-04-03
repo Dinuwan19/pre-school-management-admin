@@ -146,8 +146,13 @@ const Homework = () => {
                     <Form.Item name="description" label="Instructions">
                         <Input.TextArea rows={3} placeholder="Provide details for students and parents..." />
                     </Form.Item>
-                    <Form.Item name="dueDate" label="Due Date">
-                        <DatePicker style={{ width: '100%' }} />
+                    <Form.Item name="dueDate" label="Due Date" rules={[{ required: true, message: 'Due date is required' }]}>
+                        <DatePicker
+                            style={{ width: '100%' }}
+                            disabledDate={(current) => {
+                                return current && (current < dayjs().startOf('day') || current > dayjs().add(1, 'month').endOf('day'));
+                            }}
+                        />
                     </Form.Item>
                 </Form>
             </Modal>

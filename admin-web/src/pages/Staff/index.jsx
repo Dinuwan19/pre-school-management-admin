@@ -212,7 +212,25 @@ Instructions:
                                     </Select>
                                 </Form.Item>
 
-                                <Form.Item name="email" label="Email Address">
+                                <Form.Item
+                                    name="email"
+                                    label="Email Address"
+                                    rules={[
+                                        { required: true, message: 'Email is required' },
+                                        { type: 'email', message: 'Invalid email format' },
+                                        {
+                                            validator: (_, value) => {
+                                                if (!value) return Promise.resolve();
+                                                const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'icloud.com'];
+                                                const domain = value.split('@')[1];
+                                                if (domain && !allowedDomains.includes(domain.toLowerCase())) {
+                                                    return Promise.reject(new Error(`Only ${allowedDomains.join(', ')} domains are allowed`));
+                                                }
+                                                return Promise.resolve();
+                                            }
+                                        }
+                                    ]}
+                                >
                                     <Input prefix={<MailOutlined />} placeholder="email@example.com" />
                                 </Form.Item>
                             </Col>
@@ -222,18 +240,47 @@ Instructions:
                                 </Form.Item>
                             </Col>
                             <Col xs={24} md={24}>
-                                <Form.Item name="address" label="Home Address">
+                                <Form.Item name="address" label="Home Address" rules={[{ required: true, message: 'Home address is mandatory' }]}>
                                     <Input.TextArea rows={2} placeholder="Enter permanent address" />
                                 </Form.Item>
                             </Col>
                             <Col xs={24} md={8}>
-                                <Form.Item name="nationalId" label="National ID (NIC)">
+                                <Form.Item
+                                    name="nationalId"
+                                    label="National ID (NIC)"
+                                    rules={[
+                                        { required: true, message: 'NIC is required' },
+                                        {
+                                            validator: (_, value) => {
+                                                if (!value) return Promise.resolve();
+                                                const val = value.toUpperCase();
+                                                const isOld = /^[0-9]{9}[V|X]$/.test(val);
+                                                const isNew = /^[0-9]{12}$/.test(val);
+
+                                                if (!isOld && !isNew) {
+                                                    return Promise.reject(new Error('Format: 9 digits + V/X OR 12 digits'));
+                                                }
+
+                                                if (isNew && !(val.startsWith('19') || val.startsWith('20'))) {
+                                                    return Promise.reject(new Error('12-digit NIC must start with 19 or 20'));
+                                                }
+
+                                                return Promise.resolve();
+                                            }
+                                        }
+                                    ]}
+                                >
                                     <Input prefix={<IdcardOutlined />} placeholder="NIC Number" />
                                 </Form.Item>
                             </Col>
                             <Col xs={24} md={8}>
-                                <Form.Item name="joiningDate" label="Joining Date">
-                                    <DatePicker style={{ width: '100%' }} />
+                                <Form.Item name="joiningDate" label="Joining Date" rules={[{ required: true }]}>
+                                    <DatePicker
+                                        style={{ width: '100%' }}
+                                        disabledDate={(current) => {
+                                            return current && (current > dayjs().endOf('day') || current < dayjs().subtract(1, 'month').startOf('day'));
+                                        }}
+                                    />
                                 </Form.Item>
                             </Col>
                             <Col xs={24} md={8}>
