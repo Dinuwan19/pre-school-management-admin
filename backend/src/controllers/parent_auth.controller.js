@@ -424,31 +424,25 @@ exports.getParentBillings = async (req, res, next) => {
         const parentRecord = await prisma.parent.findUnique({ where: { userId } });
         if (!parentRecord) return res.status(404).json({ message: 'Parent record not found' });
 
+        // NUCLEAR FIX: Fetch ALL students for this parent context for transparency
         const students = await prisma.student.findMany({
             where: {
                 OR: [
                     { parentId: parentRecord.id },
                     { secondParentId: parentRecord.id }
-                ],
-                ...(studentId ? {
-                    OR: [
-                        { id: !isNaN(parseInt(studentId)) ? parseInt(studentId) : -1 },
-                        { studentUniqueId: studentId }
-                    ]
-                } : {})
+                ]
             },
             select: { id: true, fullName: true, studentUniqueId: true }
         });
-
+        
         const studentIds = students.map(s => s.id);
+        const studentUniqueIds = students.map(s => s.studentUniqueId);
 
         if (studentIds.length === 0) {
             return res.json({ billings: [], payments: [] });
         }
 
-        const studentUniqueIds = students.map(s => s.studentUniqueId);
-
-        // 1. Get Official Billings (Searching by both internal ID and Unique ID for robustness)
+        // 1. Get Official Billings for ANY/ALL of the parent's children
         const billings = await prisma.billing.findMany({
             where: { 
                 OR: [
@@ -538,6 +532,26 @@ exports.updateParentProfile = async (req, res, next) => {
         });
 
         res.json(updated);
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.updatePushToken = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        const { pushToken } = req.body;
+
+        if (!pushToken) {
+            return res.status(400).json({ message: 'Push token is required' });
+        }
+
+        await prisma.user.update({
+            where: { id: userId },
+            data: { pushToken }
+        });
+
+        res.json({ message: 'Push token updated successfully' });
     } catch (error) {
         next(error);
     }

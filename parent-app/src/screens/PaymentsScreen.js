@@ -104,27 +104,24 @@ const PaymentsScreen = ({ navigation }) => {
 
         // --- 2. Hybrid Display Logic ---
         const filtered = billings.filter(b => {
+            const isExtra = b.categoryId || b.billingCategory;
+            
             // A. Monthly Fees (Standard) -> Show in their specific Billing Month
-            if (!b.categoryId && !b.billingCategory) {
+            if (!isExtra) {
                 // Try strict match first then loose match
                 if (b.billingMonth === currentMonthStr) return true;
                 return dayjs(b.billingMonth).isSame(selectedMonth, 'month');
             }
 
             // B. Extra Payments (Uniforms, etc.)
-            // Logic: 
-            // 1. If PAID, show it in the month it was PAID (updatedAt).
-            // 2. If UNPAID/PENDING, show it in its Issued Month OR the REAL Current Month (persistent reminder).
-            
-            const isSelectedMonthCurrent = selectedMonth.isSame(dayjs(), 'month');
-            const isRecentlyPaid = b.status === 'PAID' && dayjs().diff(dayjs(b.updatedAt), 'day') <= 30;
-            
-            if (b.status === 'PAID') {
-                return dayjs(b.updatedAt).isSame(selectedMonth, 'month') || (isSelectedMonthCurrent && isRecentlyPaid);
-            } else {
-                // Persistent reminder: Show in its issued month OR always show in the current real-world month
-                return dayjs(b.createdAt).isSame(selectedMonth, 'month') || isSelectedMonthCurrent;
+            // Revised Visibility: Only show PENDING and PAID. Hide UNPAID from main history.
+            if (b.status === 'PAID' || b.status === 'PENDING') {
+                // Show in the month the activity (payment/submission) happened
+                return dayjs(b.updatedAt).isSame(selectedMonth, 'month');
             }
+
+            // UNPAID Extra Fees: Hidden from main list (as requested)
+            return false;
         });
 
         // 3. Rename Logic (Item Naming) happens at render time

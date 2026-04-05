@@ -63,11 +63,34 @@ exports.getExpenseSummary = async (req, res, next) => {
         });
 
         const total = summary._sum.amount ? parseFloat(summary._sum.amount) : 0;
-
-        res.json({
-            totalThisMonth: total
-        });
-    } catch (error) {
-        next(error);
-    }
-};
+ 
+         res.json({
+             totalThisMonth: total
+         });
+     } catch (error) {
+         next(error);
+     }
+ };
+ 
+ exports.deleteExpense = async (req, res, next) => {
+     try {
+         const { id } = req.params;
+ 
+         const expense = await prisma.expense.findUnique({
+             where: { id: parseInt(id) }
+         });
+ 
+         if (!expense) {
+             return res.status(404).json({ message: 'Expense not found.' });
+         }
+ 
+         await prisma.expense.delete({
+             where: { id: parseInt(id) }
+         });
+ 
+         await logAction(req.user.id, `DELETE_EXPENSE: ${expense.amount} for ${expense.category}`);
+         res.json({ message: 'Expense deleted successfully' });
+     } catch (error) {
+         next(error);
+     }
+ };

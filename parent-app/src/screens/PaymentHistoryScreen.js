@@ -71,8 +71,19 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
         (b.categoryId || b.billingCategory) &&
         b.status !== 'PAID' &&
         b.status !== 'APPROVED' &&
-        b.status !== 'SUCCESS'
+        b.status !== 'SUCCESS' &&
+        b.status !== 'PENDING'
     );
+
+    // [New] Duplicate Prevention: List of categories that haven't been billed yet
+    const filteredCategories = React.useMemo(() => {
+        // Collect all category IDs that already have a record for this child
+        const existingCategoryIds = allBillings
+            .filter(b => b.categoryId || b.billingCategory?.id)
+            .map(b => Number(b.categoryId || b.billingCategory?.id));
+        
+        return availableCategories.filter(cat => !existingCategoryIds.includes(Number(cat.id)));
+    }, [availableCategories, allBillings]);
 
 
 
@@ -146,6 +157,17 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
     };
 
     const handlePaymentSubmit = async () => {
+        // [New] Duplicate Prevention Safety Check
+        if (paymentType === 'EXTRA' && selectedCategory) {
+            const hasExisting = allBillings.some(b => 
+                Number(b.categoryId || b.billingCategory?.id) === Number(selectedCategory.id)
+            );
+            if (hasExisting) {
+                Alert.alert('Duplicate Payment', 'A record for this payment category already exists for this student. Please use the "Pay Pending Bill" section if it is unpaid.');
+                return;
+            }
+        }
+
         if (!image) {
             Alert.alert('Error', 'Please upload the slip');
             return;
@@ -441,21 +463,48 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
         );
     };
 
-    const renderPaymentInfo = () => (
-        <View style={styles.paymentInfoBox}>
-            <Text style={styles.paymentInfoTitle}>Payment Information</Text>
+    const renderPaymentInfo = () => {
+        // Collect all outstanding extra fees (Pending or Unpaid)
+        const pendingOrUnpaidExtras = allBillings.filter(b => 
+            (b.categoryId || b.billingCategory) && 
+            b.status !== 'PAID' && b.status !== 'APPROVED' && b.status !== 'SUCCESS'
+        );
 
-            <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Monthly Fee</Text>
-                <Text style={styles.infoValue}>Rs. 15,000</Text>
-            </View>
+        return (
+            <View style={styles.paymentInfoBox}>
+                <Text style={styles.paymentInfoTitle}>Payment Information & Records</Text>
+                
+                {/* Monthly Fee (Standard Reference) */}
+                <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Monthly Fee</Text>
+                    <Text style={styles.infoValue}>Rs. 15,000</Text>
+                </View>
 
-            <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Payment Due Date</Text>
-                <Text style={styles.infoValue}>5th of each month</Text>
+                {/* Dynamic Tracking for Extra Payments */}
+                {pendingOrUnpaidExtras.map(extra => (
+                    <View key={extra.id} style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 10, marginTop: 5 }]}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.infoLabel}>{extra.billingCategory?.name || 'Extra Fee'}</Text>
+                            <Text style={{ fontSize: 11, color: '#94A3B8' }}>{dayjs(extra.createdAt).format('MMM DD, YYYY')}</Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.infoValue}>Rs. {parseFloat(extra.amount).toLocaleString()}</Text>
+                            <View style={[styles.statusBadgeSmall, { backgroundColor: extra.status === 'PENDING' ? '#FFFBEB' : '#FEF2F2', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginTop: 2 }]}>
+                                <Text style={{ fontSize: 10, fontWeight: 'bold', color: extra.status === 'PENDING' ? '#D97706' : '#EF4444' }}>
+                                    {extra.status === 'PENDING' ? 'Pending Approval' : 'To Pay'}
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+                ))}
+
+                <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 10 }]}>
+                    <Text style={styles.infoLabel}>Payment Due Date</Text>
+                    <Text style={styles.infoValue}>5th of each month</Text>
+                </View>
             </View>
-        </View>
-    );
+        );
+    };
 
     return (
         <View style={styles.container}>
@@ -508,30 +557,32 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
 
                         // 2. Apply "Smart Presence" Filter
                         const filteredHistory = mergedHistory.filter(item => {
-                            // A. Official Billings: strict match on billingMonth code (YYYY-MM)
+                            const isExtra = item.categoryId || item.billingCategory;
+
                             if (item.type === 'BILLING') {
-                                return item.billingMonth === currentMonthCode;
-                            }
-
-                            // B. Unallocated Payments: Check Text Intent OR Date fallback
-                            if (item.transactionRef) {
-                                // Try to extract [Months: ...]
-                                const monthMatch = item.transactionRef.match(/\[Months:\s(.*?)\]/);
-
-                                if (monthMatch) {
-                                    // If explicit months are listed, check if CURRENT selected month is in that list
-                                    const monthsList = monthMatch[1]; // "January, February"
-                                    const includesCurrentMonth = monthsList.includes(currentMonthName);
-
-                                    // Also check year presence if available in ref, otherwise assume current year context
-                                    // For safety, if specific year is not mentioned in ref, we might show it. 
-                                    // logic: precise month match is strong signal.
-                                    return includesCurrentMonth;
+                                if (!isExtra) {
+                                    // Official Monthly Billing: match current view month
+                                    return item.billingMonth === currentMonthCode;
+                                } else {
+                                    // Other Payments (Extras): Show ONLY when Pending or Paid.
+                                    // Place them in the month where the activity happened (updatedAt).
+                                    const isActive = item.status === 'PAID' || item.status === 'APPROVED' || item.status === 'SUCCESS' || item.status === 'PENDING';
+                                    if (!isActive) return false;
+                                    
+                                    return dayjs(item.updatedAt).format('YYYY-MM') === currentMonthCode;
                                 }
                             }
 
-                            // C. Fallback: If no explicit months text, rely on Creation Date
-                            // Valid for generic payments or "Paid manually" without tags
+                            // B. Unallocated Payments: Matching by Text tags
+                            if (item.transactionRef) {
+                                const monthMatch = item.transactionRef.match(/\[Months:\s(.*?)\]/);
+                                if (monthMatch) {
+                                    const monthsList = monthMatch[1];
+                                    return monthsList.includes(currentMonthName) && dayjs(item.createdAt).format('YYYY') == currentYearStr;
+                                }
+                            }
+
+                            // C. Fallback to Creation Month (Generic payments)
                             return dayjs(item.createdAt).format('YYYY-MM') === currentMonthCode;
                         });
 
@@ -758,7 +809,7 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
 
                                         {showCategoryDropdown && (
                                             <View style={styles.dropdownList}>
-                                                {availableCategories.length > 0 ? availableCategories.map(cat => (
+                                                {filteredCategories.length > 0 ? filteredCategories.map(cat => (
                                                     <TouchableOpacity
                                                         key={cat.id}
                                                         style={styles.dropdownItem}

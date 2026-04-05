@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { login } from '../services/auth.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Eye, EyeOff } from 'lucide-react-native';
+import { registerForPushNotificationsAsync, registerTokenWithBackend } from '../services/notificationService';
 
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 
@@ -22,6 +23,14 @@ const LoginScreen = ({ navigation }) => {
         setLoading(true);
         try {
             await login(username, password);
+            
+            // Register push notifications on successful login
+            registerForPushNotificationsAsync().then(token => {
+                if (token) {
+                    registerTokenWithBackend(token);
+                }
+            });
+
             navigation.replace('MainTabs');
         } catch (error) {
             if (error.response?.status === 403 && error.response?.data?.requiresVerification) {

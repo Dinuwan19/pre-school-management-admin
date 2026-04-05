@@ -1,5 +1,6 @@
 const prisma = require('../config/prisma');
 const dayjs = require('dayjs');
+const { sendPushNotification } = require('../utils/push.utils');
 
 exports.createHomework = async (req, res, next) => {
     try {
@@ -48,6 +49,31 @@ exports.createHomework = async (req, res, next) => {
                 createdById
             }
         });
+
+        // Background Push Trigger
+        (async () => {
+            try {
+                const targetUsers = await prisma.user.findMany({
+                    where: {
+                        role: 'PARENT',
+                        parent: {
+                            OR: [
+                                { student_student_parentIdToparent: { some: { classroomId: finalClassroomId } } },
+                                { student_student_secondParentIdToparent: { some: { classroomId: finalClassroomId } } }
+                            ]
+                        },
+                        pushToken: { not: null }
+                    },
+                    select: { pushToken: true }
+                });
+
+                const tokens = targetUsers.map(u => u.pushToken);
+                const body = `New Homework: ${title}${dueDate ? ` (Due: ${dayjs(dueDate).format('MMM D')})` : ''}`;
+                await sendPushNotification(tokens, '📚 New Homework Assigned', body, { homeworkId: homework.id });
+            } catch (err) {
+                console.error('Homework Push Error:', err);
+            }
+        })();
 
         res.status(201).json(homework);
     } catch (error) {

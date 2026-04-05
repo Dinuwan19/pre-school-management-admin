@@ -333,6 +333,7 @@ model user {
   updatedAt                                      DateTime          @updatedAt
   resetToken                                     String?
   resetTokenExpires                              DateTime?
+  pushToken                                      String?
   isActive                                       Boolean           @default(true)
   isEmailVerified                                Boolean           @default(false)
   attendance                                     attendance[]

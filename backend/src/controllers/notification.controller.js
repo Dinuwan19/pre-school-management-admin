@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const { sendPushNotification } = require('../utils/push.utils');
 
 exports.createNotification = async (req, res, next) => {
     try {
@@ -45,6 +46,41 @@ exports.createNotification = async (req, res, next) => {
                 }
             }
         });
+
+        // Background Push Trigger
+        (async () => {
+            try {
+                let targetUsers = [];
+                if (finalTargetClassroomId) {
+                    targetUsers = await prisma.user.findMany({
+                        where: {
+                            role: 'PARENT',
+                            parent: {
+                                OR: [
+                                    { student_student_parentIdToparent: { some: { classroomId: finalTargetClassroomId } } },
+                                    { student_student_secondParentIdToparent: { some: { classroomId: finalTargetClassroomId } } }
+                                ]
+                            },
+                            pushToken: { not: null }
+                        },
+                        select: { pushToken: true }
+                    });
+                } else if (targetRole === 'PARENT' || targetRole === 'ALL') {
+                    targetUsers = await prisma.user.findMany({
+                        where: { 
+                            role: 'PARENT', 
+                            pushToken: { not: null } 
+                        },
+                        select: { pushToken: true }
+                    });
+                }
+
+                const tokens = targetUsers.map(u => u.pushToken);
+                await sendPushNotification(tokens, title, message, { notificationId: notification.id });
+            } catch (err) {
+                console.error('Push Notification Error:', err);
+            }
+        })();
 
         res.status(201).json(notification);
     } catch (error) {

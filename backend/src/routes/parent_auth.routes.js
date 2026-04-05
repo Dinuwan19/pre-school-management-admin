@@ -12,5 +12,6 @@ router.get('/children', authenticateToken, authorizeRole(['PARENT']), parentAuth
 router.get('/billings', authenticateToken, authorizeRole(['PARENT']), parentAuthController.getParentBillings);
 router.get('/profile', authenticateToken, authorizeRole(['PARENT']), parentAuthController.getParentProfile);
 router.put('/profile', authenticateToken, authorizeRole(['PARENT']), parentAuthController.updateParentProfile);
+router.post('/push-token', authenticateToken, authorizeRole(['PARENT']), parentAuthController.updatePushToken);
 
 module.exports = router;

@@ -80,21 +80,42 @@ const Expenses = () => {
         }
     };
 
+    const handleDelete = (id) => {
+        Modal.confirm({
+            title: 'Are you sure you want to delete this expense?',
+            content: 'This action cannot be undone.',
+            okText: 'Yes, Delete',
+            okType: 'danger',
+            cancelText: 'No',
+            onOk: async () => {
+                try {
+                    await api.delete(`/expenses/${id}`);
+                    message.success('Expense deleted successfully');
+                    fetchExpenses();
+                } catch (error) {
+                    message.error('Failed to delete expense');
+                }
+            },
+        });
+    };
+
     const columns = [
         { title: 'Date', dataIndex: 'expenseDate', key: 'date', render: (d) => dayjs(d).format('YYYY-MM-DD') },
         { title: 'Category', dataIndex: 'category', key: 'category' },
-        { title: 'Description', dataIndex: 'description', key: 'desc' },
+        { title: 'Description', dataIndex: 'description', key: 'desc', render: (d) => d || '-' },
         { title: 'Amount', dataIndex: 'amount', key: 'amount', render: (a) => `Rs. ${parseFloat(a).toLocaleString()}` },
         {
             title: 'Receipt',
             key: 'receipt',
             render: (_, record) => {
-                if (!record.receiptUrl || record.receiptUrl.includes('undefined')) return <Text type="secondary">-</Text>;
+                if (!record.receiptUrl || record.receiptUrl === 'null' || record.receiptUrl.includes('undefined')) return <Text type="secondary">-</Text>;
                 const fullUrl = record.receiptUrl.startsWith('http') ? record.receiptUrl : getMediaUrl(record.receiptUrl);
                 return <Button type="link" icon={<FileImageOutlined />} onClick={() => window.open(fullUrl, '_blank')}>View</Button>;
             }
         },
-        { title: 'Action', key: 'action', render: () => <Button type="text" danger icon={<DeleteOutlined />} /> }
+        { title: 'Action', key: 'action', render: (_, record) => (
+            <Button type="text" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)} />
+        ) }
     ];
 
     return (
