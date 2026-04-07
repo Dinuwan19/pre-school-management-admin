@@ -742,125 +742,131 @@ const StudentProfileScreen = ({ route, navigation }) => {
 
             {/* Meeting Modal */}
             <Modal visible={modalVisible} transparent={true} animationType="slide">
-                <View style={[styles.modalOverlay, { justifyContent: 'flex-end' }]}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Request Meeting</Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)}>
-                                <X size={24} color="#EF4444" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-                            <Text style={styles.label}>Student</Text>
-                            <View style={styles.staticInput}>
-                                <UserIcon size={18} color="#64748B" />
-                                <Text style={styles.staticText}>{student?.fullName}</Text>
+                <KeyboardAvoidingView 
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
+                >
+                    <View style={[styles.modalOverlay, { justifyContent: 'flex-end' }]}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Request Meeting</Text>
+                                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                                    <X size={24} color="#EF4444" />
+                                </TouchableOpacity>
                             </View>
 
-                            <Text style={styles.label}>Select Staff / Admin</Text>
-                            <View style={styles.teacherList}>
-                                {details?.availableStaff?.map((staff) => (
-                                    <TouchableOpacity
-                                        key={staff.id}
-                                        style={[
-                                            styles.teacherChip,
-                                            selectedTeacherId === staff.id && styles.selectedTeacherChip
-                                        ]}
-                                        onPress={() => setSelectedTeacherId(staff.id)}
-                                    >
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={[
-                                                styles.teacherChipName,
-                                                selectedTeacherId === staff.id && styles.selectedTeacherChipText
+                            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+                                <Text style={styles.label}>Student</Text>
+                                <View style={styles.staticInput}>
+                                    <UserIcon size={18} color="#64748B" />
+                                    <Text style={styles.staticText}>{student?.fullName}</Text>
+                                </View>
+
+                                <Text style={styles.label}>Select Staff / Admin</Text>
+                                <View style={styles.teacherList}>
+                                    {details?.availableStaff?.map((staff) => (
+                                        <TouchableOpacity
+                                            key={staff.id}
+                                            style={[
+                                                styles.teacherChip,
+                                                selectedTeacherId === staff.id && styles.selectedTeacherChip
+                                            ]}
+                                            onPress={() => setSelectedTeacherId(staff.id)}
+                                        >
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[
+                                                    styles.teacherChipName,
+                                                    selectedTeacherId === staff.id && styles.selectedTeacherChipText
+                                                ]}>
+                                                    {staff.name}
+                                                </Text>
+                                                <Text style={[
+                                                    styles.teacherChipRole,
+                                                    selectedTeacherId === staff.id && styles.selectedTeacherChipText
+                                                ]}>
+                                                    {staff.role} {staff.isLead ? '(Lead)' : ''}
+                                                </Text>
+                                            </View>
+                                            <View style={[
+                                                styles.radioOuter,
+                                                selectedTeacherId === staff.id && styles.radioActiveOuter
                                             ]}>
-                                                {staff.name}
+                                                {selectedTeacherId === staff.id && <View style={styles.radioInner} />}
+                                            </View>
+                                        </TouchableOpacity>
+                                    ))}
+                                    {(!details?.availableStaff || details.availableStaff.length === 0) && (
+                                        <Text style={styles.emptyTextSmall}>No staff found for this classroom.</Text>
+                                    )}
+                                </View>
+
+                                <View style={{ flexDirection: 'row', gap: 10 }}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.label}>Preferred Date</Text>
+                                        <TouchableOpacity 
+                                            style={styles.input} 
+                                            onPress={() => setShowDatePicker(true)}
+                                        >
+                                            <Text style={styles.inputText}>
+                                                {dayjs(preferredDate).format('DD/MM/YYYY')}
                                             </Text>
-                                            <Text style={[
-                                                styles.teacherChipRole,
-                                                selectedTeacherId === staff.id && styles.selectedTeacherChipText
-                                            ]}>
-                                                {staff.role} {staff.isLead ? '(Lead)' : ''}
+                                        </TouchableOpacity>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.label}>Preferred Time</Text>
+                                        <TouchableOpacity 
+                                            style={styles.input} 
+                                            onPress={() => setShowTimePicker(true)}
+                                        >
+                                            <Text style={styles.inputText}>
+                                                {dayjs(preferredTime).format('hh:mm A')}
                                             </Text>
-                                        </View>
-                                        <View style={[
-                                            styles.radioOuter,
-                                            selectedTeacherId === staff.id && styles.radioActiveOuter
-                                        ]}>
-                                            {selectedTeacherId === staff.id && <View style={styles.radioInner} />}
-                                        </View>
-                                    </TouchableOpacity>
-                                ))}
-                                {(!details?.availableStaff || details.availableStaff.length === 0) && (
-                                    <Text style={styles.emptyTextSmall}>No staff found for this classroom.</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+
+                                {showDatePicker && (
+                                    <DateTimePicker
+                                        value={preferredDate}
+                                        mode="date"
+                                        display="default"
+                                        minimumDate={new Date()}
+                                        onChange={(event, selectedDate) => {
+                                            setShowDatePicker(false);
+                                            if (selectedDate) setPreferredDate(selectedDate);
+                                        }}
+                                    />
                                 )}
-                            </View>
 
-                            <View style={{ flexDirection: 'row', gap: 10 }}>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.label}>Preferred Date</Text>
-                                    <TouchableOpacity 
-                                        style={styles.input} 
-                                        onPress={() => setShowDatePicker(true)}
-                                    >
-                                        <Text style={styles.inputText}>
-                                            {dayjs(preferredDate).format('DD/MM/YYYY')}
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.label}>Preferred Time</Text>
-                                    <TouchableOpacity 
-                                        style={styles.input} 
-                                        onPress={() => setShowTimePicker(true)}
-                                    >
-                                        <Text style={styles.inputText}>
-                                            {dayjs(preferredTime).format('hh:mm A')}
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
+                                {showTimePicker && (
+                                    <DateTimePicker
+                                        value={preferredTime}
+                                        mode="time"
+                                        is24Hour={false}
+                                        display="default"
+                                        onChange={(event, selectedTime) => {
+                                            setShowTimePicker(false);
+                                            if (selectedTime) setPreferredTime(selectedTime);
+                                        }}
+                                    />
+                                )}
 
-                            {showDatePicker && (
-                                <DateTimePicker
-                                    value={preferredDate}
-                                    mode="date"
-                                    display="default"
-                                    minimumDate={new Date()}
-                                    onChange={(event, selectedDate) => {
-                                        setShowDatePicker(false);
-                                        if (selectedDate) setPreferredDate(selectedDate);
-                                    }}
+                                <Text style={styles.label}>Reason for Meeting</Text>
+                                <TextInput
+                                    style={[styles.input, { height: 100, textAlignVertical: 'top', color: '#1E293B' }]}
+                                    value={meetingTitle}
+                                    onChangeText={setMeetingTitle}
+                                    multiline
+                                    placeholder="Briefly describe what you'd like to discuss..."
+                                    placeholderTextColor="#94A3B8"
                                 />
-                            )}
-
-                            {showTimePicker && (
-                                <DateTimePicker
-                                    value={preferredTime}
-                                    mode="time"
-                                    is24Hour={false}
-                                    display="default"
-                                    onChange={(event, selectedTime) => {
-                                        setShowTimePicker(false);
-                                        if (selectedTime) setPreferredTime(selectedTime);
-                                    }}
-                                />
-                            )}
-
-                            <Text style={styles.label}>Reason for Meeting</Text>
-                            <TextInput
-                                style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
-                                value={meetingTitle}
-                                onChangeText={setMeetingTitle}
-                                multiline
-                                placeholder="Briefly describe what you'd like to discuss..."
-                            />
-                            <TouchableOpacity style={styles.submitBtn} onPress={handleRequestMeeting} disabled={submitting}>
-                                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Submit Request</Text>}
-                            </TouchableOpacity>
-                        </ScrollView>
+                                <TouchableOpacity style={styles.submitBtn} onPress={handleRequestMeeting} disabled={submitting}>
+                                    {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Submit Request</Text>}
+                                </TouchableOpacity>
+                            </ScrollView>
+                        </View>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
 
             {/* Field Edit Modal */}

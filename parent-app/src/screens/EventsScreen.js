@@ -92,9 +92,13 @@ const EventsScreen = ({ navigation }) => {
             const fileName = `school_event_${Date.now()}.jpg`;
             const fileUri = `${FileSystem.documentDirectory}${fileName}`;
             const downloadRes = await FileSystem.downloadAsync(selectedImageUrl, fileUri);
-            const asset = await MediaLibrary.createAssetAsync(downloadRes.uri);
-            await MediaLibrary.createAlbumAsync('SchoolEvents', asset, false);
-            Alert.alert('Success', 'Photo saved to your gallery!');
+            
+            if (downloadRes.uri) {
+                const asset = await MediaLibrary.createAssetAsync(downloadRes.uri);
+                // Set copyAsset to true for better compatibility on Android 11+
+                await MediaLibrary.createAlbumAsync('SchoolEvents', asset, true);
+                Alert.alert('Success', 'Photo saved to your gallery!');
+            }
         } catch (error) {
             console.error('Download Error:', error);
             Alert.alert('Error', 'Failed to save photo.');

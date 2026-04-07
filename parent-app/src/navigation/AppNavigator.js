@@ -21,7 +21,11 @@ const Tab = createBottomTabNavigator();
 
 import UpdatesScreen from '../screens/UpdatesScreen';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 const TabNavigator = () => {
+    const insets = useSafeAreaInsets();
+    
     return (
         <Tab.Navigator
             screenOptions={({ route }) => ({
@@ -29,8 +33,8 @@ const TabNavigator = () => {
                 tabBarActiveTintColor: '#9D5BF0',
                 tabBarInactiveTintColor: '#9CA3AF',
                 tabBarStyle: {
-                    height: 70,
-                    paddingBottom: 12,
+                    height: 60 + insets.bottom,
+                    paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
                     paddingTop: 10,
                     backgroundColor: '#FFFFFF',
                     borderTopWidth: 1,

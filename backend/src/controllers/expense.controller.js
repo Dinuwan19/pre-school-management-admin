@@ -52,25 +52,34 @@ exports.getAllExpenses = async (req, res, next) => {
 
 exports.getExpenseSummary = async (req, res, next) => {
     try {
-        const now = new Date();
-        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        const TIMEZONE = 'Asia/Colombo';
+        const now = dayjs().tz(TIMEZONE);
+        const firstDay = now.startOf('month').toDate();
 
-        const summary = await prisma.expense.aggregate({
-            _sum: { amount: true },
-            where: {
-                expenseDate: { gte: firstDay }
-            }
-        });
+        const [summary, count] = await prisma.$transaction([
+            prisma.expense.aggregate({
+                _sum: { amount: true },
+                where: {
+                    expenseDate: { gte: firstDay }
+                }
+            }),
+            prisma.expense.count({
+                where: {
+                    expenseDate: { gte: firstDay }
+                }
+            })
+        ]);
 
         const total = summary._sum.amount ? parseFloat(summary._sum.amount) : 0;
- 
-         res.json({
-             totalThisMonth: total
-         });
-     } catch (error) {
-         next(error);
-     }
- };
+
+        res.json({
+            totalThisMonth: total,
+            countThisMonth: count
+        });
+    } catch (error) {
+        next(error);
+    }
+};
  
  exports.deleteExpense = async (req, res, next) => {
      try {
@@ -88,7 +97,7 @@ exports.getExpenseSummary = async (req, res, next) => {
              where: { id: parseInt(id) }
          });
  
-         await logAction(req.user.id, `DELETE_EXPENSE: ${expense.amount} for ${expense.category}`);
+         await logAction(req.user.id, 'DELETE_EXPENSE', `Amount: ${expense.amount} for ${expense.category}`);
          res.json({ message: 'Expense deleted successfully' });
      } catch (error) {
          next(error);

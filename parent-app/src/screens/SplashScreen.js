@@ -1,12 +1,32 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, SIZES } from '../constants/theme';
 
 const { width, height } = Dimensions.get('window');
 
+import * as SecureStore from 'expo-secure-store';
+
 const SplashScreen = ({ navigation }) => {
+    React.useEffect(() => {
+        const checkLoginStatus = async () => {
+            const token = await SecureStore.getItemAsync('parentToken');
+            if (token) {
+                // Short timeout for branding visibility
+                setTimeout(() => {
+                    navigation.replace('MainTabs');
+                }, 1500);
+            } else {
+                // If not logged in, auto-nav to Login after 2s
+                setTimeout(() => {
+                    navigation.replace('Login');
+                }, 2000);
+            }
+        };
+        checkLoginStatus();
+    }, []);
+
     return (
         <View style={styles.container}>
             {/* Background Decorative Bubbles */}
@@ -31,16 +51,13 @@ const SplashScreen = ({ navigation }) => {
                 </View>
 
                 <View style={styles.textContainer}>
-                    <Text style={styles.title}>Mal Kekulu Future Mind</Text>
+                    <Text style={styles.title}>mfm</Text>
                     <Text style={styles.subtitle}>Montessori</Text>
                 </View>
 
-                <TouchableOpacity
-                    style={styles.button}
-                    onPress={() => navigation.replace('Login')}
-                >
-                    <Text style={styles.buttonText}>Let's Started</Text>
-                </TouchableOpacity>
+                <View style={{ height: 60, justifyContent: 'center' }}>
+                    <ActivityIndicator color={COLORS.primary} size="small" />
+                </View>
             </SafeAreaView>
         </View>
     );

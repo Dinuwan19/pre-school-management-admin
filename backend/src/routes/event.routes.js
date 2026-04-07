@@ -15,6 +15,7 @@ router.get('/:id', checkClassroomScope, checkParentAccess, eventController.getEv
 router.post('/', checkClassroomScope, authorizeRole(['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF']), eventController.createEvent);
 router.put('/:id/approve', authorizeRole(['SUPER_ADMIN', 'ADMIN']), eventController.approveEvent);
 router.put('/:id/status', authorizeRole(['SUPER_ADMIN', 'ADMIN']), eventController.updateEventStatus);
+router.delete('/:id', authorizeRole(['SUPER_ADMIN', 'ADMIN']), eventController.deleteEvent);
 
 // Waiting List
 router.get('/waiting-list/all', authorizeRole(['SUPER_ADMIN', 'ADMIN']), eventController.getWaitingList);

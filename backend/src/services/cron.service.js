@@ -1,6 +1,13 @@
 const cron = require('node-cron');
 const prisma = require('../config/prisma');
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const TIMEZONE = 'Asia/Colombo';
 
 /**
  * Scheduled task to handle 9:30 AM attendance closure.
@@ -12,8 +19,8 @@ const dayjs = require('dayjs');
  */
 const markAbsentStudents = async () => {
     try {
-        const todayStr = dayjs().format('YYYY-MM-DD');
-        const dayOfWeek = dayjs().day();
+        const todayStr = dayjs().tz(TIMEZONE).format('YYYY-MM-DD');
+        const dayOfWeek = dayjs().tz(TIMEZONE).day();
 
         // Skip weekends (0 = Sunday, 6 = Saturday)
         if (dayOfWeek === 0 || dayOfWeek === 6) {
@@ -21,7 +28,7 @@ const markAbsentStudents = async () => {
             return;
         }
 
-        console.log(`[Attendance Service] Running Auto-Absent Check for: ${todayStr}`);
+        console.log(`[Attendance Service] Running Auto-Absent Check for: ${todayStr} (Timezone: ${TIMEZONE})`);
 
         // 1. Get all active students
         const activeStudents = await prisma.student.findMany({
@@ -68,18 +75,20 @@ const markAbsentStudents = async () => {
 };
 
 const initAttendanceCron = () => {
-    // Run at 09:30 every day
+    // Run at 09:30 every day in local timezone
     cron.schedule('30 9 * * *', async () => {
         console.log('[Cron] Triggering 9:30 AM Auto-Absent...');
         await markAbsentStudents();
+    }, {
+        timezone: TIMEZONE
     });
 
-    console.log('[Cron] Attendance Auto-Absent service initialized (9:30 AM daily).');
+    console.log(`[Cron] Attendance Auto-Absent service initialized (9:30 AM daily, ${TIMEZONE}).`);
 };
 
 const checkTomorrowSpecialDay = async () => {
     try {
-        const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
+        const tomorrow = dayjs().tz(TIMEZONE).add(1, 'day').format('YYYY-MM-DD');
         console.log(`[Special Day Service] Checking for special day on: ${tomorrow}`);
 
         const specialDay = await prisma.special_day.findUnique({
@@ -108,13 +117,15 @@ const checkTomorrowSpecialDay = async () => {
 };
 
 const initSpecialDayNotifications = () => {
-    // Run at 20:00 (8 PM) every day
+    // Run at 20:00 (8 PM) every day in local timezone
     cron.schedule('0 20 * * *', async () => {
         console.log('[Cron] Triggering 8:00 PM Special Day check...');
         await checkTomorrowSpecialDay();
+    }, {
+        timezone: TIMEZONE
     });
 
-    console.log('[Cron] Special Day notification service initialized (8:00 PM daily).');
+    console.log(`[Cron] Special Day notification service initialized (8:00 PM daily, ${TIMEZONE}).`);
 };
 
 const initCronJobs = () => {
@@ -123,3 +134,4 @@ const initCronJobs = () => {
 };
 
 module.exports = { initCronJobs, markAbsentStudents };
+

@@ -77,15 +77,20 @@ app.listen(PORT, '0.0.0.0', async () => {
     console.log(`Server is running on port ${PORT}`);
     initCronJobs(); // Initialize Scheduled Jobs
 
-    // Catch-up logic: If server starts after 9:30 AM, run the attendance check once
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
+    const dayjs = require('dayjs');
+    const utc = require('dayjs/plugin/utc');
+    const timezone = require('dayjs/plugin/timezone');
+    dayjs.extend(utc);
+    dayjs.extend(timezone);
+
+    const now = dayjs().tz('Asia/Colombo');
+    const currentHour = now.hour();
+    const currentMinute = now.minute();
 
     // If it's 9:30 AM or later, trigger the check
     if (currentHour > 9 || (currentHour === 9 && currentMinute >= 30)) {
         const { markAbsentStudents } = require('./services/cron.service');
-        console.log('[Server Startup] Past 9:30 AM, running attendance catch-up check...');
+        console.log(`[Server Startup] Past 9:30 AM (Local: ${now.format('HH:mm')}), running attendance catch-up check...`);
         try {
             await markAbsentStudents();
         } catch (err) {

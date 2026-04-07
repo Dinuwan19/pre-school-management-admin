@@ -131,9 +131,13 @@ const DashboardScreen = ({ navigation }) => {
             const fileName = `school_event_${Date.now()}.jpg`;
             const fileUri = `${FileSystem.documentDirectory}${fileName}`;
             const downloadRes = await FileSystem.downloadAsync(selectedImageUrl, fileUri);
-            const asset = await MediaLibrary.createAssetAsync(downloadRes.uri);
-            await MediaLibrary.createAlbumAsync('SchoolEvents', asset, false);
-            Alert.alert('Success', 'Photo saved to your gallery!');
+            
+            if (downloadRes.uri) {
+                const asset = await MediaLibrary.createAssetAsync(downloadRes.uri);
+                // Set copyAsset to true for better compatibility on Android 11+
+                await MediaLibrary.createAlbumAsync('SchoolEvents', asset, true);
+                Alert.alert('Success', 'Photo saved to your gallery!');
+            }
         } catch (error) {
             console.error('Download Error:', error);
             Alert.alert('Error', 'Failed to save photo.');
@@ -627,14 +631,14 @@ const styles = StyleSheet.create({
     mainChildName: { fontSize: 22, fontWeight: 'bold', color: '#1F2937' },
     nameRow: { flexDirection: 'row', alignItems: 'center' },
     mainChildSub: { fontSize: 14, color: '#6B7280', marginVertical: 4 },
-    badgeRow: { flexDirection: 'row', marginTop: 4 },
-    badge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8, marginRight: 8 },
+    badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+    badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
     presentBadge: { backgroundColor: '#F0FDF4' },
     absentBadge: { backgroundColor: '#FEF2F2' },
     feeBadge: { backgroundColor: '#F0F9FF' },
     pendingBadge: { backgroundColor: '#FFFBEB' },
-    presentBadgeText: { color: '#16A34A', fontSize: 12, fontWeight: '600' },
-    feeBadgeText: { color: '#0369A1', fontSize: 12, fontWeight: '600' },
+    presentBadgeText: { color: '#16A34A', fontSize: 11, fontWeight: '700' },
+    feeBadgeText: { color: '#0369A1', fontSize: 11, fontWeight: '700' },
 
     sectionContainer: { marginTop: 24, paddingHorizontal: 24 },
     sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },

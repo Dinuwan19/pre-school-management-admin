@@ -266,7 +266,7 @@ const Events = () => {
 
             <div style={{ marginBottom: 24 }}>
                 <Space size={8}>
-                    {['All Events', 'Upcoming', 'Completed', 'Pending'].map(s => (
+                    {['All Events', 'Upcoming', 'Completed'].map(s => (
                         <Tag.CheckableTag
                             key={s}
                             checked={filterStatus === s}
@@ -496,7 +496,7 @@ const Events = () => {
                     onFinish={editingEvent ? handleUpdateEvent : handleCreateEvent}
                 >
                     <Form.Item name="title" label="Event Title" rules={[{ required: true }]}>
-                        <Input placeholder="Ex: Sports Day" />
+                        <Input placeholder="Ex: Sports Day" disabled={user?.role === 'TEACHER'} />
                     </Form.Item>
                     <Form.Item name="description" label="Description">
                         <TextArea rows={3} />
@@ -515,8 +515,7 @@ const Events = () => {
                     </Form.Item>
 
                     <Form.Item name="status" label="Event Status" rules={[{ required: true }]}>
-                        <Select>
-                            <Select.Option value="PENDING">PENDING</Select.Option>
+                        <Select disabled={user?.role === 'TEACHER'}>
                             <Select.Option value="UPCOMING">PUBLISHED / UPCOMING</Select.Option>
                             <Select.Option value="COMPLETED">COMPLETED</Select.Option>
                             <Select.Option value="CANCELLED">CANCELLED</Select.Option>
@@ -527,6 +526,7 @@ const Events = () => {
                             <Form.Item name="eventDate" label="Date" rules={[{ required: true }]}>
                                 <DatePicker
                                     style={{ width: '100%' }}
+                                    disabled={user?.role === 'TEACHER'}
                                     disabledDate={(current) => {
                                         return current && (current > dayjs().add(1, 'month').endOf('day') || current < dayjs().subtract(1, 'month').startOf('day'));
                                     }}
@@ -535,19 +535,19 @@ const Events = () => {
                         </Col>
                         <Col span={12}>
                             <Form.Item name="location" label="Location">
-                                <Input prefix={<EnvironmentOutlined />} />
+                                <Input prefix={<EnvironmentOutlined />} disabled={user?.role === 'TEACHER'} />
                             </Form.Item>
                         </Col>
                     </Row>
                     <Row gutter={16}>
                         <Col span={12}>
                             <Form.Item name="startTime" label="Start Time" rules={[{ required: true }]}>
-                                <TimePicker format="HH:mm" style={{ width: '100%' }} />
+                                <TimePicker format="HH:mm" style={{ width: '100%' }} disabled={user?.role === 'TEACHER'} />
                             </Form.Item>
                         </Col>
                         <Col span={12}>
                             <Form.Item name="endTime" label="End Time" rules={[{ required: true }]}>
-                                <TimePicker format="HH:mm" style={{ width: '100%' }} />
+                                <TimePicker format="HH:mm" style={{ width: '100%' }} disabled={user?.role === 'TEACHER'} />
                             </Form.Item>
                         </Col>
                     </Row>

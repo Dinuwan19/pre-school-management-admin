@@ -18,10 +18,8 @@ exports.createEvent = async (req, res, next) => {
                 return res.status(400).json({ message: 'Events cannot be scheduled more than 1 month in the future.' });
             }
         }
-        const isTeacher = req.user.role === 'TEACHER';
-
-        // If Teacher, status is PENDING. If Admin, status is UPCOMING (Published).
-        const status = isTeacher ? 'PENDING' : 'UPCOMING';
+        // Enhancement 5.0: No more PENDING status. All events created by Staff/Teachers/Admins are UPCOMING.
+        const status = 'UPCOMING';
 
         let mediaUrl = req.body.mediaUrl;
         if (req.file) {
@@ -68,6 +66,38 @@ exports.createEvent = async (req, res, next) => {
 
         res.status(201).json(event);
     } catch (error) {
+        next(error);
+    }
+};
+
+exports.deleteEvent = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        // Only Admin or Super Admin can delete events
+        if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+            return res.status(403).json({ message: 'Only Admins can delete events.' });
+        }
+
+        const eventId = parseInt(id);
+
+        // Delete all related records first
+        await prisma.$transaction([
+            prisma.event_attendance.deleteMany({ where: { eventId } }),
+            prisma.event_waiting_list.deleteMany({ where: { eventId } }),
+            prisma.event_media.deleteMany({ where: { eventId } }),
+            prisma.event.delete({ where: { id: eventId } })
+        ]);
+
+        const auditService = require('../services/audit.service');
+        auditService.logAction(req.user.id, 'DELETE_EVENT', `EventID: ${id}`);
+
+        res.json({ message: 'Event and all associated records deleted successfully' });
+    } catch (error) {
+        // Handle case where event doesn't exist
+        if (error.code === 'P2025') {
+            return res.status(404).json({ message: 'Event not found' });
+        }
         next(error);
     }
 };
@@ -191,6 +221,15 @@ exports.updateEventStatus = async (req, res, next) => {
     try {
         const { id } = req.params;
         const { title, description, eventDate, startTime, endTime, location, status } = req.body;
+
+        const isTeacher = req.user.role === 'TEACHER';
+
+        // Enhancement 5.0: Teachers cannot edit Title, Date, or Location of any event.
+        if (isTeacher && (title || eventDate || location || startTime || endTime)) {
+            return res.status(403).json({ 
+                message: 'Teachers are not permitted to change event titles, dates, or locations.' 
+            });
+        }
 
         const updateData = {};
         if (title) updateData.title = title;
