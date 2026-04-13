@@ -252,7 +252,7 @@ const Events = () => {
                     <Title level={4} style={{ margin: 0 }}>Events</Title>
                     <Text type="secondary">Manage school events and activities</Text>
                 </div>
-                {['SUPER_ADMIN', 'ADMIN', 'STAFF'].includes(user?.role) && (
+                {['SUPER_ADMIN', 'ADMIN', 'STAFF', 'TEACHER'].includes(user?.role) && (
                     <Button
                         type="primary"
                         icon={<PlusOutlined />}
@@ -397,7 +397,7 @@ const Events = () => {
                                     Edit
                                 </Button>
                             )}
-                            {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && selectedEventForDetails?.status === 'COMPLETED' && (
+                            {(['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF'].includes(user?.role)) && selectedEventForDetails?.status === 'COMPLETED' && (
                                 <Button
                                     type="primary"
                                     icon={<UploadOutlined />}
@@ -454,15 +454,18 @@ const Events = () => {
                                                         </div>
                                                     )
                                                 }
-                                                actions={[
-                                                    <Button
-                                                        type="text"
-                                                        danger
-                                                        icon={<DeleteOutlined />}
-                                                        size="small"
-                                                        onClick={(e) => { e.stopPropagation(); handleDeleteMedia(media.id); }}
-                                                    />
-                                                ]}
+                                                actions={
+                                                    (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') ? [
+                                                        <Button
+                                                            key="delete"
+                                                            type="text"
+                                                            danger
+                                                            icon={<DeleteOutlined />}
+                                                            size="small"
+                                                            onClick={(e) => { e.stopPropagation(); handleDeleteMedia(media.id); }}
+                                                        />
+                                                    ] : []
+                                                }
                                             />
                                         </Col>
                                     ))}

@@ -1,0 +1,20 @@
+433 actionable tasks: 433 executed
+FAILURE: Build failed with an exception.
+* What went wrong:
+Execution failed for task ':app:mergeReleaseResources'.
+> A failure occurred while executing com.android.build.gradle.internal.res.Aapt2CompileRunnable
+   > Android resource compilation failed
+     ERROR: /home/expo/workingdir/build/parent-app/android/app/build/generated/res/createBundleReleaseJsAndAssets/drawable-mdpi/assets_logo.png: AAPT: error: file failed to compile.
+         
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+BUILD FAILED in 6m 27s
+Error: Gradle build failed with unknown error. See logs for the "Run gradlew" phase for more information.
+End phase: RUN_GRADLEW
+Start phase: ON_BUILD_ERROR_HOOK
+End phase: ON_BUILD_ERROR_HOOK
+Start phase: ON_BUILD_COMPLETE_HOOK
+End phase: ON_BUILD_COMPLETE_HOOK

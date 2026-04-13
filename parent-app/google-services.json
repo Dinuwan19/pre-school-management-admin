@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "850502102165",
+    "project_id": "preschool--mfm",
+    "storage_bucket": "preschool--mfm.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:850502102165:android:6ab2b9ce8d6a1332693f9c",
+        "android_client_info": {
+          "package_name": "com.malkakulufuturemind.parentapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALENVwmeBAZRobQnLeVuXohT6CWox0diA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

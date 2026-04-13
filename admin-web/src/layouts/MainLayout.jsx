@@ -129,8 +129,8 @@ const MainLayout = () => {
             ]
         }] : []),
 
-        // EVENTS - HIDE FROM CASHIER, TEACHER
-        ...(userRole !== 'PARENT' && userRole !== 'CASHIER' && userRole !== 'TEACHER' ? [{
+        // EVENTS - HIDE FROM CASHIER
+        ...(userRole !== 'PARENT' && userRole !== 'CASHIER' ? [{
             key: '/events',
             icon: <ScheduleOutlined />,
             label: 'Events',

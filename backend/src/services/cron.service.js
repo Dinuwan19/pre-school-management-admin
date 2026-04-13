@@ -80,6 +80,7 @@ const initAttendanceCron = () => {
         console.log('[Cron] Triggering 9:30 AM Auto-Absent...');
         await markAbsentStudents();
     }, {
+        scheduled: true,
         timezone: TIMEZONE
     });
 
@@ -122,6 +123,7 @@ const initSpecialDayNotifications = () => {
         console.log('[Cron] Triggering 8:00 PM Special Day check...');
         await checkTomorrowSpecialDay();
     }, {
+        scheduled: true,
         timezone: TIMEZONE
     });
 

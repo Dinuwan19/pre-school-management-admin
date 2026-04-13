@@ -43,7 +43,7 @@ const SplashScreen = ({ navigation }) => {
                 <View style={styles.logoContainer}>
                     <View style={styles.logoCircle}>
                         <Image
-                            source={require('../../assets/logo.png')}
+                            source={require('../../assets/logo-safe.png')}
                             style={styles.logo}
                             resizeMode="contain"
                         />
