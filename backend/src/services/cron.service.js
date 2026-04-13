@@ -28,15 +28,26 @@ const markAbsentStudents = async () => {
             return;
         }
 
-        console.log(`[Attendance Service] Running Auto-Absent Check for: ${todayStr} (Timezone: ${TIMEZONE})`);
+        console.log(`[Attendance Service] Running Auto-Absent Check for: ${todayStr}`);
 
-        // 1. Get all active students
+        // 1. Get a valid System User (Super Admin) to avoid FK errors
+        const systemUser = await prisma.user.findFirst({
+            where: { role: 'SUPER_ADMIN', status: 'ACTIVE' },
+            select: { id: true }
+        });
+
+        if (!systemUser) {
+            console.error('[Attendance Service] CRITICAL: No ACTIVE Super Admin found to mark attendance.');
+            return;
+        }
+
+        // 2. Get all active students
         const activeStudents = await prisma.student.findMany({
             where: { status: 'ACTIVE' },
             select: { id: true }
         });
 
-        // 2. Identify students who haven't scanned in today
+        // 3. Identify students who haven't scanned in today
         const existingAttendance = await prisma.attendance.findMany({
             where: { attendanceDate: new Date(todayStr) },
             select: { studentId: true }
@@ -50,26 +61,31 @@ const markAbsentStudents = async () => {
             return;
         }
 
-        // 3. Mark them as ABSENT
+        // 4. Mark them as ABSENT
         const absentData = absentStudents.map(s => ({
             studentId: s.id,
             attendanceDate: new Date(todayStr),
             status: 'ABSENT',
             method: 'SYSTEM',
-            markedById: 1, // System User ID
+            markedById: systemUser.id,
             deviceId: 'SYSTEM_AUTO'
         }));
+
+        console.log(`[Attendance Service] Attempting to mark ${absentData.length} students as ABSENT...`);
 
         const result = await prisma.attendance.createMany({
             data: absentData,
             skipDuplicates: true
         });
 
-        console.log(`[Attendance Service] Successfully marked ${result.count} students as ABSENT.`);
+        console.log(`[Attendance Service] SUCCESS: Marked ${result.count} students as ABSENT.`);
         return result.count;
 
     } catch (error) {
-        console.error('[Attendance Service] Error in Auto-Absent task:', error);
+        console.error('[Attendance Service] ERROR in Auto-Absent task:', error.message);
+        if (error.code === 'P2003') {
+            console.error('[Attendance Service] TIP: This is a Foreign Key error. Check if IDs exist.');
+        }
         throw error;
     }
 };

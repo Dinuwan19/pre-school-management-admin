@@ -277,6 +277,11 @@ const syncOverdueStatus = async () => {
                 });
 
                 if (!existingNote) {
+                    const systemUser = await prisma.user.findFirst({
+                        where: { role: 'SUPER_ADMIN', status: 'ACTIVE' },
+                        select: { id: true }
+                    });
+
                     await prisma.notification.create({
                         data: {
                             title: 'Overdue Payment Reminder',
@@ -284,7 +289,7 @@ const syncOverdueStatus = async () => {
                             targetRole: 'PERSONAL',
                             targetParentId: parent.userId,
                             billingMonth: bill.billingMonth,
-                            createdById: 1
+                            createdById: systemUser ? systemUser.id : 1 // Fallback safe check
                         }
                     });
                 }
@@ -344,6 +349,11 @@ const syncOverdueStatus = async () => {
                     // Notify Parent
                     const parent = student.parent_student_parentIdToparent;
                     if (parent && parent.userId) {
+                        const systemUser = await prisma.user.findFirst({
+                            where: { role: 'SUPER_ADMIN', status: 'ACTIVE' },
+                            select: { id: true }
+                        });
+
                         await prisma.notification.create({
                             data: {
                                 title: 'Overdue Payment Reminder',
@@ -351,7 +361,7 @@ const syncOverdueStatus = async () => {
                                 targetRole: 'PERSONAL',
                                 targetParentId: parent.userId,
                                 billingMonth: targetMonth.value,
-                                createdById: 1
+                                createdById: systemUser ? systemUser.id : 1
                             }
                         });
                     }
