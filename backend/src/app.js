@@ -21,6 +21,7 @@ const expenseRoutes = require('./routes/expense.routes'); // Placeholder for now
 const dashboardRoutes = require('./routes/dashboard.routes');
 const parentAuthRoutes = require('./routes/parent_auth.routes');
 const meetingRoutes = require('./routes/meeting.routes');
+const auditLogRoutes = require('./routes/auditLog.routes');
 const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
@@ -58,6 +59,7 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/parent-auth', parentAuthRoutes);
 app.use('/api/meetings', meetingRoutes);
+app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/reports', require('./routes/report.routes'));
 app.use('/api/events', require('./routes/event.routes'));
 app.use('/api/special-days', require('./routes/specialDay.routes'));

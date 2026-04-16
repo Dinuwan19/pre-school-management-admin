@@ -13,7 +13,8 @@ import {
     BarChartOutlined,
     ScheduleOutlined,
     FileTextOutlined,
-    IdcardOutlined
+    IdcardOutlined,
+    HistoryOutlined
 } from '@ant-design/icons';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -141,6 +142,13 @@ const MainLayout = () => {
             key: '/reports',
             icon: <BarChartOutlined />,
             label: 'Reports',
+        }] : []),
+        
+        // LOGS - SUPER ADMIN ONLY
+        ...(userRole === 'SUPER_ADMIN' ? [{
+            key: '/logs',
+            icon: <HistoryOutlined />,
+            label: 'System Logs',
         }] : [])
     ];
 

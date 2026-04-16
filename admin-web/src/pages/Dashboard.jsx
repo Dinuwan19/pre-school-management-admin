@@ -288,11 +288,6 @@ const Dashboard = () => {
                                 <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 4 }}>Monitoring Status</Text>
                                 <Text type="secondary" style={{ fontSize: 12 }}>Currently managing {data?.counts?.students || 0} active students and {data?.counts?.parents || 0} registered parents across {data?.counts?.classrooms || 0} classrooms.</Text>
                             </div>
-                            <Divider style={{ margin: '8px 0' }} />
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <Text type="secondary">Staff Online</Text>
-                                <Badge status="processing" text={data?.counts?.staff || 0} />
-                            </div>
                         </Space>
                     </Card>
                 </Col>

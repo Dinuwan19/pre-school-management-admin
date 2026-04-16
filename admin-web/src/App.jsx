@@ -28,7 +28,9 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Reports from './pages/Reports';
 import Events from './pages/Events';
+import Events from './pages/Events';
 import SpecialDays from './pages/SpecialDays';
+import Logs from './pages/Logs';
 
 const InitialRedirect = () => {
   const { user, loading } = useAuth();
@@ -224,6 +226,11 @@ const AppContent = () => {
             <Route path="/reports" element={
               <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'STAFF']}>
                 <Reports />
+              </ProtectedRoute>
+            } />
+            <Route path="/logs" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                <Logs />
               </ProtectedRoute>
             } />
           </Route>
