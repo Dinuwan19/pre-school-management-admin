@@ -8,6 +8,7 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const TIMEZONE = 'Asia/Colombo';
+const { sendPushNotification } = require('../utils/push.utils');
 
 /**
  * Scheduled task to handle 9:30 AM attendance closure.
@@ -22,9 +23,19 @@ const markAbsentStudents = async () => {
         const todayStr = dayjs().tz(TIMEZONE).format('YYYY-MM-DD');
         const dayOfWeek = dayjs().tz(TIMEZONE).day();
 
-        // Skip weekends (0 = Sunday, 6 = Saturday)
+        // 1. Skip weekends (0 = Sunday, 6 = Saturday)
         if (dayOfWeek === 0 || dayOfWeek === 6) {
             console.log(`[Attendance Service] Skipping auto-absent for weekend: ${todayStr}`);
+            return;
+        }
+
+        // 2. Skip Special Days (Holidays)
+        const specialDay = await prisma.special_day.findUnique({
+            where: { date: new Date(todayStr) }
+        });
+
+        if (specialDay) {
+            console.log(`[Attendance Service] Skipping auto-absent for Special Day: ${specialDay.name}`);
             return;
         }
 
@@ -115,16 +126,47 @@ const checkTomorrowSpecialDay = async () => {
         if (specialDay) {
             console.log(`[Special Day Service] Found special day: ${specialDay.name}. Sending notifications...`);
             
-            // Create a global notification for all parents
+            // 1. Get a valid System User (Super Admin) to avoid FK errors
+            const systemUser = await prisma.user.findFirst({
+                where: { role: 'SUPER_ADMIN', status: 'ACTIVE' },
+                select: { id: true }
+            });
+
+            const senderId = systemUser ? systemUser.id : 3; // Fallback to 3 if lookup fails
+
+            // 2. Create the Database Notification
             await prisma.notification.create({
                 data: {
                     title: `Special Day Tomorrow: ${specialDay.name}`,
                     message: `Reminder: Tomorrow (${tomorrow}) is a special day (${specialDay.name}). Preschool will not be held. ${specialDay.description || ''}`,
                     targetRole: 'PARENT',
-                    createdById: 1 // System user
+                    createdById: senderId
                 }
             });
-            console.log(`[Special Day Service] Notification sent successfully.`);
+
+            // 3. Send actual Push Notifications to all parents
+            const parentsWithTokens = await prisma.user.findMany({
+                where: {
+                    role: 'PARENT',
+                    status: 'ACTIVE',
+                    pushToken: { not: null, startsWith: 'ExponentPushToken' }
+                },
+                select: { pushToken: true }
+            });
+
+            const tokens = parentsWithTokens.map(p => p.pushToken);
+            
+            if (tokens.length > 0) {
+                console.log(`[Special Day Service] Sending push notifications to ${tokens.length} parents...`);
+                await sendPushNotification(
+                    tokens,
+                    `Special Day Tomorrow: ${specialDay.name}`,
+                    `Reminder: Tomorrow is ${specialDay.name}. There will be no classes.`,
+                    { type: 'SPECIAL_DAY', date: tomorrow }
+                );
+            }
+
+            console.log(`[Special Day Service] Notification workflow completed successfully.`);
         } else {
             console.log(`[Special Day Service] No special day found for tomorrow.`);
         }

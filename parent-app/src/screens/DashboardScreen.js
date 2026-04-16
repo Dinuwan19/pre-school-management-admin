@@ -36,6 +36,7 @@ import { getParentDashboardStats } from '../services/dashboard.service';
 import { COLORS } from '../constants/theme';
 import { AVATARS, getAvatarSource } from '../constants/avatars';
 import CommonHeader from '../components/CommonHeader';
+import { registerForPushNotificationsAsync, registerTokenWithBackend } from '../services/notificationService';
 
 const DashboardScreen = ({ navigation }) => {
     const [children, setChildren] = useState([]);
@@ -48,6 +49,17 @@ const DashboardScreen = ({ navigation }) => {
     const [detailModalVisible, setDetailModalVisible] = useState(false);
     const [imageModalVisible, setImageModalVisible] = useState(false);
     const [selectedImageUrl, setSelectedImageUrl] = useState(null);
+
+    useEffect(() => {
+        // Register push notifications on dashboard mount (ensure user is logged in)
+        const setupNotifications = async () => {
+             const token = await registerForPushNotificationsAsync();
+             if (token) {
+                 await registerTokenWithBackend(token);
+             }
+        };
+        setupNotifications();
+    }, []);
     const [isDownloading, setIsDownloading] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -128,19 +140,25 @@ const DashboardScreen = ({ navigation }) => {
                 Alert.alert('Permission needed', 'Please grant gallery permissions to download photos.');
                 return;
             }
-            const fileName = `school_event_${Date.now()}.jpg`;
-            const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+
+            // Extract extension or default to jpg
+            const extension = selectedImageUrl.split('.').pop().split('?')[0] || 'jpg';
+            const fileName = `school_event_${Date.now()}.${extension}`;
+            const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+            
+            console.log('Downloading from:', selectedImageUrl);
             const downloadRes = await FileSystem.downloadAsync(selectedImageUrl, fileUri);
             
-            if (downloadRes.uri) {
-                const asset = await MediaLibrary.createAssetAsync(downloadRes.uri);
-                // Set copyAsset to true for better compatibility on Android 11+
-                await MediaLibrary.createAlbumAsync('SchoolEvents', asset, true);
+            if (downloadRes.status === 200 && downloadRes.uri) {
+                // saveToLibraryAsync is more reliable for simple gallery saving
+                await MediaLibrary.saveToLibraryAsync(downloadRes.uri);
                 Alert.alert('Success', 'Photo saved to your gallery!');
+            } else {
+                throw new Error(`Download failed with status ${downloadRes.status}`);
             }
         } catch (error) {
             console.error('Download Error:', error);
-            Alert.alert('Error', 'Failed to save photo.');
+            Alert.alert('Error', 'Failed to save photo. Please check your internet and permissions.');
         } finally {
             setIsDownloading(false);
         }

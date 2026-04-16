@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 16,
         fontSize: 16,
-        color: COLORS.black,
+        color: '#1E293B',
     },
     eyeIcon: {
         padding: 16,

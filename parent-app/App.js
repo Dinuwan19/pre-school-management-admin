@@ -7,11 +7,7 @@ import { registerForPushNotificationsAsync, registerTokenWithBackend } from './s
 
 export default function App() {
   useEffect(() => {
-    registerForPushNotificationsAsync().then(token => {
-      if (token) {
-        registerTokenWithBackend(token);
-      }
-    });
+    // Moved push registration to Dashboard to ensure user is logged in
   }, []);
 
   return (

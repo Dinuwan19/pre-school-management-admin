@@ -70,26 +70,38 @@ export const registerTokenWithBackend = async (pushToken) => {
   try {
     const userToken = await SecureStore.getItemAsync('parentToken');
     if (!userToken) {
-      console.log('No user token found, skipping push token registration');
+      console.log('[Push] No parent token, skipping registration');
       return;
     }
 
-    const response = await fetch(`${getApiUrl()}/parents/push-token`, {
+    console.log('[Push] Sending token to backend:', pushToken);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+    const response = await fetch(`${getApiUrl()}/parent-auth/push-token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${userToken}`,
       },
       body: JSON.stringify({ pushToken }),
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     const data = await response.json();
     if (response.ok) {
-      console.log('Push token registered with backend:', data);
+      console.log('[Push] Success:', data);
     } else {
-      console.warn('Backend failed to register push token:', data.message);
+      console.warn('[Push] Failed side:', response.status, data.message);
     }
   } catch (error) {
-    console.error('Error registering push token with backend:', error);
+    if (error.name === 'AbortError') {
+      console.error('[Push] Request timed out');
+    } else {
+      console.error('[Push] Network Error:', error.message);
+    }
   }
 };

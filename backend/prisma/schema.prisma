@@ -51,41 +51,21 @@ model auditlog {
 }
 
 model billing {
-  id                Int              @id @default(autoincrement())
-  studentId         Int
-  billingMonth      String
-  amount            Decimal          @db.Decimal(10, 2)
-  status            String           @default("UNPAID")
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  invoiceUrl        String?
-  categoryId        Int?
-  billingCategory   BillingCategory? @relation(fields: [categoryId], references: [id])
-  student           student          @relation(fields: [studentId], references: [id], map: "Billing_studentId_fkey")
-  billingpayment    billingpayment[]
+  id              Int              @id @default(autoincrement())
+  studentId       Int
+  billingMonth    String
+  amount          Decimal          @db.Decimal(10, 2)
+  status          String           @default("UNPAID")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  categoryId      Int?
+  invoiceUrl      String?
+  student         student          @relation(fields: [studentId], references: [id], map: "Billing_studentId_fkey")
+  billingCategory billingcategory? @relation(fields: [categoryId], references: [id])
+  billingpayment  billingpayment[]
 
   @@index([studentId], map: "Billing_studentId_fkey")
   @@index([categoryId], map: "Billing_categoryId_fkey")
-}
-
-// Enum for Billing Frequency
-enum BillingFrequency {
-  ONE_TIME
-  RECURRING
-}
-
-model BillingCategory {
-  id          Int              @id @default(autoincrement())
-  name        String      
-  reason      String?          @db.Text
-  amount      Decimal          @db.Decimal(10, 2)
-  validUntil  DateTime
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  frequency   BillingFrequency @default(RECURRING)
-  
-  classrooms  classroom[] 
-  billings    billing[]   
 }
 
 model billingpayment {
@@ -100,55 +80,43 @@ model billingpayment {
 }
 
 model classroom {
-  id             Int              @id @default(autoincrement())
-  name           String
-  ageGroup       String?
-  capacity       Int?
-  status         classroom_status @default(ACTIVE)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  mealPlan       String?          @db.Text
-  homework       homework[]
-  notification   notification[]
-  student        student[]
-  teacherprofiles teacherprofile[]
-  events         event[]
-  billingCategories BillingCategory[]
+  id              Int               @id @default(autoincrement())
+  name            String
+  ageGroup        String?
+  capacity        Int?
+  status          classroom_status  @default(ACTIVE)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  mealPlan        String?           @db.Text
+  homework        homework[]
+  notification    notification[]
+  student         student[]
+  billingcategory billingcategory[] @relation("billingcategorytoclassroom")
+  event           event[]           @relation("classroomtoevent")
+  teacherprofile  teacherprofile[]  @relation("classroomtoteacherprofile")
 }
 
-
-// ... existing homework ...
-// ... existing notification ...
-// ... existing parent ...
-// ... existing payment ...
-// ... existing student ...
-// ... existing studentprogress ...
-
 model teacherprofile {
-  teacherId           Int                 @id
-  qualification       String?
-  qualificationPdf    String?
-  designation         teacher_designation @default(ASSISTANT)
-  qualifications      teacher_qualification[]
-  classrooms          classroom[]
-  user                user                @relation(fields: [teacherId], references: [id], map: "TeacherProfile_teacherId_fkey")
+  teacherId        Int                     @id
+  qualification    String?
+  qualificationPdf String?
+  designation      teacher_designation     @default(ASSISTANT)
+  qualifications   teacher_qualification[]
+  user             user                    @relation(fields: [teacherId], references: [id], map: "TeacherProfile_teacherId_fkey")
+  classroom        classroom[]             @relation("classroomtoteacherprofile")
 }
 
 model teacher_qualification {
-  id              Int            @id @default(autoincrement())
-  teacherId       Int
-  title           String
-  fileName        String?        
-  fileUrl         String?
-  createdAt       DateTime       @default(now())
-  teacherProfile  teacherprofile @relation(fields: [teacherId], references: [teacherId])
+  id             Int            @id @default(autoincrement())
+  teacherId      Int
+  title          String
+  fileName       String?
+  fileUrl        String?
+  createdAt      DateTime       @default(now())
+  teacherProfile teacherprofile @relation(fields: [teacherId], references: [teacherId])
 
   @@index([teacherId], map: "TeacherQualification_teacherId_fkey")
 }
-
-// ... existing user ...
-// ... existing meeting_request ...
-// ... existing report_log ...
 
 model event {
   id                 Int                  @id @default(autoincrement())
@@ -165,13 +133,12 @@ model event {
   mediaUrl           String?
   user               user                 @relation(fields: [createdById], references: [id])
   event_attendance   event_attendance[]
-  event_waiting_list event_waiting_list[]
   event_media        event_media[]
-  classrooms         classroom[]
+  event_waiting_list event_waiting_list[]
+  classroom          classroom[]          @relation("classroomtoevent")
 
   @@index([createdById], map: "Event_createdById_fkey")
 }
-
 
 model expense {
   id          Int      @id @default(autoincrement())
@@ -232,8 +199,8 @@ model parent {
   createdAt                              DateTime            @default(now())
   updatedAt                              DateTime            @updatedAt
   userId                                 Int?                @unique
-  verificationCode                       String?             @unique
   avatarType                             avatar_type         @default(ADULT)
+  verificationCode                       String?             @unique
   meeting_requests                       meeting_request[]
   user                                   user?               @relation(fields: [userId], references: [id])
   student_student_parentIdToparent       student[]           @relation("student_parentIdToparent")
@@ -250,8 +217,8 @@ model payment {
   amountPaid     Decimal          @db.Decimal(10, 2)
   status         payment_status   @default(PENDING)
   transactionRef String?
-  receiptNo      String?          @unique
   invoiceUrl     String?
+  receiptNo      String?          @unique
   billingpayment billingpayment[]
   user           user?            @relation(fields: [verifiedById], references: [id], map: "Payment_verifiedById_fkey")
 
@@ -278,16 +245,16 @@ model student {
   updatedAt                             DateTime             @updatedAt
   avatarType                            avatar_type          @default(CHILD)
   vaccineCardPdf                        String?
+  assessments                           assessment[]
   attendance                            attendance[]
   billing                               billing[]
   event_attendance                      event_attendance[]
   event_waiting_list                    event_waiting_list[]
+  meeting_requests                      meeting_request[]
   classroom                             classroom            @relation(fields: [classroomId], references: [id], map: "Student_classroomId_fkey")
   parent_student_parentIdToparent       parent               @relation("student_parentIdToparent", fields: [parentId], references: [id], map: "Student_parentId_fkey")
   parent_student_secondParentIdToparent parent?              @relation("student_secondParentIdToparent", fields: [secondParentId], references: [id], map: "Student_secondParentId_fkey")
   studentprogress                       studentprogress[]
-  assessments                           assessment[]
-  meeting_requests                      meeting_request[]
 
   @@index([classroomId], map: "Student_classroomId_fkey")
   @@index([parentId], map: "Student_parentId_fkey")
@@ -313,7 +280,6 @@ model studentprogress {
   @@index([updatedById], map: "StudentProgress_updatedById_fkey")
 }
 
-
 model user {
   id                                             Int               @id @default(autoincrement())
   employeeId                                     String?           @unique(map: "User_employeeId_key")
@@ -333,9 +299,10 @@ model user {
   updatedAt                                      DateTime          @updatedAt
   resetToken                                     String?
   resetTokenExpires                              DateTime?
-  pushToken                                      String?
   isActive                                       Boolean           @default(true)
   isEmailVerified                                Boolean           @default(false)
+  pushToken                                      String?
+  assessments                                    assessment[]
   attendance                                     attendance[]
   attendanceaudit                                attendanceaudit[]
   auditlog                                       auditlog[]
@@ -351,7 +318,6 @@ model user {
   studentprogress                                studentprogress[]
   teacherprofile                                 teacherprofile?
   temppasswordlog                                temppasswordlog[]
-  assessments                                    assessment[]
 }
 
 model meeting_request {
@@ -366,8 +332,8 @@ model meeting_request {
   status        meeting_status @default(PENDING)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
-  student       student?       @relation(fields: [studentId], references: [id])
   parent        parent         @relation(fields: [parentId], references: [id])
+  student       student?       @relation(fields: [studentId], references: [id])
   teacher       user?          @relation("meeting_created_by", fields: [teacherId], references: [id])
 
   @@index([parentId], map: "meeting_request_parentId_fkey")
@@ -387,12 +353,11 @@ model report_log {
   @@index([generatedById], map: "ReportLog_generatedById_fkey")
 }
 
-
 model event_media {
   id        Int      @id @default(autoincrement())
   eventId   Int
   url       String
-  type      String?  @default("IMAGE") // IMAGE, FILE
+  type      String?  @default("IMAGE")
   createdAt DateTime @default(now())
   event     event    @relation(fields: [eventId], references: [id])
 
@@ -451,11 +416,67 @@ model temppasswordlog {
 
 model special_day {
   id          Int      @id @default(autoincrement())
-  date        DateTime @db.Date @unique
+  date        DateTime @unique @db.Date
   name        String
   description String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model skill_category {
+  id     Int         @id @default(autoincrement())
+  name   String      @unique
+  skills sub_skill[]
+}
+
+model sub_skill {
+  id         Int                @id @default(autoincrement())
+  categoryId Int
+  name       String
+  scores     assessment_score[]
+  category   skill_category     @relation(fields: [categoryId], references: [id])
+
+  @@index([categoryId], map: "SubSkill_categoryId_fkey")
+}
+
+model assessment {
+  id          Int                @id @default(autoincrement())
+  studentId   Int
+  term        Int
+  remarks     String?            @db.Text
+  updatedById Int
+  updatedAt   DateTime           @updatedAt
+  student     student            @relation(fields: [studentId], references: [id])
+  user        user               @relation(fields: [updatedById], references: [id])
+  scores      assessment_score[]
+
+  @@index([studentId], map: "Assessment_studentId_fkey")
+  @@index([updatedById], map: "Assessment_updatedById_fkey")
+}
+
+model assessment_score {
+  id           Int        @id @default(autoincrement())
+  assessmentId Int
+  subSkillId   Int
+  score        Int
+  assessment   assessment @relation(fields: [assessmentId], references: [id])
+  subSkill     sub_skill  @relation(fields: [subSkillId], references: [id])
+
+  @@index([assessmentId], map: "AssessmentScore_assessmentId_fkey")
+  @@index([subSkillId], map: "AssessmentScore_subSkillId_fkey")
+}
+
+model billingcategory {
+  id         Int                       @id @default(autoincrement())
+  name       String
+  reason     String?                   @db.Text
+  amount     Decimal                   @db.Decimal(10, 2)
+  validUntil DateTime
+  createdAt  DateTime                  @default(now())
+  updatedAt  DateTime
+  frequency  billingcategory_frequency @default(RECURRING)
+  billings   billing[]
+  classroom  classroom[]               @relation("billingcategorytoclassroom")
 }
 
 enum user_role {
@@ -552,45 +573,7 @@ enum avatar_type {
   CHILD
 }
 
-model skill_category {
-  id     Int         @id @default(autoincrement())
-  name   String      @unique
-  skills sub_skill[]
-}
-
-model sub_skill {
-  id         Int                @id @default(autoincrement())
-  categoryId Int
-  name       String
-  category   skill_category     @relation(fields: [categoryId], references: [id])
-  scores     assessment_score[]
-
-  @@index([categoryId], map: "SubSkill_categoryId_fkey")
-}
-
-model assessment {
-  id          Int                @id @default(autoincrement())
-  studentId   Int
-  term        Int
-  remarks     String?            @db.Text
-  updatedById Int
-  updatedAt   DateTime           @updatedAt
-  scores      assessment_score[]
-  student     student            @relation(fields: [studentId], references: [id])
-  user        user               @relation(fields: [updatedById], references: [id])
-
-  @@index([studentId], map: "Assessment_studentId_fkey")
-  @@index([updatedById], map: "Assessment_updatedById_fkey")
-}
-
-model assessment_score {
-  id           Int        @id @default(autoincrement())
-  assessmentId Int
-  subSkillId   Int
-  score        Int
-  assessment   assessment @relation(fields: [assessmentId], references: [id])
-  subSkill     sub_skill  @relation(fields: [subSkillId], references: [id])
-
-  @@index([assessmentId], map: "AssessmentScore_assessmentId_fkey")
-  @@index([subSkillId], map: "AssessmentScore_subSkillId_fkey")
+enum billingcategory_frequency {
+  ONE_TIME
+  RECURRING
 }

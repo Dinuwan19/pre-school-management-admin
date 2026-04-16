@@ -89,19 +89,25 @@ const EventsScreen = ({ navigation }) => {
                 Alert.alert('Permission needed', 'Please grant gallery permissions to download photos.');
                 return;
             }
-            const fileName = `school_event_${Date.now()}.jpg`;
-            const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+
+            // Extract extension or default to jpg
+            const extension = selectedImageUrl.split('.').pop().split('?')[0] || 'jpg';
+            const fileName = `school_event_${Date.now()}.${extension}`;
+            const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+            
+            console.log('Downloading from:', selectedImageUrl);
             const downloadRes = await FileSystem.downloadAsync(selectedImageUrl, fileUri);
             
-            if (downloadRes.uri) {
-                const asset = await MediaLibrary.createAssetAsync(downloadRes.uri);
-                // Set copyAsset to true for better compatibility on Android 11+
-                await MediaLibrary.createAlbumAsync('SchoolEvents', asset, true);
+            if (downloadRes.status === 200 && downloadRes.uri) {
+                // saveToLibraryAsync is more reliable for simple gallery saving
+                await MediaLibrary.saveToLibraryAsync(downloadRes.uri);
                 Alert.alert('Success', 'Photo saved to your gallery!');
+            } else {
+                throw new Error(`Download failed with status ${downloadRes.status}`);
             }
         } catch (error) {
             console.error('Download Error:', error);
-            Alert.alert('Error', 'Failed to save photo.');
+            Alert.alert('Error', 'Failed to save photo. Please check your internet and permissions.');
         } finally {
             setIsDownloading(false);
         }

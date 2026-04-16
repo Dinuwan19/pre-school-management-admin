@@ -147,7 +147,7 @@ const ProfileScreen = ({ navigation }) => {
                             icon={<User size={20} color="#94A3B8" />}
                             label="Full Name"
                             value={profile?.fullName || "Not Set"}
-                            onEdit={() => openEditModal('Full Name', profile?.fullName, 'fullName')}
+                            isLocked={true}
                         />
                         <InfoRow
                             icon={<Phone size={20} color="#94A3B8" />}
@@ -310,6 +310,7 @@ const ProfileScreen = ({ navigation }) => {
                                 <TextInput
                                     style={styles.modalInput}
                                     placeholder="Current Password"
+                                    placeholderTextColor="#94A3B8"
                                     secureTextEntry
                                     value={passwordData.current}
                                     onChangeText={(t) => setPasswordData({ ...passwordData, current: t })}
@@ -317,6 +318,7 @@ const ProfileScreen = ({ navigation }) => {
                                 <TextInput
                                     style={styles.modalInput}
                                     placeholder="New Password"
+                                    placeholderTextColor="#94A3B8"
                                     secureTextEntry
                                     value={passwordData.new}
                                     onChangeText={(t) => setPasswordData({ ...passwordData, new: t })}
@@ -324,6 +326,7 @@ const ProfileScreen = ({ navigation }) => {
                                 <TextInput
                                     style={styles.modalInput}
                                     placeholder="Confirm New Password"
+                                    placeholderTextColor="#94A3B8"
                                     secureTextEntry
                                     value={passwordData.confirm}
                                     onChangeText={(t) => setPasswordData({ ...passwordData, confirm: t })}
@@ -484,7 +487,16 @@ const styles = StyleSheet.create({
 
     editBadge: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#9D5BF0', width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#fff' },
 
-    modalInput: { backgroundColor: '#F8FAFC', borderRadius: 16, padding: 18, fontSize: 16, marginVertical: 24, borderWidth: 1, borderColor: '#E2E8F0', color: COLORS.black },
+    modalInput: { 
+        backgroundColor: '#F8FAFC', 
+        borderRadius: 16, 
+        padding: 18, 
+        fontSize: 16, 
+        marginVertical: 12, 
+        borderWidth: 1, 
+        borderColor: '#E2E8F0', 
+        color: '#1E293B' 
+    },
     modalActions: { flexDirection: 'row', gap: 12 },
     modalBtn: { flex: 1, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
     cancelBtn: { backgroundColor: '#F1F5F9' },
