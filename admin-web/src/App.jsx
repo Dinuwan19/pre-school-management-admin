@@ -28,7 +28,6 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Reports from './pages/Reports';
 import Events from './pages/Events';
-import Events from './pages/Events';
 import SpecialDays from './pages/SpecialDays';
 import Logs from './pages/Logs';
 
