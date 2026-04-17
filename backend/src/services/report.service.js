@@ -5,201 +5,175 @@ const dayjs = require('dayjs');
  * Service to handle complex data aggregation for reports
  */
 
-exports.getFinancialReportData = async (startDate, endDate, generatorName) => {
-    // 1. Calculate Periods
-    const currentStart = dayjs(startDate);
-    const currentEnd = dayjs(endDate);
-    const prevStart = currentStart.subtract(1, 'month').startOf('month');
-    const prevEnd = currentStart.subtract(1, 'month').endOf('month');
-
-    // 2. Global Financials (Current Period)
-    const income = await prisma.payment.aggregate({
-        _sum: { amountPaid: true },
-        where: { 
-            createdAt: { gte: currentStart.toDate(), lte: currentEnd.toDate() }, 
-            status: 'APPROVED' 
-        }
+exports.getStudentProgressReportData = async (studentId, generatorName) => {
+    // 1. Fetch Student & Classroom Info
+    const student = await prisma.student.findUnique({
+        where: { id: parseInt(studentId) },
+        include: { classroom: true }
     });
 
-    const expenses = await prisma.expense.aggregate({
-        _sum: { amount: true },
-        where: { expenseDate: { gte: currentStart.toDate(), lte: currentEnd.toDate() } }
+    if (!student) throw new Error('Student not found');
+
+    // 2. Fetch All Skill Categories and Sub-skills
+    const categories = await prisma.skill_category.findMany({
+        include: { skills: true },
+        orderBy: { name: 'asc' }
     });
 
-    const totalIncome = parseFloat(income._sum.amountPaid || 0);
-    const totalExpense = parseFloat(expenses._sum.amount || 0);
-    const netBalance = totalIncome - totalExpense;
-
-    // 3. Category Breakdown (Current Period)
-    const paymentsByCategory = await prisma.payment.findMany({
-        where: { 
-            createdAt: { gte: currentStart.toDate(), lte: currentEnd.toDate() }, 
-            status: 'APPROVED' 
-        },
-        include: { 
-            billingpayment: { 
-                include: { 
-                    billing: { 
-                        include: { billingCategory: true } 
-                    } 
-                } 
-            } 
-        }
+    // 3. Fetch All Assessments for the student (Term 1, 2, 3)
+    const assessments = await prisma.assessment.findMany({
+        where: { studentId: parseInt(studentId) },
+        include: { scores: { include: { subSkill: true } } },
+        orderBy: { term: 'asc' }
     });
 
-    const categoryStats = {};
-    paymentsByCategory.forEach(p => {
-        const catName = p.billingpayment[0]?.billing?.billingCategory?.name || 'Other/Uncategorized';
-        categoryStats[catName] = (categoryStats[catName] || 0) + parseFloat(p.amountPaid);
-    });
-
-    // 4. Collection Health (Current vs Previous)
-    const getCollectionStats = async (start, end) => {
-        const billings = await prisma.billing.findMany({
-            where: { createdAt: { gte: start.toDate(), lte: end.toDate() } }
+    // Data Mapping for Table Representation
+    // Structure: Category -> [SubSkill -> {term1: score, term2: score, term3: score}]
+    const mappedData = categories.map(cat => {
+        const skillsWithScores = cat.skills.map(subSkill => {
+            const scores = {};
+            [1, 2, 3].forEach(term => {
+                const assessment = assessments.find(a => a.term === term);
+                const scoreObj = assessment?.scores.find(s => s.subSkillId === subSkill.id);
+                scores[`term${term}`] = scoreObj ? scoreObj.score : '-';
+            });
+            return {
+                id: subSkill.id,
+                name: subSkill.name,
+                ...scores
+            };
         });
-        const expected = billings.reduce((sum, b) => sum + parseFloat(b.amount), 0);
-        const collected = billings
-            .filter(b => b.status === 'PAID' || b.status === 'APPROVED')
-            .reduce((sum, b) => sum + parseFloat(b.amount), 0);
-        const overdue = expected - collected;
-        return { expected, collected, overdue };
-    };
-
-    const currentCollection = await getCollectionStats(currentStart, currentEnd);
-    const prevCollection = await getCollectionStats(prevStart, prevEnd);
-
-    // 5. Class-wise Overdue Breakdown (Current Period)
-    // We get all unpaid billings for current period and group them by classroom
-    const unpaidBillings = await prisma.billing.findMany({
-        where: { 
-            status: 'UNPAID',
-            createdAt: { gte: currentStart.toDate(), lte: currentEnd.toDate() }
-        },
-        include: { 
-            student: { 
-                include: { classroom: true } 
-            } 
-        }
+        return {
+            id: cat.id,
+            name: cat.name,
+            skills: skillsWithScores
+        };
     });
 
-    const classOverdueMap = {};
-    unpaidBillings.forEach(b => {
-        const className = b.student?.classroom?.name || 'Unassigned';
-        classOverdueMap[className] = (classOverdueMap[className] || 0) + parseFloat(b.amount);
-    });
+    // Latest Remarks (PRIORITY: Term 3 -> 2 -> 1)
+    const latestAssessment = assessments.sort((a, b) => b.term - a.term)[0];
+    const remarks = latestAssessment ? latestAssessment.remarks : 'No observations recorded for this period.';
 
-    // Sort classes by overdue amount descending for the chart
-    const sortedClasses = Object.entries(classOverdueMap)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10); // Top 10 heavy overdue classes
-
-    // 6. Structure Report Data for Template
     return {
+        student: {
+            fullName: student.fullName,
+            studentUniqueId: student.studentUniqueId,
+            classroomName: student.classroom?.name || 'N/A',
+            enrolledDate: student.enrollmentDate ? dayjs(student.enrollmentDate).format('YYYY-MM-DD') : 'N/A',
+            age: student.dateOfBirth ? dayjs().diff(dayjs(student.dateOfBirth), 'year') : 'N/A'
+        },
         generatedBy: generatorName,
-        pages: [
-            {
-                title: 'Institutional Profit & Loss Statement',
-                scorecards: [
-                    { label: 'Net Profit/Loss', value: `LKR ${netBalance.toLocaleString()}`, status: netBalance >= 0 ? 'success' : 'danger', sub: 'Calculated this period' },
-                    { label: 'Total Income', value: `LKR ${totalIncome.toLocaleString()}` },
-                    { label: 'Operation Costs', value: `LKR ${totalExpense.toLocaleString()}`, status: 'danger' }
-                ],
-                insight: `The organization recorded a ${netBalance >= 0 ? 'profit' : 'loss'} of LKR ${Math.abs(netBalance).toLocaleString()} for this period. Net Margin is ${totalIncome > 0 ? ((netBalance / totalIncome) * 100).toFixed(1) : 0}%.`,
-                charts: [
-                    {
-                        id: 'pl-bar',
-                        fullWidth: true,
-                        config: JSON.stringify({
-                            type: 'bar',
-                            data: {
-                                labels: ['Gross Income', 'Expenses', 'Net Profit'],
-                                datasets: [{
-                                    data: [totalIncome, totalExpense, netBalance],
-                                    backgroundColor: ['#A29BFE', '#FF7675', '#7B57E4']
-                                }]
-                            },
-                            options: { plugins: { legend: { display: false } }, maintainAspectRatio: false }
-                        })
-                    },
-                    {
-                        id: 'income-dist',
-                        config: JSON.stringify({
-                            type: 'doughnut',
-                            data: {
-                                labels: Object.keys(categoryStats),
-                                datasets: [{
-                                    data: Object.values(categoryStats),
-                                    backgroundColor: ['#7B57E4', '#A29BFE', '#FAB1A0', '#55E6C1']
-                                }]
-                            },
-                            options: { maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom' } } }
-                        })
-                    }
-                ],
-                tables: [
-                    {
-                        title: 'Revenue Stream Distribution',
-                        headers: ['Category', 'Amount Collected', 'Share (%)'],
-                        rows: Object.entries(categoryStats).map(([cat, val]) => [
-                            cat, 
-                            `LKR ${val.toLocaleString()}`, 
-                            { type: 'tag', style: 'primary', text: `${((val / totalIncome) * 100).toFixed(1)}%` }
-                        ])
-                    }
-                ]
-            },
-            {
-                title: 'Collection & Overdue Analysis',
-                scorecards: [
-                    { label: 'Collection Rate', value: currentCollection.expected > 0 ? `${((currentCollection.collected / currentCollection.expected) * 100).toFixed(1)}%` : '0%', status: 'success' },
-                    { label: 'Total Overdue', value: `LKR ${currentCollection.overdue.toLocaleString()}`, status: 'danger' },
-                    { label: 'Expected Revenue', value: `LKR ${currentCollection.expected.toLocaleString()}` }
-                ],
-                insight: `Current collection efficiency is at ${currentCollection.expected > 0 ? ((currentCollection.collected / currentCollection.expected) * 100).toFixed(1) : 0}%. Urgent follow-up is suggested for overdue accounts.`,
-                charts: [
-                    {
-                        id: 'collection-comparison',
-                        config: JSON.stringify({
-                            type: 'bar',
-                            data: {
-                                labels: ['Previous', 'Current'],
-                                datasets: [
-                                    { label: 'Expected', data: [prevCollection.expected, currentCollection.expected], backgroundColor: '#D6D1F9' },
-                                    { label: 'Collected', data: [prevCollection.collected, currentCollection.collected], backgroundColor: '#7B57E4' }
-                                ]
-                            },
-                            options: { maintainAspectRatio: false }
-                        })
-                    },
-                    {
-                        id: 'class-overdue-ranking',
-                        config: JSON.stringify({
-                            type: 'bar',
-                            data: {
-                                labels: sortedClasses.map(c => c[0]),
-                                datasets: [{
-                                    label: 'Unpaid Amount',
-                                    data: sortedClasses.map(c => c[1]),
-                                    backgroundColor: '#FF7675'
-                                }]
-                            },
-                            options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } } }
-                        })
-                    }
-                ],
-                tables: [
-                    {
-                        title: 'Critical Follow-up List',
-                        headers: ['Classroom', 'Overdue Amount', 'Status'],
-                        rows: sortedClasses.map(c => [
-                            c[0], 
-                            `LKR ${c[1].toLocaleString()}`, 
-                            { type: 'tag', style: 'danger', text: 'HIGH OVERDUE' }
-                        ])
-                    }
-                ]
-            }
-        ]
+        categories: mappedData,
+        teacherComment: remarks
     };
 };
+
+exports.getAttendanceSummaryData = async (startDate, endDate, generatorName) => {
+    const start = dayjs(startDate || dayjs().startOf('year'));
+    const end = dayjs(endDate || dayjs());
+    const diffMonths = end.diff(start, 'month');
+    const isOver12Months = diffMonths > 12;
+
+    // 1. Fetch All Classrooms
+    const classrooms = await prisma.classroom.findMany({
+        where: { status: 'ACTIVE' },
+        include: {
+            student: {
+                where: { status: 'ACTIVE' },
+                include: {
+                    attendance: {
+                        where: { attendanceDate: { gte: start.toDate(), lte: end.toDate() } }
+                    }
+                }
+            }
+        }
+    });
+
+    // 2. Identify Students with < 50% Attendance
+    const studentsWithLowAttendance = [];
+    
+    // 3. Prepare Chart Data (Monthly or Bi-monthly)
+    const chartLabels = [];
+    const classroomDatasets = classrooms.map(cls => ({
+        label: cls.name,
+        data: []
+    }));
+
+    // Time Iteration
+    const step = isOver12Months ? 2 : 1;
+    let current = start.startOf('month');
+    
+    while (current.isBefore(end) || current.isSame(end, 'month')) {
+        const periodStart = current.toDate();
+        const periodEnd = isOver12Months ? current.add(1, 'month').endOf('month').toDate() : current.endOf('month').toDate();
+        
+        const label = isOver12Months 
+            ? `${current.format('MMM')}-${current.add(1, 'month').format('MMM')}`
+            : current.format('MMMM');
+        
+        chartLabels.push(label);
+
+        classrooms.forEach((cls, idx) => {
+            let totalClassAttendance = 0;
+            let totalPossibleRecords = 0;
+
+            cls.student.forEach(std => {
+                // Filter student attendance for this specific period
+                const periodAttendance = std.attendance.filter(a => 
+                    dayjs(a.attendanceDate).isAfter(dayjs(periodStart).subtract(1, 'day')) && 
+                    dayjs(a.attendanceDate).isBefore(dayjs(periodEnd).add(1, 'day'))
+                );
+
+                const presentCount = periodAttendance.filter(a => ['PRESENT', 'LATE', 'COMPLETED'].includes(a.status)).length;
+                totalClassAttendance += presentCount;
+                
+                // Estimation: Only count days where at least one student in class had a record (active school days)
+                // For simplicity, we assume period attendance length / unique students count as indicator of days
+                totalPossibleRecords += periodAttendance.length;
+
+                // Overall Logic for < 50% (For the table)
+                if (current.isSame(start.startOf('month'))) { // Only run once for the whole range
+                    const totalPresentOverall = std.attendance.filter(a => ['PRESENT', 'LATE', 'COMPLETED'].includes(a.status)).length;
+                    const totalDaysOverall = std.attendance.length;
+                    const rate = totalDaysOverall > 0 ? (totalPresentOverall / totalDaysOverall) * 100 : 0;
+                    
+                    if (totalDaysOverall > 0 && rate < 50) {
+                        studentsWithLowAttendance.push({
+                            className: cls.name,
+                            studentName: std.fullName,
+                            studentId: std.studentUniqueId,
+                            rate: Math.round(rate)
+                        });
+                    }
+                }
+            });
+
+            const avgAttendance = totalPossibleRecords > 0 ? Math.round((totalClassAttendance / totalPossibleRecords) * 100) : 0;
+            classroomDatasets[idx].data.push(avgAttendance);
+        });
+
+        current = current.add(step, 'month');
+    }
+
+    // Colors for the chart (Premium Palette)
+    const professionalColors = [
+        '#7B57E4', '#55E6C1', '#FF7675', '#FDCB6E', '#A29BFE', '#55E6C1', '#00B894', '#6C5CE7'
+    ];
+
+    return {
+        generatedBy: generatorName,
+        timeframe: `${start.format('MMMM YYYY')} - ${end.format('MMMM YYYY')}`,
+        chartData: {
+            labels: chartLabels,
+            datasets: classroomDatasets.map((ds, i) => ({
+                ...ds,
+                backgroundColor: professionalColors[i % professionalColors.length],
+                borderRadius: 4
+            }))
+        },
+        lowAttendanceStudents: studentsWithLowAttendance,
+        classCount: classrooms.length,
+        studentCount: classrooms.reduce((sum, cls) => sum + cls.student.length, 0)
+    };
+};
+

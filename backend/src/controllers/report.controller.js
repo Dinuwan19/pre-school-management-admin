@@ -8,7 +8,6 @@ const reportService = require('../services/report.service');
 exports.generateReport = async (req, res, next) => {
     try {
         const { type, dateRange, studentId } = req.body;
-        const generatedById = req.user.id;
         const generatorName = req.user.fullName;
 
         // 1. Determine Date Range
@@ -29,99 +28,29 @@ exports.generateReport = async (req, res, next) => {
                 endDate = now.toDate();
                 break;
             default:
-                startDate = now.startOf('month').toDate();
+                // Start with current academic year (January) as per user request
+                startDate = now.startOf('year').toDate();
                 endDate = now.toDate();
         }
 
         let reportData;
+        let html;
 
-        // 2. Logic Selection (Service Layer)
-        if (type === 'Fee Payment Report' || type === 'Financial Report') {
-            reportData = await reportService.getFinancialReportData(startDate, endDate, generatorName);
-        } else if (type === 'Attendance Report') {
-            // TODO: Move Attendance Report to reportService later
-            // Keeping original logic for now to ensure continuity
-            const globalStats = await prisma.attendance.groupBy({
-                by: ['status'],
-                where: { attendanceDate: { gte: startDate, lte: endDate } },
-                _count: { _all: true }
-            });
-
-            let gPresent = 0, gAbsent = 0, gLate = 0;
-            globalStats.forEach(s => {
-                if (['PRESENT', 'COMPLETED'].includes(s.status)) gPresent += s._count._all;
-                if (['ABSENT'].includes(s.status)) gAbsent += s._count._all;
-                if (['LATE'].includes(s.status)) gLate += s._count._all;
-            });
-            const gTotal = gPresent + gAbsent + gLate;
-            const gRate = gTotal > 0 ? Math.round((gPresent / gTotal) * 100) : 0;
-
-            reportData = {
-                generatedBy: generatorName,
-                pages: [{
-                    title: 'Institutional Attendance Overview',
-                    sidebarMetrics: {
-                        'Overview': { 'Attendance Rate': `${gRate}%`, 'Total Records': gTotal },
-                        'Breakdown': { 'Present': gPresent, 'Absent': gAbsent, 'Late': gLate }
-                    },
-                    insight: `The institution maintained an average attendance rate of ${gRate}% for this period.`,
-                    charts: [{
-                        id: 'global-trend',
-                        config: JSON.stringify({
-                            type: 'doughnut',
-                            data: {
-                                labels: ['Present', 'Absent', 'Late'],
-                                datasets: [{ data: [gPresent, gAbsent, gLate], backgroundColor: ['#00B894', '#FF7675', '#FDCB6E'], borderWidth: 0 }]
-                            },
-                            options: { maintainAspectRatio: false, cutout: '70%' }
-                        })
-                    }],
-                    tables: []
-                }]
-            };
+        // 2. Specialized Logic Selection
+        if (type === 'Attendance Report' || type === 'Attendance Summary') {
+            reportData = await reportService.getAttendanceSummaryData(startDate, endDate, generatorName);
+            html = pdfService.generateAttendanceSummaryTemplate(reportData);
         } else if (type === 'Student Progress Report') {
-            // Keeping original logic for now
-            if (studentId) {
-                const student = await prisma.student.findUnique({ where: { id: parseInt(studentId) } });
-                const assessment = await prisma.assessment.findFirst({
-                    where: { studentId: parseInt(studentId) },
-                    orderBy: { updatedAt: 'desc' },
-                    include: { scores: { include: { subSkill: true } } }
-                });
-
-                if (assessment) {
-                    const scoresList = assessment.scores.map(s => s.score);
-                    const avg = scoresList.reduce((a, b) => a + b, 0) / scoresList.length;
-                    reportData = {
-                        generatedBy: generatorName,
-                        pages: [{
-                            title: `Development Profile: ${student.fullName}`,
-                            sidebarMetrics: { 'Profile': { 'Growth Index': `${avg.toFixed(1)}/5.0`, 'Skills': scoresList.length } },
-                            insight: `${student.fullName} demonstrates a Growth Index of ${avg.toFixed(1)}.`,
-                            charts: [{
-                                id: 'radar-skill',
-                                config: JSON.stringify({
-                                    type: 'radar',
-                                    data: {
-                                        labels: assessment.scores.map(s => s.subSkill.name),
-                                        datasets: [{ data: scoresList, backgroundColor: 'rgba(123, 87, 228, 0.2)', borderColor: '#7B57E4' }]
-                                    },
-                                    options: { scales: { r: { min: 0, max: 5 } }, maintainAspectRatio: false }
-                                })
-                            }],
-                            tables: []
-                        }]
-                    };
-                }
-            }
+            if (!studentId) return res.status(400).json({ message: 'Student ID is required for Progress Reports' });
+            reportData = await reportService.getStudentProgressReportData(studentId, generatorName);
+            html = pdfService.generateStudentProgressTemplate(reportData);
         }
 
-        if (!reportData) {
-            return res.status(400).json({ message: 'Could not generate report data for the selected type' });
+        if (!reportData || !html) {
+            return res.status(400).json({ message: 'Invalid report type or missing data' });
         }
 
-        // 3. Generate HTML and PDF
-        const html = pdfService.generateReportTemplate(type, reportData);
+        // 3. Generate PDF
         const pdfBuffer = await pdfService.generatePdfFromHtml(html);
 
         // 4. Upload and Log
@@ -134,17 +63,18 @@ exports.generateReport = async (req, res, next) => {
             data: {
                 reportType: type,
                 dateRange: dateRange,
-                generatedById: generatedById,
+                generatedById: req.user.id,
                 filePath: publicUrl
             }
         });
 
-        res.json({ message: 'Advanced analytical report generated successfully', reportId: log.id, downloadUrl: publicUrl });
+        res.json({ message: 'Specialized analytical report generated successfully', reportId: log.id, downloadUrl: publicUrl });
     } catch (error) {
         console.error('Report Generation Error:', error);
         next(error);
     }
 };
+
 
 exports.getRecentReports = async (req, res, next) => {
     try {
