@@ -17,6 +17,7 @@ model attendance {
   deviceId        String?
   method          attendance_method @default(MANUAL)
   status          attendance_status @default(PRESENT)
+  reason          String?           @db.Text
   user            user              @relation(fields: [markedById], references: [id], map: "Attendance_markedById_fkey")
   student         student           @relation(fields: [studentId], references: [id], map: "Attendance_studentId_fkey")
   attendanceaudit attendanceaudit[]
@@ -173,6 +174,7 @@ model notification {
   targetClassroomId                      Int?
   createdById                            Int
   createdAt                              DateTime   @default(now())
+  expiresAt                              DateTime?
   billingMonth                           String?
   targetParentId                         Int?
   user_notification_createdByIdTouser    user       @relation("notification_createdByIdTouser", fields: [createdById], references: [id], map: "Notification_createdById_fkey")

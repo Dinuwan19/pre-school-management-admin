@@ -2,6 +2,7 @@ const axios = require('axios');
 
 /**
  * Sends push notifications via Expo Push API
+ * Uses high-priority FCM flags for WhatsApp-style screen-off delivery
  * @param {string[]} tokens - Array of Expo Push Tokens
  * @param {string} title - Notification Title
  * @param {string} body - Notification Body
@@ -19,8 +20,16 @@ const sendPushNotification = async (tokens, title, body, data = {}) => {
             title,
             body,
             data,
+
+            // Android: Force highest priority — wakes device even with screen off (like WhatsApp)
             priority: 'high',
-            channelId: 'default'
+            channelId: 'default',
+            
+            // Android: Keep message alive for 1 hour if device is unreachable
+            ttl: 3600,
+
+            // iOS: Wake app in background to process notification
+            _contentAvailable: true,
         }));
 
         const response = await axios.post('https://exp.host/--/api/v2/push/send', messages, {
@@ -31,6 +40,14 @@ const sendPushNotification = async (tokens, title, body, data = {}) => {
             },
         });
 
+        // Log any per-token errors from Expo
+        const results = response.data?.data || [];
+        results.forEach((result, i) => {
+            if (result.status === 'error') {
+                console.error(`[Push] Token error for ${validTokens[i]}: ${result.message} (${result.details?.error})`);
+            }
+        });
+
         return response.data;
     } catch (error) {
         console.error('Error sending push notification:', error.response?.data || error.message);
@@ -38,3 +55,4 @@ const sendPushNotification = async (tokens, title, body, data = {}) => {
 };
 
 module.exports = { sendPushNotification };
+

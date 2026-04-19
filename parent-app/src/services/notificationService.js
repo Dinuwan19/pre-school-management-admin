@@ -52,7 +52,7 @@ export const registerForPushNotificationsAsync = async () => {
 
     try {
       token = (await Notifications.getExpoPushTokenAsync({
-          projectId: '6bed4c92-f081-4782-b419-2e187e90538f' // From app.json
+          projectId: 'caed9ea4-b682-4116-82c0-66648c5d27be' // New project under pasindu19 account
       })).data;
       console.log('Push Token Generated:', token);
     } catch (e) {
@@ -94,14 +94,21 @@ export const registerTokenWithBackend = async (pushToken) => {
     const data = await response.json();
     if (response.ok) {
       console.log('[Push] Success:', data);
+      // Alert.alert("Success", "Push notification token registered with server!");
+      return true;
     } else {
       console.warn('[Push] Failed side:', response.status, data.message);
+      Alert.alert("Server Error", `Backend failed to save token: ${data.message}`);
+      return false;
     }
   } catch (error) {
     if (error.name === 'AbortError') {
       console.error('[Push] Request timed out');
+      Alert.alert("Timeout", "Server took too long to respond to push token registration.");
     } else {
       console.error('[Push] Network Error:', error.message);
+      Alert.alert("Network Error", "Could not connect to server to save push token.");
     }
+    return false;
   }
 };

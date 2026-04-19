@@ -191,7 +191,8 @@ exports.manualAttendance = async (req, res, next) => {
             method: 'MANUAL',
             markedById,
             checkInTime: checkInTime ? new Date(checkInTime) : undefined,
-            checkOutTime: checkOutTime ? new Date(checkOutTime) : undefined
+            checkOutTime: checkOutTime ? new Date(checkOutTime) : undefined,
+            reason: auditReason
         };
 
         if (existing) {
@@ -229,7 +230,7 @@ exports.manualAttendance = async (req, res, next) => {
 
 exports.bulkMarkAttendance = async (req, res, next) => {
     try {
-        const { classroomId, status, date } = req.body;
+        const { classroomId, status, date, reason } = req.body;
         const markedById = req.user.id;
         const attendanceDate = date ? new Date(date) : new Date(dayjs().format('YYYY-MM-DD'));
 
@@ -291,7 +292,9 @@ exports.bulkMarkAttendance = async (req, res, next) => {
                 data: {
                     status,
                     method: 'MANUAL',
-                    markedById
+                    markedById,
+                    reason: reason || 'Bulk Marking',
+                    checkOutTime: status === 'COMPLETED' ? new Date() : undefined
                 }
             });
         }
@@ -305,7 +308,9 @@ exports.bulkMarkAttendance = async (req, res, next) => {
                     status,
                     method: 'MANUAL',
                     markedById,
-                    checkInTime: status === 'PRESENT' ? new Date() : null
+                    reason: reason || 'Bulk Marking',
+                    checkInTime: status === 'PRESENT' ? new Date() : null,
+                    checkOutTime: status === 'COMPLETED' ? new Date() : null
                 }))
             });
         }
@@ -348,6 +353,7 @@ exports.getDailyAttendance = async (req, res, next) => {
                 checkInTime: att ? att.checkInTime : null,
                 checkOutTime: att ? att.checkOutTime : null,
                 status: att ? att.status : 'NOT_MARKED',
+                reason: att ? att.reason : null,
                 method: att ? att.method : null,
                 student: {
                     id: s.id,

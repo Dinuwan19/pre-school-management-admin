@@ -125,7 +125,7 @@ exports.generateInvoice = async (paymentId) => {
 
             doc.fillColor('#7B57E4')
                 .fontSize(10)
-                .text('123 ANYWHERE ST., ANY CITY, ST 12345', 120, 110);
+                .text('205 ,A kadawatha road . Ja ela', 120, 110);
 
             doc.moveTo(50, 140).lineTo(550, 140).stroke('#7B57E4');
 

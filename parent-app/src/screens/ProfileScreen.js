@@ -298,67 +298,77 @@ const ProfileScreen = ({ navigation }) => {
                 animationType="slide"
                 onRequestClose={() => setIsPasswordModalVisible(false)}
             >
-                <TouchableWithoutFeedback onPress={() => setIsPasswordModalVisible(false)}>
-                    <View style={styles.modalOverlay}>
-                        <TouchableWithoutFeedback>
-                            <View style={styles.modalView}>
-                                <View style={styles.modalHeader}>
-                                    <View style={styles.modalIndicator} />
-                                    <Text style={styles.modalTitle}>Change Password</Text>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+                >
+                    <TouchableWithoutFeedback onPress={() => setIsPasswordModalVisible(false)}>
+                        <View style={styles.modalOverlay}>
+                            <TouchableWithoutFeedback>
+                                <View style={[styles.modalView, { paddingBottom: 36 }]}>
+                                    <View style={styles.modalHeader}>
+                                        <View style={styles.modalIndicator} />
+                                        <Text style={styles.modalTitle}>Change Password</Text>
+                                    </View>
+
+                                    <TextInput
+                                        style={styles.modalInput}
+                                        placeholder="Current Password"
+                                        placeholderTextColor="#94A3B8"
+                                        secureTextEntry
+                                        value={passwordData.current}
+                                        onChangeText={(t) => setPasswordData({ ...passwordData, current: t })}
+                                        returnKeyType="next"
+                                    />
+                                    <TextInput
+                                        style={styles.modalInput}
+                                        placeholder="New Password"
+                                        placeholderTextColor="#94A3B8"
+                                        secureTextEntry
+                                        value={passwordData.new}
+                                        onChangeText={(t) => setPasswordData({ ...passwordData, new: t })}
+                                        returnKeyType="next"
+                                    />
+                                    <TextInput
+                                        style={styles.modalInput}
+                                        placeholder="Confirm New Password"
+                                        placeholderTextColor="#94A3B8"
+                                        secureTextEntry
+                                        value={passwordData.confirm}
+                                        onChangeText={(t) => setPasswordData({ ...passwordData, confirm: t })}
+                                        returnKeyType="done"
+                                    />
+
+                                    <TouchableOpacity
+                                        style={[styles.saveBtn, { height: 56, borderRadius: 16, marginTop: 16 }]}
+                                        onPress={async () => {
+                                            if (passwordData.new !== passwordData.confirm) {
+                                                Alert.alert("Error", "Passwords do not match");
+                                                return;
+                                            }
+                                            setSubmitting(true);
+                                            try {
+                                                await apiChangePassword(passwordData.current, passwordData.new);
+                                                Alert.alert("Success", "Password changed successfully");
+                                                setIsPasswordModalVisible(false);
+                                                setPasswordData({ current: '', new: '', confirm: '' });
+                                            } catch (e) {
+                                                Alert.alert("Error", e.message || "Failed to change password");
+                                            } finally {
+                                                setSubmitting(false);
+                                            }
+                                        }}
+                                    >
+                                        {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Update Password</Text>}
+                                    </TouchableOpacity>
                                 </View>
-
-                                <TextInput
-                                    style={styles.modalInput}
-                                    placeholder="Current Password"
-                                    placeholderTextColor="#94A3B8"
-                                    secureTextEntry
-                                    value={passwordData.current}
-                                    onChangeText={(t) => setPasswordData({ ...passwordData, current: t })}
-                                />
-                                <TextInput
-                                    style={styles.modalInput}
-                                    placeholder="New Password"
-                                    placeholderTextColor="#94A3B8"
-                                    secureTextEntry
-                                    value={passwordData.new}
-                                    onChangeText={(t) => setPasswordData({ ...passwordData, new: t })}
-                                />
-                                <TextInput
-                                    style={styles.modalInput}
-                                    placeholder="Confirm New Password"
-                                    placeholderTextColor="#94A3B8"
-                                    secureTextEntry
-                                    value={passwordData.confirm}
-                                    onChangeText={(t) => setPasswordData({ ...passwordData, confirm: t })}
-                                />
-
-                                <TouchableOpacity
-                                    style={[styles.saveBtn, { height: 56, borderRadius: 16, marginTop: 10 }]}
-                                    onPress={async () => {
-                                        if (passwordData.new !== passwordData.confirm) {
-                                            Alert.alert("Error", "Passwords do not match");
-                                            return;
-                                        }
-                                        setSubmitting(true);
-                                        try {
-                                            await apiChangePassword(passwordData.current, passwordData.new);
-                                            Alert.alert("Success", "Password changed successfully");
-                                            setIsPasswordModalVisible(false);
-                                            setPasswordData({ current: '', new: '', confirm: '' });
-                                        } catch (e) {
-                                            Alert.alert("Error", e.message || "Failed to change password");
-                                        } finally {
-                                            setSubmitting(false);
-                                        }
-                                    }}
-                                >
-                                    {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Update Password</Text>}
-                                </TouchableOpacity>
-                            </View>
-                        </TouchableWithoutFeedback>
-                    </View>
-                </TouchableWithoutFeedback>
+                            </TouchableWithoutFeedback>
+                        </View>
+                    </TouchableWithoutFeedback>
+                </KeyboardAvoidingView>
             </Modal>
+
         </View>
     );
 };

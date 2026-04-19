@@ -134,18 +134,37 @@ exports.getAllNotifications = async (req, res, next) => {
             }
 
             where = {
-                OR: [
-                    { targetRole: 'ALL' },
-                    { targetRole: 'PARENT', targetParentId: null },
-                    { targetParentId: id },
-                    { targetClassroomId: { in: classroomIds } }
+                AND: [
+                    {
+                        OR: [
+                            { targetRole: 'ALL' },
+                            { targetRole: 'PARENT' },
+                            { targetParentId: id }
+                        ]
+                    },
+                    {
+                        OR: [
+                            { targetClassroomId: { in: classroomIds } },
+                            { targetClassroomId: null },
+                            { targetParentId: id }
+                        ]
+                    }
                 ]
             };
         }
         // ADMIN/SUPER_ADMIN see all by default (empty where)
 
+        // GLOBAL FILTER: Don't show expired notifications
+        const finalWhere = {
+            ...where,
+            OR: [
+                { expiresAt: null },
+                { expiresAt: { gt: new Date() } }
+            ]
+        };
+
         const notifications = await prisma.notification.findMany({
-            where,
+            where: finalWhere,
             include: {
                 user_notification_createdByIdTouser: {
                     select: { fullName: true }

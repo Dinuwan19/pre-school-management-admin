@@ -22,7 +22,16 @@
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#CD94FF"
-      }
+      },
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.ACCESS_MEDIA_LOCATION",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,8 +50,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "6bed4c92-f081-4782-b419-2e187e90538f"
+        "projectId": "caed9ea4-b682-4116-82c0-66648c5d27be"
       }
-    }
+    },
+    "owner": "pasindu19"
   }
 }

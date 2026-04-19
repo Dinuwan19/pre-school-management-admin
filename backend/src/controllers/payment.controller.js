@@ -288,6 +288,40 @@ exports.verifyPayment = async (req, res, next) => {
             data: { status: finalBillingStatus }
         });
 
+        // REJECTION NOTIFICATION LOGIC
+        if (status === 'REJECTED' && req.body.rejectionReason) {
+            try {
+                // Find student and parent associated with this payment
+                const firstBilling = await prisma.billing.findFirst({
+                    where: { id: { in: billingIds } },
+                    include: { student: true }
+                });
+
+                if (firstBilling && firstBilling.student) {
+                    const parentId = firstBilling.student.parentId;
+                    const parent = await prisma.parent.findUnique({
+                        where: { id: parentId },
+                        select: { userId: true }
+                    });
+
+                    if (parent && parent.userId) {
+                        await prisma.notification.create({
+                            data: {
+                                title: 'Payment Rejected',
+                                message: `Your payment of Rs. ${payment.amountPaid} was rejected. Reason: ${req.body.rejectionReason}. Please resubmit with correct details.`,
+                                targetRole: 'PARENT',
+                                targetParentId: parent.userId,
+                                createdById: verifierId,
+                                expiresAt: dayjs().add(1, 'day').toDate() // 1 day announcement
+                            }
+                        });
+                    }
+                }
+            } catch (notifyError) {
+                console.error('Rejection Notification Error:', notifyError);
+            }
+        }
+
         res.json({ message: `Payment ${status}`, payment });
     } catch (error) {
         next(error);

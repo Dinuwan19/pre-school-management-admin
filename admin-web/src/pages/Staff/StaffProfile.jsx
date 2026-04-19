@@ -59,12 +59,7 @@ const StaffProfile = () => {
                         return;
                     }
 
-                    if (key === 'qualificationPdf') {
-                        const fileObj = values[key]?.file || values[key]?.fileList?.[0] || (values[key] instanceof File ? values[key] : null);
-                        if (fileObj && (fileObj.originFileObj || fileObj instanceof File)) {
-                            formData.append(key, fileObj.originFileObj || fileObj);
-                        }
-                    } else if (key === 'joiningDate') {
+                    if (key === 'joiningDate') {
                         formData.append(key, values[key].format('YYYY-MM-DD'));
                     } else if (key === 'classroomIds' && Array.isArray(values[key])) {
                         // Append each ID individually or as a JSON string - usually individual is safer for multer
@@ -187,13 +182,7 @@ const StaffProfile = () => {
                         ) : (
                             <div style={{ padding: '24px 0', textAlign: 'center' }}><Text type="secondary">No qualifications listed</Text></div>
                         )}
-                        {staff.teacherprofile?.qualificationPdf && (
-                            <div style={{ marginTop: 16 }}>
-                                <Button icon={<FilePdfOutlined />} size="small" onClick={() => window.open(`${api.defaults.baseURL.replace('/api', '')}/${staff.teacherprofile.qualificationPdf.replace(/^\//, '')}`, '_blank')}>
-                                    View Secondary Certificate PDF
-                                </Button>
-                            </div>
-                        )}
+
                     </Card>
 
                     <Card size="small" title={<Text strong>Assigned Classrooms</Text>} bordered={false} style={{ borderRadius: 16 }}>
@@ -327,19 +316,7 @@ const StaffProfile = () => {
                                 </Form.List>
                             </Col>
                         )}
-                        <Col span={24}><Form.Item name="qualification" label="Note (Legacy Qualification Field)"><Input.TextArea placeholder="Enter degrees, certificates, etc." rows={1} /></Form.Item></Col>
-                        <Col span={24}>
-                            <Form.Item name="qualificationPdf" label="Qualification PDF">
-                                <Upload beforeUpload={() => false} maxCount={1} accept=".pdf">
-                                    <Button icon={<UploadOutlined />}>Select PDF</Button>
-                                </Upload>
-                                {staff.teacherprofile?.qualificationPdf && (
-                                    <div style={{ fontSize: 10, color: '#999', marginTop: 4 }}>
-                                        Current: {staff.teacherprofile.qualificationPdf.split('/').pop()}
-                                    </div>
-                                )}
-                            </Form.Item>
-                        </Col>
+
                     </Row>
                 </Form>
             </Modal>

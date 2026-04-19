@@ -53,9 +53,17 @@ const DashboardScreen = ({ navigation }) => {
     useEffect(() => {
         // Register push notifications on dashboard mount (ensure user is logged in)
         const setupNotifications = async () => {
+             console.log('[DEBUG] Starting notification setup...');
              const token = await registerForPushNotificationsAsync();
+             
              if (token) {
-                 await registerTokenWithBackend(token);
+                 console.log('[DEBUG] Token generated:', token);
+                 const success = await registerTokenWithBackend(token);
+                 // Only show alert for debugging
+                 // Alert.alert("Push Status", "Token generated and sent to backend");
+             } else {
+                 console.log('[DEBUG] No token generated');
+                 Alert.alert("Push Warning", "Could not generate a push token. Please check notification permissions in phone settings.");
              }
         };
         setupNotifications();

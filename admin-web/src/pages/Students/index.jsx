@@ -512,7 +512,7 @@ Instructions:
                         <Col span={12}>
                             <Form.Item
                                 name="emergencyContact"
-                                label="Emergency Contact (Name & Phone)"
+                                label="Emergency Contact"
                                 rules={[
                                     { required: true, message: 'Emergency contact is required' },
                                     { min: 6, message: 'Contact details must be at least 6 characters' }

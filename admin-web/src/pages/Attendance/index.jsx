@@ -63,12 +63,19 @@ const Attendance = () => {
         if (!selectedClassroom) return;
         setBulkLoading(true);
         try {
-            await api.post('/attendance/bulk', {
+            const payload = {
                 classroomId: selectedClassroom,
                 status,
                 date: selectedDate.format('YYYY-MM-DD')
-            });
-            message.success(`Bulk marked classroom as ${status}`);
+            };
+
+            // Auto-fill reason for mass present
+            if (status === 'PRESENT') {
+                payload.reason = 'system lag';
+            }
+
+            await api.post('/attendance/bulk', payload);
+            message.success(`Bulk marked classroom as ${status === 'COMPLETED' ? 'Checked Out' : status}`);
             fetchAttendance(selectedDate);
         } catch (error) {
             message.error('Bulk marking failed');
@@ -191,6 +198,12 @@ const Attendance = () => {
             }
         },
         {
+            title: 'Reason',
+            dataIndex: 'reason',
+            key: 'reason',
+            render: (text) => text ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text> : '-'
+        },
+        {
             title: 'Action',
             key: 'action',
             render: (_, record) => (
@@ -251,14 +264,16 @@ const Attendance = () => {
                                 >
                                     Mark All Present
                                 </Button>
-                                <Button
-                                    danger
-                                    ghost
-                                    loading={bulkLoading}
-                                    onClick={() => handleBulkMark('ABSENT')}
-                                >
-                                    Mark All Absent
-                                </Button>
+                                {attendanceData.some(r => (r.status === 'PRESENT' || r.status === 'LATE') && r.student?.classroomId === selectedClassroom) && (
+                                    <Button
+                                        danger
+                                        ghost
+                                        loading={bulkLoading}
+                                        onClick={() => handleBulkMark('COMPLETED')}
+                                    >
+                                        Check Out
+                                    </Button>
+                                )}
                             </Space>
                         </Col>
                         <Col span={8} style={{ textAlign: 'right' }}>

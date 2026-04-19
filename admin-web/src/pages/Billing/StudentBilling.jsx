@@ -181,10 +181,38 @@ const StudentBilling = () => {
         }
     };
 
-    const handleVerify = async (paymentId, status) => {
+    const handleVerify = async (paymentId, status, rejectionReason = null) => {
+        if (status === 'REJECTED' && !rejectionReason) {
+            Modal.confirm({
+                title: 'Reject Payment',
+                content: (
+                    <div style={{ marginTop: 10 }}>
+                        <Text type="secondary">Please provide a reason for rejection (this will be sent to the parent):</Text>
+                        <Input.TextArea 
+                            placeholder="e.g. Receipt unclear, Wrong amount, etc." 
+                            rows={3} 
+                            style={{ marginTop: 12 }}
+                            id="rejection-reason-input"
+                        />
+                    </div>
+                ),
+                okText: 'Reject Payment',
+                okButtonProps: { danger: true },
+                onOk: () => {
+                    const reason = document.getElementById('rejection-reason-input').value;
+                    if (!reason) {
+                        message.error('Reason is mandatory for rejection');
+                        return Promise.reject();
+                    }
+                    return handleVerify(paymentId, status, reason);
+                }
+            });
+            return;
+        }
+
         try {
             setLoading(true);
-            await api.post('/payments/verify', { paymentId, status });
+            await api.post('/payments/verify', { paymentId, status, rejectionReason });
             message.success(`Payment ${status.toLowerCase()}ed`);
             setIsVerifyModalVisible(false);
             fetchData();

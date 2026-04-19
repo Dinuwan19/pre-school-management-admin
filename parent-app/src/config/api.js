@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 export const BASE_URL = 'https://malkakulufuturemind.me';
 export const PROXY_BASE = `${BASE_URL}/api`;
 const API_URL = PROXY_BASE;
+export const getApiUrl = () => API_URL;
 
 const api = axios.create({
     baseURL: API_URL,

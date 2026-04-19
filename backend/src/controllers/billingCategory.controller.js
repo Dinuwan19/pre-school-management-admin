@@ -134,13 +134,27 @@ exports.getCategoryStats = async (req, res, next) => {
                     include: {
                         student: { select: { fullName: true, studentUniqueId: true } }
                     }
+                },
+                classrooms: {
+                    include: {
+                        _count: {
+                            select: { student: { where: { status: 'ACTIVE' } } }
+                        }
+                    }
                 }
             }
         });
 
         if (!category) return res.status(404).json({ message: 'Category not found' });
 
-        const totalExpected = category.billings.length * parseFloat(category.amount);
+        // Calculate total students who SHOULD pay
+        const eligibleStudentCount = category.classrooms.reduce((sum, c) => sum + c._count.student, 0);
+        
+        // If no classrooms are linked, fall back to current billing count (legacy/manual behavior)
+        const totalExpected = eligibleStudentCount > 0 
+            ? eligibleStudentCount * parseFloat(category.amount)
+            : category.billings.length * parseFloat(category.amount);
+
         const totalPaid = category.billings
             .filter(b => b.status === 'PAID')
             .reduce((sum, b) => sum + parseFloat(b.amount), 0);
@@ -155,7 +169,8 @@ exports.getCategoryStats = async (req, res, next) => {
                 totalPaid,
                 paidCount,
                 unpaidCount,
-                collectionRate: totalExpected > 0 ? (totalPaid / totalExpected) * 100 : 0
+                collectionRate: totalExpected > 0 ? (totalPaid / totalExpected) * 100 : 0,
+                totalEligible: eligibleStudentCount
             }
         });
     } catch (error) {
