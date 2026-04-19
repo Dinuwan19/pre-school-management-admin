@@ -129,6 +129,24 @@ const Attendance = () => {
         }
     };
 
+    const handleQuickCheckOut = async (record) => {
+        try {
+            const payload = {
+                studentId: record.studentId,
+                status: 'COMPLETED',
+                date: selectedDate.format('YYYY-MM-DD'),
+                checkInTime: record.checkInTime,
+                checkOutTime: dayjs().toISOString(),
+                reason: 'Manual Quick Check-out'
+            };
+            await api.post('/attendance/manual', payload);
+            message.success(`Checked out ${record.student?.fullName}`);
+            fetchAttendance(selectedDate);
+        } catch (error) {
+            message.error(error.response?.data?.message || 'Check-out failed');
+        }
+    };
+
     const columns = [
         {
             title: 'Student',
@@ -176,13 +194,25 @@ const Attendance = () => {
             title: 'Action',
             key: 'action',
             render: (_, record) => (
-                <Button
-                    type="link"
-                    icon={<EditOutlined />}
-                    onClick={() => handleManualMark(record)}
-                >
-                    Manual
-                </Button>
+                <Space>
+                    <Button
+                        type="link"
+                        icon={<EditOutlined />}
+                        onClick={() => handleManualMark(record)}
+                    >
+                        Manual
+                    </Button>
+                    {record.status === 'PRESENT' && (
+                        <Button
+                            type="primary"
+                            size="small"
+                            onClick={() => handleQuickCheckOut(record)}
+                            style={{ borderRadius: 6, fontSize: 11 }}
+                        >
+                            Check Out
+                        </Button>
+                    )}
+                </Space>
             )
         }
     ];
@@ -195,7 +225,13 @@ const Attendance = () => {
                 <div style={{ marginTop: 16 }}>
                     <Row gutter={16} align="middle" style={{ marginBottom: 20 }}>
                         <Col span={6}>
-                            <DatePicker value={selectedDate} onChange={setSelectedDate} allowClear={false} style={{ width: '100%' }} />
+                            <DatePicker 
+                                value={selectedDate} 
+                                onChange={setSelectedDate} 
+                                allowClear={false} 
+                                style={{ width: '100%' }} 
+                                disabledDate={(current) => current && current > dayjs().endOf('day')}
+                            />
                         </Col>
                         <Col span={10}>
                             <Space>

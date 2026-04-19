@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Modal, Form, Input, DatePicker, Select, Card, Typography, message, Avatar, Tag, Row, Col, Divider, Space, Descriptions, Alert, Upload, Tabs } from 'antd';
-import { PlusOutlined, SearchOutlined, FilterOutlined, CopyOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, FilterOutlined, CopyOutlined, DownloadOutlined, UploadOutlined, EditOutlined, UserOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/client';
@@ -19,11 +19,16 @@ const Students = () => {
     const navigate = useNavigate();
 
     const [isModalVisible, setIsModalVisible] = useState(false);
+    const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+    const [isDeactivateModalVisible, setIsDeactivateModalVisible] = useState(false);
+    const [editingStudent, setEditingStudent] = useState(null);
     const [isQuickParentVisible, setIsQuickParentVisible] = useState(false);
     const [quickAddTarget, setQuickAddTarget] = useState('primary'); // 'primary' or 'secondary'
     const [successModal, setSuccessModal] = useState({ visible: false, data: null });
     const [form] = Form.useForm();
     const [parentForm] = Form.useForm();
+    const [editForm] = Form.useForm();
+    const [deactivateForm] = Form.useForm();
 
     // Filters
     const [searchText, setSearchText] = useState('');
@@ -135,6 +140,59 @@ const Students = () => {
         }
     };
 
+    const handleUpdate = async () => {
+        try {
+            const values = await editForm.validateFields();
+            setLoading(true);
+
+            const formData = new FormData();
+            Object.keys(values).forEach(key => {
+                if (values[key] !== undefined && values[key] !== null) {
+                    if (key === 'dob' || key === 'enrollmentDate') {
+                        formData.append(key, values[key].format('YYYY-MM-DD'));
+                    } else if (key === 'photo' || key === 'birthCert' || key === 'vaccineCard') {
+                        const file = values[key]?.fileList?.[0]?.originFileObj || values[key]?.file?.originFileObj;
+                        if (file) formData.append(key, file);
+                    } else {
+                        formData.append(key, values[key]);
+                    }
+                }
+            });
+
+            await api.put(`/students/${editingStudent.id}`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            message.success('Student updated successfully');
+            setIsEditModalVisible(false);
+            fetchData();
+        } catch (error) {
+            message.error(error.response?.data?.message || 'Update failed');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleBatchDeactivate = async () => {
+        try {
+            const { studentIds } = await deactivateForm.validateFields();
+            setLoading(true);
+            
+            await Promise.all(studentIds.map(id => 
+                api.put(`/students/${id}`, { status: 'INACTIVE' })
+            ));
+
+            message.success('Students deactivated successfully');
+            setIsDeactivateModalVisible(false);
+            deactivateForm.resetFields();
+            fetchData();
+        } catch (error) {
+            message.error('Failed to deactivate students');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const copyToClipboard = (text) => {
         if (!text) return;
         navigator.clipboard.writeText(text);
@@ -237,34 +295,28 @@ Instructions:
                     >
                         View
                     </Button>
-                    {['SUPER_ADMIN', 'ADMIN'].includes(user?.role) && (
-                        <Button
-                            danger={record.status === 'ACTIVE'}
-                            type={record.status === 'ACTIVE' ? 'link' : 'primary'}
-                            size="small"
-                            style={{ fontSize: 11, borderRadius: 6, height: 24 }}
-                            onClick={() => {
-                                const newStatus = record.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
-                                Modal.confirm({
-                                    title: `${newStatus === 'INACTIVE' ? 'Deactivate' : 'Reactivate'} Student`,
-                                    content: `Are you sure you want to set ${record.fullName} as ${newStatus}?`,
-                                    okText: 'Yes',
-                                    cancelText: 'No',
-                                    onOk: async () => {
-                                        try {
-                                            await api.put(`/students/${record.id}`, { status: newStatus });
-                                            message.success('Status updated');
-                                            fetchData();
-                                        } catch (e) {
-                                            message.error('Failed to update status');
-                                        }
-                                    }
-                                });
-                            }}
-                        >
-                            {record.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
-                        </Button>
-                    )}
+                    <Button
+                        onClick={() => {
+                            editForm.setFieldsValue({
+                                ...record,
+                                dob: record.dateOfBirth ? dayjs(record.dateOfBirth) : null,
+                                enrollmentDate: record.enrollmentDate ? dayjs(record.enrollmentDate) : dayjs()
+                            });
+                            setEditingStudent(record);
+                            setIsEditModalVisible(true);
+                        }}
+                        style={{
+                            background: 'rgba(24, 144, 255, 0.1)',
+                            color: '#1890ff',
+                            border: 'none',
+                            fontWeight: 600,
+                            borderRadius: 8
+                        }}
+                        size="small"
+                        icon={<EditOutlined />}
+                    >
+                        Edit
+                    </Button>
                 </Space>
             ),
         },
@@ -274,7 +326,21 @@ Instructions:
         <div style={{ paddingBottom: 40 }}>
             <div style={{ marginBottom: 24 }}>
                 <Title level={3}>Students</Title>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+            </div>
+
+            <Tabs
+                activeKey={statusFilter}
+                onChange={setStatusFilter}
+                className="custom-tabs"
+                style={{ marginBottom: 16 }}
+                items={[
+                    { key: 'ACTIVE', label: 'Active Students' },
+                    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ key: 'INACTIVE', label: 'Inactive Students' }] : [])
+                ]}
+            />
+
+            <Card bordered={false} style={{ borderRadius: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }} bodyStyle={{ padding: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 24 }}>
                     <div style={{ display: 'flex', gap: 16, flex: 1 }}>
                         <Input
                             placeholder="Search students..."
@@ -293,26 +359,25 @@ Instructions:
                         </Select>
                     </div>
 
-                    {['SUPER_ADMIN', 'ADMIN', 'STAFF'].includes(user?.role) && (
-                        <Button type="primary" icon={<PlusOutlined />} size="large" onClick={handleAdd} style={{ borderRadius: 8, background: '#7B57E4', height: 44, fontWeight: 600 }}>
-                            Add Student
-                        </Button>
-                    )}
+                    <div style={{ display: 'flex', gap: 12 }}>
+                        {statusFilter === 'INACTIVE' && ['SUPER_ADMIN', 'ADMIN'].includes(user?.role) && (
+                            <Button 
+                                type="primary" 
+                                danger 
+                                icon={<UserOutlined />} 
+                                onClick={() => setIsDeactivateModalVisible(true)}
+                                style={{ borderRadius: 8, height: 40, fontWeight: 600 }}
+                            >
+                                Manage Deactivations
+                            </Button>
+                        )}
+                        {['SUPER_ADMIN', 'ADMIN', 'STAFF'].includes(user?.role) && (
+                            <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} style={{ borderRadius: 8, background: '#7B57E4', height: 40, fontWeight: 600 }}>
+                                Add Student
+                            </Button>
+                        )}
+                    </div>
                 </div>
-            </div>
-
-            <Tabs
-                activeKey={statusFilter}
-                onChange={setStatusFilter}
-                className="custom-tabs"
-                style={{ marginBottom: 16 }}
-                items={[
-                    { key: 'ACTIVE', label: 'Active Students' },
-                    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ key: 'INACTIVE', label: 'Inactive Students' }] : [])
-                ]}
-            />
-
-            <Card bordered={false} style={{ borderRadius: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }} bodyStyle={{ padding: 0 }}>
                 <Table
                     columns={columns}
                     dataSource={filteredStudents}
@@ -606,6 +671,100 @@ Instructions:
                     </Row>
                     <Form.Item name="address" label="Address" rules={[{ required: true }]}>
                         <Input.TextArea rows={2} placeholder="Home address" />
+                    </Form.Item>
+                </Form>
+            </Modal>
+
+            {/* Edit Student Modal */}
+            <Modal
+                title="Edit Student Info"
+                open={isEditModalVisible}
+                onCancel={() => setIsEditModalVisible(false)}
+                onOk={handleUpdate}
+                confirmLoading={loading}
+                width={700}
+                okText="Save Changes"
+                okButtonProps={{ style: { background: '#7B57E4' } }}
+            >
+                <Form
+                    form={editForm}
+                    layout="vertical"
+                    style={{ marginTop: 24 }}
+                >
+                    <Row gutter={16}>
+                        <Col span={12}><Form.Item name="fullName" label="Full Name" rules={[{ required: true }]}><Input /></Form.Item></Col>
+                        <Col span={12}><Form.Item name="gender" label="Gender"><Select><Option value="MALE">Male</Option><Option value="FEMALE">Female</Option></Select></Form.Item></Col>
+                        <Col span={12}><Form.Item name="dob" label="Date of Birth"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+                        <Col span={12}><Form.Item name="classroomId" label="Classroom"><Select>{classrooms.map(c => <Option key={c.id} value={c.id}>{c.name}</Option>)}</Select></Form.Item></Col>
+                        <Col span={12}>
+                            <Form.Item name="parentId" label="Primary Parent">
+                                <Select showSearch optionFilterProp="children">{parents.map(p => <Option key={p.id} value={p.id}>{p.fullName} ({p.nationalId})</Option>)}</Select>
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item name="secondParentId" label="Secondary Parent">
+                                <Select showSearch optionFilterProp="children" allowClear>{parents.map(p => <Option key={p.id} value={p.id}>{p.fullName} ({p.nationalId})</Option>)}</Select>
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item name="photo" label="Update Photo">
+                                <Upload beforeUpload={() => false} maxCount={1} listType="picture" accept="image/*">
+                                    <Button icon={<UploadOutlined />}>Select Image</Button>
+                                </Upload>
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item name="birthCert" label="Update Birth Certificate (PDF/Image)">
+                                <Upload beforeUpload={() => false} maxCount={1} accept=".pdf,.jpg,.jpeg,.png">
+                                    <Button icon={<UploadOutlined />}>Select File</Button>
+                                </Upload>
+                            </Form.Item>
+                        </Col>
+                        <Col span={24}>
+                            <Form.Item name="emergencyContact" label="Emergency Contact"><Input /></Form.Item>
+                        </Col>
+                        <Col span={24}>
+                            <Form.Item name="medicalInfo" label="Medical Info"><Input.TextArea rows={2} /></Form.Item>
+                        </Col>
+                    </Row>
+                </Form>
+            </Modal>
+
+            {/* Batch Deactivation Modal */}
+            <Modal
+                title={<span><UserOutlined style={{ color: '#ff4d4f', marginRight: 8 }} /> Manage Student Deactivations</span>}
+                open={isDeactivateModalVisible}
+                onCancel={() => setIsDeactivateModalVisible(false)}
+                onOk={handleBatchDeactivate}
+                confirmLoading={loading}
+                okText="Deactivate Selected"
+                okButtonProps={{ danger: true }}
+                width={600}
+            >
+                <div style={{ marginBottom: 20 }}>
+                    <Alert 
+                        message="Select students to move to the Inactive list. They will no longer appear in active attendance or classroom logs."
+                        type="info"
+                        showIcon
+                    />
+                </div>
+                <Form form={deactivateForm} layout="vertical">
+                    <Form.Item 
+                        name="studentIds" 
+                        label="Select Active Students" 
+                        rules={[{ required: true, message: 'Please select at least one student' }]}
+                    >
+                        <Select
+                            mode="multiple"
+                            placeholder="Search and select students..."
+                            style={{ width: '100%' }}
+                            showSearch
+                            optionFilterProp="children"
+                        >
+                            {students.filter(s => s.status === 'ACTIVE').map(s => (
+                                <Option key={s.id} value={s.id}>{s.fullName} ({s.studentUniqueId})</Option>
+                            ))}
+                        </Select>
                     </Form.Item>
                 </Form>
             </Modal>
