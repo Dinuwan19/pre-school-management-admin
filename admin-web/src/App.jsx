@@ -30,6 +30,7 @@ import Reports from './pages/Reports';
 import Events from './pages/Events';
 import SpecialDays from './pages/SpecialDays';
 import Logs from './pages/Logs';
+import Skills from './pages/Skills';
 
 const InitialRedirect = () => {
   const { user, loading } = useAuth();
@@ -172,6 +173,11 @@ const AppContent = () => {
             <Route path="/special-days" element={
               <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
                 <SpecialDays />
+              </ProtectedRoute>
+            } />
+            <Route path="/skills" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STAFF']}>
+                <Skills />
               </ProtectedRoute>
             } />
 

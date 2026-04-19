@@ -14,7 +14,8 @@ import {
     ScheduleOutlined,
     FileTextOutlined,
     IdcardOutlined,
-    HistoryOutlined
+    HistoryOutlined,
+    BookOutlined
 } from '@ant-design/icons';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -104,6 +105,11 @@ const MainLayout = () => {
                 ]
             },
             {
+                key: '/skills',
+                icon: <BookOutlined />,
+                label: 'Skills Assessment',
+            },
+            {
                 key: 'edu-comm-sub',
                 icon: <BellOutlined />,
                 label: 'Education & Communication',
@@ -177,6 +183,7 @@ const MainLayout = () => {
         if (path.startsWith('/classrooms')) return ['/classrooms'];
         if (path.startsWith('/attendance')) return ['/attendance'];
         if (path.startsWith('/special-days')) return ['/special-days'];
+        if (path.startsWith('/skills')) return ['/skills'];
         if (path.startsWith('/announcements')) return ['/announcements'];
         if (path.startsWith('/meetings')) return ['/meetings'];
         if (path.startsWith('/homework')) return ['/homework'];

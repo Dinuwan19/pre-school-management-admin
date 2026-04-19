@@ -63,6 +63,7 @@ app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/reports', require('./routes/report.routes'));
 app.use('/api/events', require('./routes/event.routes'));
 app.use('/api/special-days', require('./routes/specialDay.routes'));
+app.use('/api/skills', require('./routes/skill.routes'));
 
 // Error Handler Middleware
 app.use(errorHandler);
