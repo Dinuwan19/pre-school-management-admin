@@ -4,6 +4,7 @@ import { PlusOutlined, EyeOutlined, BellOutlined, CheckCircleOutlined, CloseCirc
 import dayjs from 'dayjs';
 import api, { getMediaUrl } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import CategoryManagementModal from '../../components/Billing/CategoryManagementModal';
 
 const { Title, Text } = Typography;
@@ -11,6 +12,8 @@ const { Option } = Select;
 
 const StudentBilling = () => {
     const { user } = useAuth();
+    const { isDarkMode } = useTheme();
+    const [modal, contextHolder] = Modal.useModal();
     const [billings, setBillings] = useState([]);
     const [overdueBillings, setOverdueBillings] = useState([]);
     const [historyPayments, setHistoryPayments] = useState([]);
@@ -183,15 +186,20 @@ const StudentBilling = () => {
 
     const handleVerify = async (paymentId, status, rejectionReason = null) => {
         if (status === 'REJECTED' && !rejectionReason) {
-            Modal.confirm({
-                title: 'Reject Payment',
+            modal.confirm({
+                title: <span style={{ color: isDarkMode ? '#f1f5f9' : 'inherit' }}>Reject Payment</span>,
                 content: (
                     <div style={{ marginTop: 10 }}>
-                        <Text type="secondary">Please provide a reason for rejection (this will be sent to the parent):</Text>
+                        <Text type="secondary" style={{ color: isDarkMode ? '#94a3b8' : 'inherit' }}>Please provide a reason for rejection (this will be sent to the parent):</Text>
                         <Input.TextArea 
                             placeholder="e.g. Receipt unclear, Wrong amount, etc." 
                             rows={3} 
-                            style={{ marginTop: 12 }}
+                            style={{ 
+                                marginTop: 12,
+                                background: isDarkMode ? '#1e293b' : '#fff',
+                                color: isDarkMode ? '#f1f5f9' : 'inherit',
+                                borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#d9d9d9'
+                            }}
                             id="rejection-reason-input"
                         />
                     </div>
@@ -520,6 +528,7 @@ const StudentBilling = () => {
 
     return (
         <div style={{ paddingBottom: 40 }}>
+            {contextHolder}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
                 <div>
                     <Title level={3}>Student Billing</Title>

@@ -189,7 +189,7 @@ exports.manualAttendance = async (req, res, next) => {
         const updateData = {
             status: status ? status.toUpperCase() : 'PRESENT',
             method: 'MANUAL',
-            markedById,
+            user: { connect: { id: markedById } },
             checkInTime: checkInTime ? new Date(checkInTime) : undefined,
             checkOutTime: checkOutTime ? new Date(checkOutTime) : undefined,
             reason: auditReason
@@ -215,8 +215,8 @@ exports.manualAttendance = async (req, res, next) => {
             // Create
             attendance = await prisma.attendance.create({
                 data: {
-                    studentId: parseInt(studentId),
-                    attendanceDate,
+                    student: { connect: { id: parseInt(studentId) } },
+                    attendanceDate: new Date(attendanceDate),
                     ...updateData
                 }
             });
@@ -303,11 +303,11 @@ exports.bulkMarkAttendance = async (req, res, next) => {
         if (newStudentIds.length > 0) {
             await prisma.attendance.createMany({
                 data: newStudentIds.map(id => ({
-                    studentId: id,
+                    studentId: id, // createMany only supports scalar IDs
                     attendanceDate: attendanceDate,
                     status,
                     method: 'MANUAL',
-                    markedById,
+                    markedById: markedById,
                     reason: reason || 'Bulk Marking',
                     checkInTime: status === 'PRESENT' ? new Date() : null,
                     checkOutTime: status === 'COMPLETED' ? new Date() : null
