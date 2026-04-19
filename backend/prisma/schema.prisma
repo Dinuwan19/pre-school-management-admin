@@ -282,6 +282,21 @@ model studentprogress {
   @@index([updatedById], map: "StudentProgress_updatedById_fkey")
 }
 
+model billingCategory {
+  id         Int                       @id @default(autoincrement())
+  name       String
+  reason     String?                   @db.Text
+  amount     Decimal                   @db.Decimal(10, 2)
+  validUntil DateTime
+  createdAt  DateTime                  @default(now())
+  updatedAt  DateTime
+  frequency  billingCategory_frequency @default(RECURRING)
+  billings   billing[]
+  classrooms classroom[]               @relation("billingcategorytoclassroom")
+
+  @@map("billingcategory")
+}
+
 model user {
   id                                             Int               @id @default(autoincrement())
   employeeId                                     String?           @unique(map: "User_employeeId_key")
@@ -468,20 +483,6 @@ model assessment_score {
   @@index([subSkillId], map: "AssessmentScore_subSkillId_fkey")
 }
 
-model billingCategory {
-  id         Int                       @id @default(autoincrement())
-  name       String
-  reason     String?                   @db.Text
-  amount     Decimal                   @db.Decimal(10, 2)
-  validUntil DateTime
-  createdAt  DateTime                  @default(now())
-  updatedAt  DateTime
-  frequency  billingCategory_frequency @default(RECURRING)
-  billings   billing[]
-  classrooms classroom[]               @relation("billingcategorytoclassroom")
-}
-
-enum user_role {
   SUPER_ADMIN
   ADMIN
   TEACHER
