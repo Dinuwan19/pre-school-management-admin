@@ -62,7 +62,7 @@ model billing {
   categoryId      Int?
   invoiceUrl      String?
   student         student          @relation(fields: [studentId], references: [id], map: "Billing_studentId_fkey")
-  billingCategory billingcategory? @relation(fields: [categoryId], references: [id])
+  billingCategory billingCategory? @relation(fields: [categoryId], references: [id])
   billingpayment  billingpayment[]
 
   @@index([studentId], map: "Billing_studentId_fkey")
@@ -92,7 +92,7 @@ model classroom {
   homework        homework[]
   notification    notification[]
   student         student[]
-  billingcategory billingcategory[] @relation("billingcategorytoclassroom")
+  billingCategories billingCategory[] @relation("billingcategorytoclassroom")
   events          event[]           @relation("classroomtoevent")
   teacherprofiles teacherprofile[]  @relation("classroomtoteacherprofile")
 }
@@ -468,7 +468,7 @@ model assessment_score {
   @@index([subSkillId], map: "AssessmentScore_subSkillId_fkey")
 }
 
-model billingcategory {
+model billingCategory {
   id         Int                       @id @default(autoincrement())
   name       String
   reason     String?                   @db.Text
@@ -476,9 +476,9 @@ model billingcategory {
   validUntil DateTime
   createdAt  DateTime                  @default(now())
   updatedAt  DateTime
-  frequency  billingcategory_frequency @default(RECURRING)
+  frequency  billingCategory_frequency @default(RECURRING)
   billings   billing[]
-  classroom  classroom[]               @relation("billingcategorytoclassroom")
+  classrooms classroom[]               @relation("billingcategorytoclassroom")
 }
 
 enum user_role {
@@ -575,7 +575,7 @@ enum avatar_type {
   CHILD
 }
 
-enum billingcategory_frequency {
+enum billingCategory_frequency {
   ONE_TIME
   RECURRING
 }
