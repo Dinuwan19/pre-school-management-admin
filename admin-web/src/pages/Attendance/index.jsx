@@ -175,15 +175,23 @@ const Attendance = () => {
         {
             title: 'Action',
             key: 'action',
-            render: (_, record) => (
-                <Button
-                    type="link"
-                    icon={<EditOutlined />}
-                    onClick={() => handleManualMark(record)}
-                >
-                    Manual
-                </Button>
-            )
+            render: (_, record) => {
+                const isPresent = record.status === 'PRESENT' || record.status === 'LATE';
+                const isCompleted = record.status === 'COMPLETED';
+
+                return (
+                    <Button
+                        type={isPresent ? "primary" : "default"}
+                        size="small"
+                        ghost={isPresent}
+                        icon={isPresent ? <CheckCircleOutlined /> : <EditOutlined />}
+                        onClick={() => handleManualMark(record)}
+                        style={{ borderRadius: 6, fontSize: 12 }}
+                    >
+                        {isCompleted ? 'Edit' : (isPresent ? 'Check Out' : 'Mark Present')}
+                    </Button>
+                );
+            }
         }
     ];
 
@@ -194,14 +202,20 @@ const Attendance = () => {
             children: (
                 <div style={{ marginTop: 16 }}>
                     <Row gutter={16} align="middle" style={{ marginBottom: 20 }}>
-                        <Col span={6}>
-                            <DatePicker value={selectedDate} onChange={setSelectedDate} allowClear={false} style={{ width: '100%' }} />
+                        <Col span={5}>
+                            <DatePicker 
+                                value={selectedDate} 
+                                onChange={setSelectedDate} 
+                                allowClear={false} 
+                                style={{ width: '100%' }}
+                                disabledDate={(current) => current && current > dayjs().endOf('day')}
+                            />
                         </Col>
                         <Col span={10}>
-                            <Space>
+                            <Space wrap>
                                 <Select
                                     placeholder="Select Class"
-                                    style={{ width: 180 }}
+                                    style={{ width: 140 }}
                                     value={selectedClassroom}
                                     onChange={setSelectedClassroom}
                                 >
@@ -213,7 +227,15 @@ const Attendance = () => {
                                     loading={bulkLoading}
                                     onClick={() => handleBulkMark('PRESENT')}
                                 >
-                                    Mark All Present
+                                    Mark Present
+                                </Button>
+                                <Button
+                                    type="primary"
+                                    loading={bulkLoading}
+                                    onClick={() => handleBulkMark('COMPLETED')}
+                                    style={{ background: '#52c41a', borderColor: '#52c41a' }}
+                                >
+                                    Mark Completed
                                 </Button>
                                 <Button
                                     danger
@@ -221,7 +243,7 @@ const Attendance = () => {
                                     loading={bulkLoading}
                                     onClick={() => handleBulkMark('ABSENT')}
                                 >
-                                    Mark All Absent
+                                    Mark Absent
                                 </Button>
                             </Space>
                         </Col>

@@ -3,6 +3,7 @@ const router = express.Router();
 const authController = require('../controllers/auth.controller');
 
 const { authenticateToken } = require('../middlewares/auth.middleware');
+const upload = require('../middlewares/upload.middleware');
 
 router.post('/login', authController.login);
 // Register should be restricted to SUPER_ADMIN to prevent unauthorized admin creation
@@ -13,5 +14,6 @@ router.post('/forgot-password', authController.requestPasswordReset);
 router.post('/validate-otp', authController.verifyOTPOnly);
 router.post('/verify-otp', authController.verifyOTPAndReset);
 router.post('/reset-password', authController.resetPassword);
+router.post('/upload-signature', authenticateToken, upload.single('signature'), authController.uploadSignature);
 
 module.exports = router;

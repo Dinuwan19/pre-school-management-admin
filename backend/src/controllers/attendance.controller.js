@@ -160,6 +160,11 @@ exports.manualAttendance = async (req, res, next) => {
         // Normalize date to UTC midnight to match @db.Date storage strictly
         const dateStr = date ? dayjs(date).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
         const attendanceDate = new Date(`${dateStr}T00:00:00Z`);
+
+        // BLOCK FUTURE DATES
+        if (dayjs(dateStr).isAfter(dayjs(), 'day')) {
+            return res.status(400).json({ message: 'Cannot mark attendance for future dates.' });
+        }
         
         const auditReason = req.body.reason || 'Manual Override';
 
@@ -226,7 +231,13 @@ exports.bulkMarkAttendance = async (req, res, next) => {
     try {
         const { classroomId, status, date } = req.body;
         const markedById = req.user.id;
-        const attendanceDate = date ? new Date(date) : new Date(dayjs().format('YYYY-MM-DD'));
+        const dateStr = date ? dayjs(date).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
+        const attendanceDate = new Date(`${dateStr}T00:00:00Z`);
+
+        // BLOCK FUTURE DATES
+        if (dayjs(dateStr).isAfter(dayjs(), 'day')) {
+            return res.status(400).json({ message: 'Cannot mark attendance for future dates.' });
+        }
 
         // Use classroom scoping from middleware if exists
         let finalClassroomId = parseInt(classroomId);
@@ -281,7 +292,9 @@ exports.bulkMarkAttendance = async (req, res, next) => {
                 data: {
                     status,
                     method: 'MANUAL',
-                    markedById
+                    markedById,
+                    checkInTime: status === 'PRESENT' ? new Date() : undefined,
+                    checkOutTime: status === 'COMPLETED' ? new Date() : undefined
                 }
             });
         }

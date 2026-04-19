@@ -256,7 +256,7 @@ const MainLayout = () => {
 
                         <div
                             style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
-                            onClick={() => navigate('/')}
+                            onClick={() => navigate('/profile')}
                         >
                             <div style={{ textAlign: 'right', lineHeight: 1.2 }}>
                                 <div style={{ fontWeight: 600, color: colorText }}>{user?.username}</div>
