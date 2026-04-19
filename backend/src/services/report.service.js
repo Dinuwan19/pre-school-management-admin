@@ -1,12 +1,18 @@
-const prisma = require('../config/prisma');
-const dayjs = require('dayjs');
-
-/**
- * Service to handle complex data aggregation for reports
- */
+// Helper to map numerical scores to verbal development labels
+const scoreToLabel = (score) => {
+    if (!score || score === '-') return '-';
+    const s = parseInt(score);
+    switch (s) {
+        case 1: return 'Need Help';
+        case 2: return 'Approaching';
+        case 3: return 'Learning';
+        case 4: return 'Achieving';
+        case 5: return 'Mastering';
+        default: return score;
+    }
+};
 
 exports.getStudentProgressReportData = async (studentId, generatorName) => {
-    // 1. Fetch Student & Classroom Info
     const student = await prisma.student.findUnique({
         where: { id: parseInt(studentId) },
         include: { classroom: true }
@@ -14,28 +20,25 @@ exports.getStudentProgressReportData = async (studentId, generatorName) => {
 
     if (!student) throw new Error('Student not found');
 
-    // 2. Fetch All Skill Categories and Sub-skills
     const categories = await prisma.skill_category.findMany({
         include: { skills: true },
         orderBy: { name: 'asc' }
     });
 
-    // 3. Fetch All Assessments for the student (Term 1, 2, 3)
     const assessments = await prisma.assessment.findMany({
         where: { studentId: parseInt(studentId) },
         include: { scores: { include: { subSkill: true } } },
         orderBy: { term: 'asc' }
     });
 
-    // Data Mapping for Table Representation
-    // Structure: Category -> [SubSkill -> {term1: score, term2: score, term3: score}]
     const mappedData = categories.map(cat => {
         const skillsWithScores = cat.skills.map(subSkill => {
             const scores = {};
             [1, 2, 3].forEach(term => {
                 const assessment = assessments.find(a => a.term === term);
                 const scoreObj = assessment?.scores.find(s => s.subSkillId === subSkill.id);
-                scores[`term${term}`] = scoreObj ? scoreObj.score : '-';
+                // Map to Label
+                scores[`term${term}`] = scoreObj ? scoreToLabel(scoreObj.score) : '-';
             });
             return {
                 id: subSkill.id,
@@ -50,7 +53,6 @@ exports.getStudentProgressReportData = async (studentId, generatorName) => {
         };
     });
 
-    // Latest Remarks (PRIORITY: Term 3 -> 2 -> 1)
     const latestAssessment = assessments.sort((a, b) => b.term - a.term)[0];
     const remarks = latestAssessment ? latestAssessment.remarks : 'No observations recorded for this period.';
 
@@ -69,12 +71,11 @@ exports.getStudentProgressReportData = async (studentId, generatorName) => {
 };
 
 exports.getAttendanceSummaryData = async (startDate, endDate, generatorName) => {
-    const start = dayjs(startDate || dayjs().startOf('year'));
+    // Force start from January 1st of current year for multi-month tracking as per "Perfect achievement"
+    const start = dayjs().startOf('year');
     const end = dayjs(endDate || dayjs());
-    const diffMonths = end.diff(start, 'month');
-    const isOver12Months = diffMonths > 12;
+    const isOver12Months = end.diff(start, 'month') > 12;
 
-    // 1. Fetch All Classrooms
     const classrooms = await prisma.classroom.findMany({
         where: { status: 'ACTIVE' },
         include: {
@@ -89,17 +90,13 @@ exports.getAttendanceSummaryData = async (startDate, endDate, generatorName) => 
         }
     });
 
-    // 2. Identify Students with < 50% Attendance
     const studentsWithLowAttendance = [];
-    
-    // 3. Prepare Chart Data (Monthly or Bi-monthly)
     const chartLabels = [];
     const classroomDatasets = classrooms.map(cls => ({
         label: cls.name,
         data: []
     }));
 
-    // Time Iteration
     const step = isOver12Months ? 2 : 1;
     let current = start.startOf('month');
     
@@ -107,32 +104,28 @@ exports.getAttendanceSummaryData = async (startDate, endDate, generatorName) => 
         const periodStart = current.toDate();
         const periodEnd = isOver12Months ? current.add(1, 'month').endOf('month').toDate() : current.endOf('month').toDate();
         
+        // Match user's 3rd screenshot lowercase preference for some months
         const label = isOver12Months 
             ? `${current.format('MMM')}-${current.add(1, 'month').format('MMM')}`
-            : current.format('MMMM');
+            : current.month() < 2 ? current.format('MMMM').toLowerCase() : current.format('MMMM');
         
         chartLabels.push(label);
 
         classrooms.forEach((cls, idx) => {
-            let totalClassAttendance = 0;
-            let totalPossibleRecords = 0;
+            let totalClassPresentDays = 0;
+            const studentsInClass = cls.student.length;
 
             cls.student.forEach(std => {
-                // Filter student attendance for this specific period
                 const periodAttendance = std.attendance.filter(a => 
                     dayjs(a.attendanceDate).isAfter(dayjs(periodStart).subtract(1, 'day')) && 
                     dayjs(a.attendanceDate).isBefore(dayjs(periodEnd).add(1, 'day'))
                 );
 
                 const presentCount = periodAttendance.filter(a => ['PRESENT', 'LATE', 'COMPLETED'].includes(a.status)).length;
-                totalClassAttendance += presentCount;
-                
-                // Estimation: Only count days where at least one student in class had a record (active school days)
-                // For simplicity, we assume period attendance length / unique students count as indicator of days
-                totalPossibleRecords += periodAttendance.length;
+                totalClassPresentDays += presentCount;
 
-                // Overall Logic for < 50% (For the table)
-                if (current.isSame(start.startOf('month'))) { // Only run once for the whole range
+                // Overall Low Attendance Logic
+                if (current.isSame(start.startOf('month'))) {
                     const totalPresentOverall = std.attendance.filter(a => ['PRESENT', 'LATE', 'COMPLETED'].includes(a.status)).length;
                     const totalDaysOverall = std.attendance.length;
                     const rate = totalDaysOverall > 0 ? (totalPresentOverall / totalDaysOverall) * 100 : 0;
@@ -148,16 +141,16 @@ exports.getAttendanceSummaryData = async (startDate, endDate, generatorName) => 
                 }
             });
 
-            const avgAttendance = totalPossibleRecords > 0 ? Math.round((totalClassAttendance / totalPossibleRecords) * 100) : 0;
-            classroomDatasets[idx].data.push(avgAttendance);
+            // "Perfect" achievement metric: Average days present per student in the month
+            const avgDaysPresent = studentsInClass > 0 ? (totalClassPresentDays / studentsInClass) : 0;
+            classroomDatasets[idx].data.push(parseFloat(avgDaysPresent.toFixed(1)));
         });
 
         current = current.add(step, 'month');
     }
 
-    // Colors for the chart (Premium Palette)
     const professionalColors = [
-        '#7B57E4', '#55E6C1', '#FF7675', '#FDCB6E', '#A29BFE', '#55E6C1', '#00B894', '#6C5CE7'
+        '#FDCB6E', '#55E6C1', '#FF7675', '#7B57E4', '#A29BFE', '#00B894', '#6C5CE7'
     ];
 
     return {
@@ -168,7 +161,7 @@ exports.getAttendanceSummaryData = async (startDate, endDate, generatorName) => 
             datasets: classroomDatasets.map((ds, i) => ({
                 ...ds,
                 backgroundColor: professionalColors[i % professionalColors.length],
-                borderRadius: 4
+                borderRadius: 2
             }))
         },
         lowAttendanceStudents: studentsWithLowAttendance,
@@ -176,4 +169,5 @@ exports.getAttendanceSummaryData = async (startDate, endDate, generatorName) => 
         studentCount: classrooms.reduce((sum, cls) => sum + cls.student.length, 0)
     };
 };
+
 

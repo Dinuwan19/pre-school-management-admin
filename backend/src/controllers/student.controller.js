@@ -49,15 +49,17 @@ exports.createStudent = async (req, res, next) => {
         }
 
         // 1. Pre-check for potential duplicate student (Same name under the same parent)
-        const existing = await prisma.student.findFirst({
+        // Duplicate Check: Same name and same parent (Case Insensitive)
+        const existingStudent = await prisma.student.findFirst({
             where: {
-                fullName: nameToUse,
-                parentId: parseInt(parentId)
+                fullName: { equals: nameToUse, mode: 'insensitive' },
+                parentId: parseInt(parentId),
+                status: 'ACTIVE'
             }
         });
 
-        if (existing) {
-            return res.status(400).json({ message: 'A student with this exact name is already registered under your account.' });
+        if (existingStudent) {
+            return res.status(400).json({ message: 'A student with this name already exists for this parent.' });
         }
 
         const lastStudent = await prisma.student.findFirst({
@@ -134,9 +136,23 @@ exports.createStudent = async (req, res, next) => {
 
 exports.getAllStudents = async (req, res, next) => {
     try {
-        let where = { status: 'ACTIVE' };
+        const { status } = req.query;
+        let where = {};
+        
+        // Access Control: Only SUPER_ADMIN can see INACTIVE students
+        if (req.user.role === 'SUPER_ADMIN' || req.user.role === 'ADMIN') {
+            if (status === 'INACTIVE') {
+                where.status = 'INACTIVE';
+            } else if (status === 'ALL') {
+                // No status filter
+            } else {
+                where.status = 'ACTIVE';
+            }
+        } else {
+            // Other roles (Teachers, Parents, Staff) only see ACTIVE students
+            where.status = 'ACTIVE';
+        }
 
-        // Use classroom scoping from middleware
         // Use classroom scoping from middleware
         if (req.classroomScope) {
             // If scope is empty array, it means no access (handled by middleware usually but safe to check)

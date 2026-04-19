@@ -131,8 +131,8 @@ exports.getParentById = async (req, res) => {
         const parent = await prisma.parent.findUnique({
             where: { id: parseInt(id) },
             include: {
-                student_student_parentIdToparent: true,
-                student_student_secondParentIdToparent: true
+                student_student_parentIdToparent: { where: { status: 'ACTIVE' } },
+                student_student_secondParentIdToparent: { where: { status: 'ACTIVE' } }
             }
         });
         if (!parent) return res.status(404).json({ message: 'Parent not found' });

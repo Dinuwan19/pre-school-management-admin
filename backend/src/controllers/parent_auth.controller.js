@@ -289,12 +289,12 @@ const dayjs = require('dayjs');
 exports.getLinkedChildren = async (req, res, next) => {
     try {
         const userId = req.user.id;
-
         // Find parent record linked to this user
         const parentRecord = await prisma.parent.findUnique({
             where: { userId: userId },
             include: {
                 student_student_parentIdToparent: {
+                    where: { status: 'ACTIVE' },
                     include: {
                         classroom: {
                             include: {
@@ -316,6 +316,7 @@ exports.getLinkedChildren = async (req, res, next) => {
                     }
                 },
                 student_student_secondParentIdToparent: {
+                    where: { status: 'ACTIVE' },
                     include: {
                         classroom: {
                             include: {
@@ -430,7 +431,8 @@ exports.getParentBillings = async (req, res, next) => {
                 OR: [
                     { parentId: parentRecord.id },
                     { secondParentId: parentRecord.id }
-                ]
+                ],
+                status: 'ACTIVE'
             },
             select: { id: true, fullName: true, studentUniqueId: true }
         });

@@ -242,6 +242,15 @@ exports.generateStudentProgressTemplate = (data) => {
         }
 
         .score-tag {
+            font-weight: 700;
+            color: var(--text-dark);
+            font-size: 11px;
+        }
+
+        .category-header-cell {
+            background-color: #F0EAFB;
+            text-align: left;
+            padding-left: 15px;
             font-weight: 900;
             color: var(--primary);
         }
@@ -273,14 +282,16 @@ exports.generateStudentProgressTemplate = (data) => {
     <div class="page">
         ${categories.map(cat => `
             <div class="category-section">
-                <div class="category-title">${cat.name}</div>
                 <table>
                     <thead>
                         <tr>
+                            <th colspan="4" class="category-header-cell">${cat.name}</th>
+                        </tr>
+                        <tr>
                             <th class="skill-col">Skill</th>
-                            <th>Term 01</th>
-                            <th>Term 02</th>
-                            <th>Term 03</th>
+                            <th style="width: 20%">Term 01</th>
+                            <th style="width: 20%">Term 02</th>
+                            <th style="width: 20%">Term 03</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -302,7 +313,9 @@ exports.generateStudentProgressTemplate = (data) => {
             <div class="remarks-content">${data.teacherComment}</div>
         </div>
         
-        <img src="${logo}" class="footer-logo">
+        <div style="text-align: center;">
+            <img src="${logo}" class="footer-logo">
+        </div>
     </div>
 </body>
 </html>
@@ -339,152 +352,157 @@ exports.generateAttendanceSummaryTemplate = (data) => {
             color: var(--text-dark);
             margin: 0;
             padding: 0;
+            background-color: #fff;
         }
 
-        .cover-page {
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+        .page {
+            padding: 40px;
             page-break-after: always;
-            background-color: #FAF5FF;
+            border: 2px solid var(--primary);
+            margin: 10px;
+            min-height: 270mm;
+            position: relative;
         }
 
-        .logo { width: 150px; margin-bottom: 30px; }
-        .school-name {
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 900;
-            font-size: 38px;
-            color: var(--primary);
-            text-align: center;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin: 0;
+        .report-header {
+            border-bottom: 2px solid var(--primary);
+            margin-bottom: 20px;
+            padding-bottom: 5px;
         }
 
         .report-title {
             font-family: 'Montserrat', sans-serif;
-            font-weight: 900;
-            font-size: 32px;
-            margin-top: 60px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
+            font-weight: 700;
+            font-size: 20px;
+            color: var(--primary);
         }
 
-        .page {
-            padding: 50px;
-            page-break-after: always;
+        .main-container {
+            display: flex;
+            margin-top: 30px;
         }
-        .page:last-child { page-break-after: avoid; }
 
-        .chart-container {
-            width: 100%;
-            height: 450px;
-            margin-top: 50px;
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
+        .sidebar {
+            width: 150px;
+            padding-top: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .chart-wrapper {
+            flex-grow: 1;
+            height: 400px;
         }
 
         .section-title {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
-            margin-bottom: 25px;
+            margin-top: 40px;
+            margin-bottom: 20px;
             color: var(--primary);
-            border-bottom: 2px solid var(--primary);
-            display: inline-block;
-            padding-bottom: 5px;
         }
 
         .low-attendance-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 20px;
-            margin-top: 20px;
         }
 
         .class-group {
-            background: var(--bg-accent);
-            padding: 20px;
-            border-radius: 12px;
+            background: #FAFAFA;
+            padding: 15px;
+            border-radius: 8px;
             border: 1px solid var(--border);
         }
 
         .class-header {
             font-weight: 900;
-            font-size: 16px;
-            margin-bottom: 12px;
+            font-size: 14px;
+            margin-bottom: 10px;
             color: var(--text-dark);
-            text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 5px;
         }
 
         .student-item {
             display: flex;
             justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px dashed var(--border);
-            font-size: 13px;
+            padding: 5px 0;
+            font-size: 12px;
         }
-
-        .student-item:last-child { border-bottom: none; }
 
         .rate-badge {
             color: var(--danger);
             font-weight: 700;
-            background: #FFEAEA;
-            padding: 2px 8px;
-            border-radius: 4px;
         }
 
         .meta-footer {
-            margin-top: auto;
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            right: 40px;
             display: flex;
             justify-content: space-between;
             font-size: 10px;
             color: var(--text-light);
-            padding-top: 40px;
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
         }
     </style>
 </head>
 <body>
-    <div class="cover-page">
-        <img src="${logo}" class="logo">
-        <h1 class="school-name">MALKEKULU FUTURE MIND</h1>
-        <h2 class="school-name" style="font-size: 28px;">MONTESSORI</h2>
-        
-        <div class="report-title">ATTENDANCE SUMMARY</div>
-        
-        <img src="https://img.icons8.com/ios/100/7B57E4/calendar-check.png" style="margin-top: 40px; opacity: 0.8;">
-    </div>
-
     <div class="page">
-        <div class="section-title">Institutional Engagement Trends</div>
-        <p style="color: var(--text-light); font-size: 13px;">Aggregated view of classroom baseline attendance for period: ${data.timeframe}</p>
-        
-        <div class="chart-container">
-            <canvas id="attendanceChart"></canvas>
+        <div class="report-header">
+            <div class="report-title">Institutional Engagement Trends</div>
         </div>
-
-        <div style="margin-top: 40px;">
-            <div class="section-title">Critical Attention List (Attendance &lt; 50%)</div>
-            <div class="low-attendance-list">
-                ${Object.entries(data.lowAttendanceStudents.reduce((acc, curr) => {
-                    if (!acc[curr.className]) acc[curr.className] = [];
-                    acc[curr.className].push(curr);
-                    return acc;
-                }, {})).map(([className, students]) => `
-                    <div class="class-group">
-                        <div class="class-header">${className}</div>
-                        ${students.map(s => `
-                            <div class="student-item">
-                                <span>${s.studentName} (${s.studentId})</span>
-                                <span class="rate-badge">${s.rate}%</span>
-                            </div>
-                        `).join('')}
+        
+        <p style="color: var(--text-light); font-size: 12px;">Aggregated view of classroom baseline attendance for period: ${data.timeframe}</p>
+        
+        <div class="main-container">
+            <div class="sidebar">
+                ${data.chartData.datasets.map(ds => `
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: ${ds.backgroundColor}"></div>
+                        <span>${ds.label.charAt(0).toUpperCase() + ds.label.slice(1)}</span>
                     </div>
                 `).join('')}
             </div>
+            <div class="chart-wrapper">
+                <canvas id="attendanceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="section-title">Critical Attention List (Attendance &lt; 50%)</div>
+        <div class="low-attendance-list">
+            ${Object.entries(data.lowAttendanceStudents.reduce((acc, curr) => {
+                if (!acc[curr.className]) acc[curr.className] = [];
+                acc[curr.className].push(curr);
+                return acc;
+            }, {})).map(([className, students]) => `
+                <div class="class-group">
+                    <div class="class-header">${className}</div>
+                    ${students.map(s => `
+                        <div class="student-item">
+                            <span>${s.studentName}</span>
+                            <span class="rate-badge">${s.rate}%</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `).join('')}
         </div>
 
         <div class="meta-footer">
@@ -501,17 +519,22 @@ exports.generateAttendanceSummaryTemplate = (data) => {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                categoryPercentage: 0.8,
+                barPercentage: 0.9,
                 scales: {
                     y: {
                         beginAtZero: true,
-                        max: 100,
-                        ticks: { callback: value => value + '%' },
+                        max: 25,
+                        ticks: { stepSize: 5, font: { family: 'Inter', weight: 'bold' } },
                         grid: { color: '#F0F0F0' }
                     },
-                    x: { grid: { display: false } }
+                    x: { 
+                        grid: { display: false },
+                        ticks: { font: { family: 'Inter', weight: 'bold' } }
+                    }
                 },
                 plugins: {
-                    legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } }
+                    legend: { display: false }
                 }
             }
         });
@@ -521,4 +544,5 @@ exports.generateAttendanceSummaryTemplate = (data) => {
 </html>
     `;
 };
+
 

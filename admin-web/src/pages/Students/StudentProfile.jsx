@@ -257,6 +257,25 @@ const StudentProfile = () => {
         }
     };
 
+    const handleToggleStatus = async () => {
+        const newStatus = student.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+        Modal.confirm({
+            title: `${newStatus === 'INACTIVE' ? 'Deactivate' : 'Reactivate'} Student`,
+            content: `Are you sure you want to set ${student.fullName} as ${newStatus}?`,
+            okText: 'Yes',
+            cancelText: 'No',
+            onOk: async () => {
+                try {
+                    await api.put(`/students/${id}`, { status: newStatus });
+                    message.success('Student status updated');
+                    fetchData();
+                } catch (e) {
+                    message.error('Failed to update status');
+                }
+            }
+        });
+    };
+
     const getStatusTag = (status) => {
         if (status === 'COMPLETED') return <Tag color="success">COMPLETED</Tag>;
         if (status === 'PRESENT') return <Tag color="processing">IN SCHOOL</Tag>;
@@ -983,27 +1002,60 @@ const StudentProfile = () => {
             <div style={{ display: 'flex', gap: 16, marginBottom: 16, alignItems: 'center' }}>
                 <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/students')} size="small" style={{ borderRadius: 4 }}>Back</Button>
                 <Title level={4} style={{ margin: 0 }}>{student.fullName}</Title>
+                {student.status === 'INACTIVE' && <Tag color="error" style={{ borderRadius: 6, fontWeight: 700 }}>INACTIVE</Tag>}
                 <div style={{ flex: 1 }}></div>
                 {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
-                    <Button type="primary" icon={<EditOutlined />} style={{ background: '#7B57E4', borderRadius: 6 }} onClick={() => setIsEditModalVisible(true)}>Edit Profile</Button>
+                    <Space>
+                        <Button
+                            danger={student.status === 'ACTIVE'}
+                            type={student.status === 'ACTIVE' ? 'default' : 'primary'}
+                            icon={student.status === 'ACTIVE' ? <UserOutlined /> : <CheckCircleOutlined />}
+                            onClick={handleToggleStatus}
+                            style={{ borderRadius: 8, fontWeight: 600 }}
+                        >
+                            {student.status === 'ACTIVE' ? 'Deactivate' : 'Activate'} Student
+                        </Button>
+                    </Space>
                 )}
             </div>
 
             <Row gutter={24}>
                 <Col xs={24} md={6}>
-                    <Card bordered={false} style={{ borderRadius: 16, textAlign: 'center', height: '100%', background: colorBgContainer }}>
-                        <div style={{ padding: '24px 0' }}>
+                    <Card bordered={false} style={{ borderRadius: 24, textAlign: 'center', height: '100%', background: colorBgContainer, overflow: 'hidden' }}>
+                        <div style={{ padding: '32px 0 24px', position: 'relative' }}>
+                            {/* DECORATIVE STUDENT PHOTO FRAME */}
                             <div style={{
                                 display: 'inline-block',
-                                padding: '6px',
-                                background: isDarkMode ? 'rgba(255,255,255,0.05)' : '#fff',
-                                borderRadius: '50%',
-                                boxShadow: '0 8px 24px rgba(123, 87, 228, 0.2)',
-                                border: '2px solid #7B57E4'
+                                padding: '12px',
+                                background: isDarkMode ? 'rgba(123, 87, 228, 0.05)' : '#fff',
+                                borderRadius: '20px',
+                                boxShadow: '0 12px 32px rgba(123, 87, 228, 0.15)',
+                                border: `1.5px solid ${isDarkMode ? 'rgba(123, 87, 228, 0.3)' : '#EBE6FF'}`,
+                                position: 'relative'
                             }}>
-                                <Avatar size={120} src={getMediaUrl(student.photoUrl)} icon={<UserOutlined />} style={{ background: colorBgLayout }} />
-                            </div>                            <Title level={4} style={{ marginTop: 16, marginBottom: 4 }}>{student.fullName}</Title>
-                            <Text type="secondary">{student.studentUniqueId}</Text>
+                                {/* INNER FRAME BORDER */}
+                                <div style={{
+                                    border: `1px solid ${colorPrimary}33`,
+                                    borderRadius: '12px',
+                                    padding: '4px',
+                                    background: isDarkMode ? '#1a1d2e' : '#fff'
+                                }}>
+                                    <Image 
+                                        width={160} 
+                                        height={160}
+                                        src={getMediaUrl(student.photoUrl)} 
+                                        fallback="https://via.placeholder.com/160?text=Student"
+                                        style={{ borderRadius: '8px', objectFit: 'cover' }} 
+                                        placeholder={<Spin />}
+                                    />
+                                </div>
+                                
+                                {/* CORNER DECORATIONS */}
+                                <div style={{ position: 'absolute', top: -4, left: -4, width: 24, height: 24, borderTop: `4px solid ${colorPrimary}`, borderLeft: `4px solid ${colorPrimary}`, borderRadius: '4px 0 0 0' }} />
+                                <div style={{ position: 'absolute', bottom: -4, right: -4, width: 24, height: 24, borderBottom: `4px solid ${colorPrimary}`, borderRight: `4px solid ${colorPrimary}`, borderRadius: '0 0 4px 0' }} />
+                            </div>
+                            <Title level={4} style={{ marginTop: 24, marginBottom: 4 }}>{student.fullName}</Title>
+                            <Tag color="purple" style={{ borderRadius: 6, fontWeight: 700 }}>{student.studentUniqueId}</Tag>
                         </div>
                         <div style={{ textAlign: 'left', marginTop: 24 }}>
                             <Space direction="vertical" style={{ width: '100%' }} size={16}>

@@ -49,14 +49,21 @@ const Expenses = () => {
                 formData.append('description', values.description);
             }
 
-            // Extract file robustly
-            const fileList = values.receipt?.fileList || (values.receipt?.file ? [values.receipt.file] : []);
-            if (fileList.length > 0) {
-                const actualFile = fileList[0].originFileObj || (fileList[0] instanceof File ? fileList[0] : null);
-                if (actualFile) {
-                    console.log('[Expenses] Appending receipt:', actualFile.name);
-                    formData.append('receipt', actualFile);
+            // Extract file robustly from Ant Design Upload component
+            let actualFile = null;
+            if (values.receipt) {
+                if (values.receipt.file) {
+                    actualFile = values.receipt.file.originFileObj || values.receipt.file;
+                } else if (values.receipt.fileList && values.receipt.fileList.length > 0) {
+                    actualFile = values.receipt.fileList[0].originFileObj || values.receipt.fileList[0];
                 }
+            }
+
+            if (actualFile && actualFile instanceof File) {
+                console.log('[Expenses] Appending receipt:', actualFile.name);
+                formData.append('receipt', actualFile);
+            } else if (actualFile) {
+                console.warn('[Expenses] File found but not a valid File object:', actualFile);
             }
 
             await api.post('/expenses', formData, {

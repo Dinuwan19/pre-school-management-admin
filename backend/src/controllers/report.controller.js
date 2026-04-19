@@ -104,3 +104,34 @@ exports.downloadReport = async (req, res, next) => {
         next(error);
     }
 };
+
+exports.deleteReport = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        
+        // 1. Find the report
+        const report = await prisma.report_log.findUnique({
+            where: { id: parseInt(id) }
+        });
+
+        if (!report) {
+            return res.status(404).json({ message: 'Report not found' });
+        }
+
+        // 2. Delete physical file if exists
+        const storageService = require('../services/storage.service');
+        if (report.filePath) {
+            await storageService.deleteFile(report.filePath);
+        }
+
+        // 3. Delete DB record
+        await prisma.report_log.delete({
+            where: { id: parseInt(id) }
+        });
+
+        res.json({ message: 'Report and file deleted successfully' });
+    } catch (error) {
+        console.error('Delete Report Error:', error);
+        next(error);
+    }
+};

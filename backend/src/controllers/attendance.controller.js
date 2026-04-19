@@ -156,7 +156,11 @@ exports.manualAttendance = async (req, res, next) => {
     try {
         const { studentId, status, date, checkInTime, checkOutTime } = req.body;
         const markedById = req.user.id;
-        const attendanceDate = date ? new Date(date) : new Date();
+        
+        // Normalize date to UTC midnight to match @db.Date storage strictly
+        const dateStr = date ? dayjs(date).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
+        const attendanceDate = new Date(`${dateStr}T00:00:00Z`);
+        
         const auditReason = req.body.reason || 'Manual Override';
 
         // Scoping check

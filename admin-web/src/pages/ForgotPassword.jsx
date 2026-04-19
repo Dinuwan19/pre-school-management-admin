@@ -104,13 +104,14 @@ const ForgotPassword = () => {
                 {/* LOGO AREA */}
                 <div style={{ marginBottom: 40 }}>
                     <div style={{
-                        width: 72, height: 72, margin: '0 auto 16px',
-                        background: primaryColor, borderRadius: '50%',
+                        width: 80, height: 80, margin: '0 auto 16px',
+                        background: '#fff', borderRadius: '50%',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: 'white', fontSize: 28, fontWeight: 'bold',
-                        boxShadow: `0 0 20px ${primaryColor}44`
+                        boxShadow: `0 8px 24px rgba(123, 87, 228, 0.2)`,
+                        overflow: 'hidden',
+                        border: `2px solid ${primaryColor}`
                     }}>
-                        M
+                        <img src="/logo.png" alt="Logo" style={{ width: '85%', height: '85%', objectFit: 'contain' }} />
                     </div>
                     <Title level={4} style={{ color: textColor, marginBottom: 4, letterSpacing: '-0.5px' }}>
                         Malkakulu Future Mind

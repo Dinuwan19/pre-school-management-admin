@@ -71,3 +71,30 @@ exports.uploadLocalFile = async (filename, fileBuffer, mimeType, bucket) => {
         throw error;
     }
 };
+/**
+ * Deletes a file from Local Storage
+ * @param {String} relativeUrl - The relative public URL of the file (e.g., '/uploads/reports/file.pdf')
+ * @returns {Promise<Boolean>} - Success status
+ */
+exports.deleteFile = async (relativeUrl) => {
+    try {
+        if (!relativeUrl) return false;
+        
+        // Convert relative URL back to absolute path
+        // URL format: /uploads/bucket/filename
+        const pathParts = relativeUrl.split('/').filter(p => p && p !== 'uploads');
+        if (pathParts.length < 1) return false;
+
+        const absolutePath = path.join(__dirname, '../../uploads', ...pathParts);
+        
+        if (fs.existsSync(absolutePath)) {
+            fs.unlinkSync(absolutePath);
+            console.log(`[Storage] Deleted file: ${absolutePath}`);
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('[Storage] ERROR DELETING FILE:', error);
+        return false;
+    }
+};

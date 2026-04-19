@@ -30,8 +30,10 @@ const markAbsentStudents = async () => {
         }
 
         // 2. Skip Special Days (Holidays)
+        // Normalize date for Prisma findUnique on @db.Date field
+        const normalizedDate = new Date(`${todayStr}T00:00:00Z`); // UTC midnight
         const specialDay = await prisma.special_day.findUnique({
-            where: { date: new Date(todayStr) }
+            where: { date: normalizedDate }
         });
 
         if (specialDay) {

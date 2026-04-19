@@ -228,7 +228,9 @@ exports.requestPasswordReset = async (req, res, next) => {
 
 exports.verifyOTPOnly = async (req, res, next) => {
     try {
-        const { username, otp } = req.body;
+        const { username } = req.body;
+        
+        // 1. Find user by username, email, or National ID (NIC)
         const user = await prisma.user.findFirst({
             where: {
                 OR: [
@@ -241,7 +243,7 @@ exports.verifyOTPOnly = async (req, res, next) => {
 
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        const otpHash = hashToken(otp);
+        const otpHash = hashToken(req.body.otp);
         const validOtp = await prisma.otp.findFirst({
             where: {
                 userId: user.id,

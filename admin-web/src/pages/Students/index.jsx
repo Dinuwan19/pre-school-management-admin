@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, DatePicker, Select, Card, Typography, message, Avatar, Tag, Row, Col, Divider, Space, Descriptions, Alert, Upload } from 'antd';
+import { Table, Button, Modal, Form, Input, DatePicker, Select, Card, Typography, message, Avatar, Tag, Row, Col, Divider, Space, Descriptions, Alert, Upload, Tabs } from 'antd';
 import { PlusOutlined, SearchOutlined, FilterOutlined, CopyOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -28,12 +28,16 @@ const Students = () => {
     // Filters
     const [searchText, setSearchText] = useState('');
     const [classroomFilter, setClassroomFilter] = useState(null);
+    const [statusFilter, setStatusFilter] = useState('ACTIVE');
 
     const fetchData = async () => {
         setLoading(true);
         try {
+            const params = {};
+            if (statusFilter) params.status = statusFilter;
+
             const [stuRes, classRes, parentRes] = await Promise.all([
-                api.get('/students'),
+                api.get('/students', { params }),
                 api.get('/classrooms'),
                 api.get('/parents')
             ]);
@@ -52,7 +56,7 @@ const Students = () => {
         if (searchParams.get('action') === 'add') {
             handleAdd();
         }
-    }, [searchParams]);
+    }, [searchParams, statusFilter]);
 
     const handleAdd = () => {
         form.resetFields();
@@ -219,19 +223,49 @@ Instructions:
             title: 'Action',
             key: 'action',
             render: (_, record) => (
-                <Button
-                    onClick={() => navigate(`/students/${record.id}`)}
-                    style={{
-                        background: 'rgba(123, 87, 228, 0.1)',
-                        color: '#7B57E4',
-                        border: 'none',
-                        fontWeight: 600,
-                        borderRadius: 8
-                    }}
-                    size="small"
-                >
-                    View
-                </Button>
+                <Space>
+                    <Button
+                        onClick={() => navigate(`/students/${record.id}`)}
+                        style={{
+                            background: 'rgba(123, 87, 228, 0.1)',
+                            color: '#7B57E4',
+                            border: 'none',
+                            fontWeight: 600,
+                            borderRadius: 8
+                        }}
+                        size="small"
+                    >
+                        View
+                    </Button>
+                    {['SUPER_ADMIN', 'ADMIN'].includes(user?.role) && (
+                        <Button
+                            danger={record.status === 'ACTIVE'}
+                            type={record.status === 'ACTIVE' ? 'link' : 'primary'}
+                            size="small"
+                            style={{ fontSize: 11, borderRadius: 6, height: 24 }}
+                            onClick={() => {
+                                const newStatus = record.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+                                Modal.confirm({
+                                    title: `${newStatus === 'INACTIVE' ? 'Deactivate' : 'Reactivate'} Student`,
+                                    content: `Are you sure you want to set ${record.fullName} as ${newStatus}?`,
+                                    okText: 'Yes',
+                                    cancelText: 'No',
+                                    onOk: async () => {
+                                        try {
+                                            await api.put(`/students/${record.id}`, { status: newStatus });
+                                            message.success('Status updated');
+                                            fetchData();
+                                        } catch (e) {
+                                            message.error('Failed to update status');
+                                        }
+                                    }
+                                });
+                            }}
+                        >
+                            {record.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                        </Button>
+                    )}
+                </Space>
             ),
         },
     ];
@@ -266,6 +300,17 @@ Instructions:
                     )}
                 </div>
             </div>
+
+            <Tabs
+                activeKey={statusFilter}
+                onChange={setStatusFilter}
+                className="custom-tabs"
+                style={{ marginBottom: 16 }}
+                items={[
+                    { key: 'ACTIVE', label: 'Active Students' },
+                    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ key: 'INACTIVE', label: 'Inactive Students' }] : [])
+                ]}
+            />
 
             <Card bordered={false} style={{ borderRadius: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }} bodyStyle={{ padding: 0 }}>
                 <Table

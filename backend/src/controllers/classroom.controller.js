@@ -48,7 +48,10 @@ exports.getAllClassrooms = async (req, res, next) => {
         const classrooms = await prisma.classroom.findMany({
             where: where,
             include: {
-                student: { select: { id: true, fullName: true, photoUrl: true } },
+                student: { 
+                    where: { status: 'ACTIVE' },
+                    select: { id: true, fullName: true, photoUrl: true } 
+                },
                 teacherprofiles: {
                     include: { user: { select: { fullName: true } } }
                 }
@@ -89,7 +92,7 @@ exports.getClassroomById = async (req, res, next) => {
         const classroom = await prisma.classroom.findUnique({
             where: { id: classroomId },
             include: {
-                student: true,
+                student: { where: { status: 'ACTIVE' } },
                 teacherprofiles: { include: { user: true } }
             }
         });

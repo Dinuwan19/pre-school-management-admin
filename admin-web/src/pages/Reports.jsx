@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Button, Table, Tag, DatePicker, Select, Typography, message, Space, Statistic } from 'antd';
-import { FilePdfOutlined, DownloadOutlined, ReloadOutlined, BarChartOutlined } from '@ant-design/icons';
+import { FilePdfOutlined, DownloadOutlined, ReloadOutlined, BarChartOutlined, DeleteOutlined } from '@ant-design/icons';
 import api, { getMediaUrl } from '../api/client';
 import dayjs from 'dayjs';
+import { Popconfirm } from 'antd';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -41,23 +42,15 @@ const Reports = () => {
     }, []);
 
     const handleGenerate = async () => {
-        // Aggregate mode is now supported for Progress Reports
         setGenerating(true);
         try {
             const response = await api.post('/reports/generate', {
                 type: reportType,
                 dateRange,
                 classroomId: selectedClassroom === 'All' ? null : selectedClassroom,
-                studentId: selectedStudent || null // Send null if empty
+                studentId: selectedStudent || null
             });
-            message.success('Advanced report generated successfully');
-            if (response.data.details) {
-                // If simple summary exists, show it. Advanced reports rely on the PDF.
-                if (typeof response.data.details === 'object') {
-                    const details = Object.entries(response.data.details).map(([k, v]) => `${k}: ${v}`).join(', ');
-                    message.info(`Snapshot: ${details}`);
-                }
-            }
+            message.success('Report generated successfully');
             fetchInitialData();
         } catch (error) {
             message.error(error.errorMessage || 'Failed to generate report');
@@ -78,6 +71,16 @@ const Reports = () => {
             } catch (error) {
                 message.error('Failed to download report');
             }
+        }
+    };
+
+    const handleDelete = async (id) => {
+        try {
+            await api.delete(`/reports/${id}`);
+            message.success('Report deleted successfully');
+            fetchInitialData();
+        } catch (error) {
+            message.error('Failed to delete report');
         }
     };
 
@@ -110,16 +113,33 @@ const Reports = () => {
             title: 'Action',
             key: 'action',
             render: (_, record) => (
-                <Button
-                    type="primary"
-                    ghost
-                    size="small"
-                    icon={<DownloadOutlined />}
-                    onClick={() => handleDownload(record.id, record.filePath)}
-                    style={{ borderColor: '#7B57E4', color: '#7B57E4' }}
-                >
-                    PDF
-                </Button>
+                <Space>
+                    <Button
+                        type="primary"
+                        ghost
+                        size="small"
+                        icon={<DownloadOutlined />}
+                        onClick={() => handleDownload(record.id, record.filePath)}
+                        style={{ borderColor: '#7B57E4', color: '#7B57E4' }}
+                    >
+                        PDF
+                    </Button>
+                    <Popconfirm
+                        title="Delete Report"
+                        description="Are you sure you want to delete this report and its PDF file?"
+                        onConfirm={() => handleDelete(record.id)}
+                        okText="Yes"
+                        cancelText="No"
+                        okButtonProps={{ danger: true }}
+                    >
+                        <Button
+                            type="text"
+                            danger
+                            size="small"
+                            icon={<DeleteOutlined />}
+                        />
+                    </Popconfirm>
+                </Space>
             ),
         },
     ];
@@ -128,8 +148,8 @@ const Reports = () => {
         <div style={{ padding: 24 }}>
             <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                    <Title level={2} style={{ margin: 0, color: '#2D3436' }}>Royal Analytics</Title>
-                    <Text type="secondary">Generate comprehensive, data-driven booklets for decision support.</Text>
+                    <Title level={2} style={{ margin: 0, color: '#2D3436' }}>Reports</Title>
+                    <Text type="secondary">Generate and manage official system reports and student assessments.</Text>
                 </div>
                 <Button icon={<ReloadOutlined />} onClick={fetchInitialData}>Refresh History</Button>
             </div>
@@ -151,10 +171,84 @@ const Reports = () => {
                                     size="large"
                                 >
                                     <Option value="Attendance Report">Attendance & Engagement (Classroom-wise)</Option>
-                                    <Option value="Financial Report">Financial Health & Collection Analysis</Option>
                                     <Option value="Student Progress Report">Skill Development & Proficiency</Option>
                                 </Select>
                             </div>
+
+                            <div>
+                                <Text strong style={{ display: 'block', marginBottom: 8, color: '#636E72' }}>Timeframe</Text>
+                                <Select
+                                    value={dateRange}
+                                    onChange={setDateRange}
+                                    style={{ width: '100%' }}
+                                    size="large"
+                                >
+                                    <Option value="This Month">Current Month Cycle</Option>
+                                    <Option value="Last Month">Previous Month Cycle</Option>
+                                    <Option value="Year to Date">Year to Date (YTD)</Option>
+                                </Select>
+                            </div>
+
+                            {reportType === 'Student Progress Report' && (
+                                <div style={{ padding: '0 0 15px 0' }}>
+                                    <Text strong style={{ display: 'block', marginBottom: 8, color: '#636E72' }}>Specific Student (Optional)</Text>
+                                    <Select
+                                        showSearch
+                                        allowClear
+                                        placeholder="Select to generate Individual Profile"
+                                        optionFilterProp="children"
+                                        onChange={setSelectedStudent}
+                                        style={{ width: '100%' }}
+                                        size="large"
+                                    >
+                                        {students.map(s => (
+                                            <Option key={s.id} value={s.id}>{s.fullName} ({s.studentUniqueId})</Option>
+                                        ))}
+                                    </Select>
+                                    <Text type="secondary" style={{ fontSize: 11, marginTop: 6, display: 'block' }}>
+                                        * Leave blank to generate an <strong>Aggregate Class Proficiency Analysis</strong>.
+                                    </Text>
+                                </div>
+                            )}
+
+                            <Button
+                                type="primary"
+                                icon={<BarChartOutlined />}
+                                loading={generating}
+                                onClick={handleGenerate}
+                                size="large"
+                                style={{
+                                    marginTop: 10,
+                                    height: 48,
+                                    background: 'linear-gradient(135deg, #7B57E4 0%, #6C5CE7 100%)',
+                                    border: 'none',
+                                    borderRadius: 8,
+                                    fontWeight: 600,
+                                    boxShadow: '0 4px 10px rgba(108, 92, 231, 0.3)'
+                                }}
+                                block
+                            >
+                                Generate Analytics Booklet
+                            </Button>
+                        </div>
+                    </Card>
+                </Col>
+
+                <Col xs={24} lg={15}>
+                    <Card title="Recent Reports" bordered={false} style={{ height: '100%', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+                        <Table
+                            dataSource={recentReports}
+                            columns={columns}
+                            rowKey="id"
+                            loading={loading}
+                            pagination={{ pageSize: 5 }}
+                        />
+                    </Card>
+                </Col>
+            </Row>
+        </div>
+    );
+};
 
                             <div>
                                 <Text strong style={{ display: 'block', marginBottom: 8, color: '#636E72' }}>Timeframe</Text>

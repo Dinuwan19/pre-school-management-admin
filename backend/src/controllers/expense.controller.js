@@ -5,6 +5,10 @@ const dayjs = require('dayjs');
 
 exports.createExpense = async (req, res, next) => {
     try {
+        console.log('[Expense Controller] Create receipt request received');
+        console.log('[Expense Controller] Body:', req.body);
+        console.log('[Expense Controller] Files:', req.files);
+
         const { category, amount, expenseDate, description } = req.body;
         
         // Date Validation
