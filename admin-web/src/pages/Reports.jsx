@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Button, Table, Tag, Select, Typography, message, Space, Popconfirm } from 'antd';
-import { DownloadOutlined, ReloadOutlined, BarChartOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Button, Table, Tag, DatePicker, Select, Typography, message, Space, Statistic } from 'antd';
+import { FilePdfOutlined, DownloadOutlined, ReloadOutlined, BarChartOutlined, DeleteOutlined } from '@ant-design/icons';
 import api, { getMediaUrl } from '../api/client';
 import dayjs from 'dayjs';
+import { Popconfirm } from 'antd';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -14,22 +15,18 @@ const Reports = () => {
     const [dateRange, setDateRange] = useState('This Month');
     const [students, setStudents] = useState([]);
     const [selectedStudent, setSelectedStudent] = useState(null);
-    const [classrooms, setClassrooms] = useState([]);
-    const [selectedClassroom, setSelectedClassroom] = useState('All');
     const [generating, setGenerating] = useState(false);
 
     const fetchInitialData = async () => {
         setLoading(true);
         try {
-            const [reportsRes, classroomsRes, studentsRes] = await Promise.all([
+            const [reportsRes, studentsRes] = await Promise.all([
                 api.get('/reports/recent'),
-                api.get('/classrooms'),
                 api.get('/students')
             ]);
             setRecentReports(reportsRes.data);
-            setClassrooms(classroomsRes.data);
             setStudents(studentsRes.data);
-        } catch (error) {
+        } catch (_) {
             message.error('Failed to fetch initial data');
         } finally {
             setLoading(false);
@@ -46,13 +43,12 @@ const Reports = () => {
             await api.post('/reports/generate', {
                 type: reportType,
                 dateRange,
-                classroomId: selectedClassroom === 'All' ? null : selectedClassroom,
                 studentId: selectedStudent || null
             });
             message.success('Report generated successfully');
             fetchInitialData();
         } catch (error) {
-            message.error(error.errorMessage || 'Failed to generate report');
+            message.error(error.response?.data?.message || 'Failed to generate report');
         } finally {
             setGenerating(false);
         }
@@ -67,7 +63,7 @@ const Reports = () => {
                 if (response.data.downloadUrl) {
                     window.open(getMediaUrl(response.data.downloadUrl), '_blank');
                 }
-            } catch (error) {
+            } catch (_) {
                 message.error('Failed to download report');
             }
         }
@@ -78,7 +74,7 @@ const Reports = () => {
             await api.delete(`/reports/${id}`);
             message.success('Report deleted successfully');
             fetchInitialData();
-        } catch (error) {
+        } catch (_) {
             message.error('Failed to delete report');
         }
     };
@@ -125,7 +121,7 @@ const Reports = () => {
                     </Button>
                     <Popconfirm
                         title="Delete Report"
-                        description="Are you sure you want to delete this report?"
+                        description="Are you sure you want to delete this report and its PDF file?"
                         onConfirm={() => handleDelete(record.id)}
                         okText="Yes"
                         cancelText="No"
@@ -204,6 +200,9 @@ const Reports = () => {
                                             <Option key={s.id} value={s.id}>{s.fullName} ({s.studentUniqueId})</Option>
                                         ))}
                                     </Select>
+                                    <Text type="secondary" style={{ fontSize: 11, marginTop: 6, display: 'block' }}>
+                                        * Leave blank to generate an <strong>Aggregate Class Proficiency Analysis</strong>.
+                                    </Text>
                                 </div>
                             )}
 
