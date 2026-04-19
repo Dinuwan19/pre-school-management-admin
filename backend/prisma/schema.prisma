@@ -94,7 +94,7 @@ model classroom {
   student         student[]
   billingcategory billingcategory[] @relation("billingcategorytoclassroom")
   event           event[]           @relation("classroomtoevent")
-  teacherprofile  teacherprofile[]  @relation("classroomtoteacherprofile")
+  teacherprofiles teacherprofile[]  @relation("classroomtoteacherprofile")
 }
 
 model teacherprofile {
@@ -104,7 +104,7 @@ model teacherprofile {
   designation      teacher_designation     @default(ASSISTANT)
   qualifications   teacher_qualification[]
   user             user                    @relation(fields: [teacherId], references: [id], map: "TeacherProfile_teacherId_fkey")
-  classroom        classroom[]             @relation("classroomtoteacherprofile")
+  classrooms      classroom[]       @relation("classroomtoteacherprofile")
 }
 
 model teacher_qualification {
