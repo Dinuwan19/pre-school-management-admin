@@ -980,7 +980,11 @@ const StudentProfile = () => {
 
                     <Card size="small" title={<Text strong>Other Payments (Uniforms, Books, etc.)</Text>} bordered={false}>
                         <List
-                            dataSource={(student.billing || []).filter(b => b.categoryId !== null)}
+                            dataSource={(student.billing || []).filter(b => {
+                                if (b.categoryId !== null) return true;
+                                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                                return b.billingMonth === 'Adhoc' || !monthNames.some(m => b.billingMonth.includes(m));
+                            })}
                             renderItem={(item) => (
                                 <List.Item style={{ padding: '12px 16px' }}>
                                     <List.Item.Meta

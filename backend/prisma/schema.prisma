@@ -289,7 +289,7 @@ model billingCategory {
   amount     Decimal                   @db.Decimal(10, 2)
   validUntil DateTime
   createdAt  DateTime                  @default(now())
-  updatedAt  DateTime
+  updatedAt  DateTime                  @updatedAt
   frequency  billingCategory_frequency @default(RECURRING)
   billings   billing[]
   classrooms classroom[]               @relation("billingcategorytoclassroom")
