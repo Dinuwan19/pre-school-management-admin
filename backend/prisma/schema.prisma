@@ -483,6 +483,7 @@ model assessment_score {
   @@index([subSkillId], map: "AssessmentScore_subSkillId_fkey")
 }
 
+enum user_role {
   SUPER_ADMIN
   ADMIN
   TEACHER

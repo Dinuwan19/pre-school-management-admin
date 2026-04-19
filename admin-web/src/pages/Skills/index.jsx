@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Typography, Row, Col, Button, Table, Select, Space, message, Spin, Badge, Radio, Divider, Avatar, Input, Empty } from 'antd';
+import { Card, Typography, Row, Col, Button, Table, Select, Space, message, Spin, Badge, Radio, Divider, Avatar, Input, Empty, List } from 'antd';
 import { 
     BookOutlined, 
     ArrowLeftOutlined, 
@@ -360,16 +360,5 @@ const Skills = () => {
         </div>
     );
 };
-
-const List = ({ dataSource, renderItem, locale }) => (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {dataSource.length > 0 ? dataSource.map((item, idx) => (
-            <React.Fragment key={idx}>
-                {renderItem(item)}
-                {idx < dataSource.length - 1 && <Divider style={{ margin: 0 }} />}
-            </React.Fragment>
-        )) : locale.emptyText}
-    </div>
-);
 
 export default Skills;
