@@ -256,7 +256,13 @@ const MainLayout = () => {
 
                         <div
                             style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
-                            onClick={() => navigate('/profile')}
+                            onClick={() => {
+                                if (userRole !== 'PARENT') {
+                                    navigate(`/staff/${user.id}`);
+                                } else {
+                                    navigate('/');
+                                }
+                            }}
                         >
                             <div style={{ textAlign: 'right', lineHeight: 1.2 }}>
                                 <div style={{ fontWeight: 600, color: colorText }}>{user?.username}</div>

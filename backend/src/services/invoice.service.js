@@ -34,7 +34,7 @@ exports.generateInvoice = async (paymentId) => {
         const payment = await prisma.payment.findUnique({
             where: { id: paymentId },
             include: {
-                user: true, // Verified by (Accountant/Cashier)
+                user: true, // Verification user (Cashier)
                 billingpayment: {
                     include: {
                         billing: {
@@ -222,16 +222,18 @@ exports.generateInvoice = async (paymentId) => {
 
             // Render Signature if available
             if (payment.user?.signatureUrl) {
-                // Map the URL to local path
-                // If it starts with /uploads, it's a local file relative to root
-                const sigPath = path.join(__dirname, '../../', payment.user.signatureUrl);
-                if (fs.existsSync(sigPath)) {
-                    doc.image(sigPath, 420, footerTop - 45, { width: 100, height: 40 });
+                const signaturePath = path.join(__dirname, '../../', payment.user.signatureUrl.replace(/^\//, ''));
+                if (fs.existsSync(signaturePath)) {
+                    try {
+                        doc.image(signaturePath, 425, footerTop - 40, { width: 100 });
+                    } catch (e) {
+                        console.warn('Failed to render signature image:', e.message);
+                    }
                 }
             }
 
             doc.moveTo(400, footerTop).lineTo(550, footerTop).stroke('#8B4513');
-            doc.fontSize(10).fillColor('#333').text(payment.user?.fullName || 'Accountant', 400, footerTop + 10, { align: 'center', width: 150 });
+            doc.fontSize(10).fillColor('#333').text('Accountant', 400, footerTop + 10, { align: 'center', width: 150 });
 
             doc.end();
         });

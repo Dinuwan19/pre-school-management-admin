@@ -5,7 +5,6 @@ const crypto = require('crypto');
 const { logAction } = require('../services/audit.service');
 const { generateOTP, generateTempPassword, hashToken } = require('../utils/auth.utils');
 const { sendTempPasswordEmail, sendOTPEmail } = require('../services/mailer.service');
-const { uploadFile } = require('../services/storage.service');
 const dayjs = require('dayjs');
 
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;

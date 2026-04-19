@@ -30,7 +30,6 @@ import Reports from './pages/Reports';
 import Events from './pages/Events';
 import SpecialDays from './pages/SpecialDays';
 import Logs from './pages/Logs';
-import Profile from './pages/Profile';
 
 const InitialRedirect = () => {
   const { user, loading } = useAuth();
@@ -233,7 +232,6 @@ const AppContent = () => {
                 <Logs />
               </ProtectedRoute>
             } />
-            <Route path="/profile" element={<Profile />} />
           </Route>
 
           <Route path="/" element={<InitialRedirect />} />
