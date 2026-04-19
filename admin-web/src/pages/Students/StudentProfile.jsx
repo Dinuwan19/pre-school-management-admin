@@ -1004,15 +1004,16 @@ const StudentProfile = () => {
                 <Title level={4} style={{ margin: 0 }}>{student.fullName}</Title>
                 {student.status === 'INACTIVE' && <Tag color="error" style={{ borderRadius: 6, fontWeight: 700 }}>INACTIVE</Tag>}
                 <div style={{ flex: 1 }}></div>
-                {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && student.status === 'INACTIVE' && (
+                {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
                     <Space>
                         <Button
-                            type="primary"
-                            icon={<CheckCircleOutlined />}
+                            danger={student.status === 'ACTIVE'}
+                            type={student.status === 'ACTIVE' ? 'default' : 'primary'}
+                            icon={student.status === 'ACTIVE' ? <UserOutlined /> : <CheckCircleOutlined />}
                             onClick={handleToggleStatus}
                             style={{ borderRadius: 8, fontWeight: 600 }}
                         >
-                            Activate Student
+                            {student.status === 'ACTIVE' ? 'Deactivate' : 'Activate'} Student
                         </Button>
                     </Space>
                 )}

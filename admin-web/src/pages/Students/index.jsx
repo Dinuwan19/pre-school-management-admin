@@ -20,13 +20,9 @@ const Students = () => {
 
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [isQuickParentVisible, setIsQuickParentVisible] = useState(false);
-    const [isDeactivateModalVisible, setIsDeactivateModalVisible] = useState(false);
-    const [activeStudents, setActiveStudents] = useState([]);
-    const [deactivateLoading, setDeactivateLoading] = useState(false);
     const [quickAddTarget, setQuickAddTarget] = useState('primary'); // 'primary' or 'secondary'
     const [successModal, setSuccessModal] = useState({ visible: false, data: null });
     const [form] = Form.useForm();
-    const [deactivateForm] = Form.useForm();
     const [parentForm] = Form.useForm();
 
     // Filters
@@ -52,15 +48,6 @@ const Students = () => {
             message.error(error.errorMessage || 'Failed to load student data');
         } finally {
             setLoading(false);
-        }
-    };
-
-    const fetchActiveStudents = async () => {
-        try {
-            const res = await api.get('/students', { params: { status: 'ACTIVE' } });
-            setActiveStudents(res.data);
-        } catch (e) {
-            message.error('Failed to load active students');
         }
     };
 
@@ -145,25 +132,6 @@ const Students = () => {
             message.error(error.response?.data?.message || 'Failed to create parent');
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleBatchDeactivate = async (values) => {
-        try {
-            setDeactivateLoading(true);
-            const studentIds = values.studentIds;
-            if (!studentIds || studentIds.length === 0) return;
-
-            await Promise.all(studentIds.map(id => api.put(`/students/${id}`, { status: 'INACTIVE' })));
-            
-            message.success(`Successfully deactivated ${studentIds.length} student(s)`);
-            setIsDeactivateModalVisible(false);
-            deactivateForm.resetFields();
-            fetchData();
-        } catch (error) {
-            message.error('Batch deactivation failed');
-        } finally {
-            setDeactivateLoading(false);
         }
     };
 
@@ -269,21 +237,23 @@ Instructions:
                     >
                         View
                     </Button>
-                    {record.status === 'INACTIVE' && ['SUPER_ADMIN', 'ADMIN'].includes(user?.role) && (
+                    {['SUPER_ADMIN', 'ADMIN'].includes(user?.role) && (
                         <Button
-                            type="primary"
+                            danger={record.status === 'ACTIVE'}
+                            type={record.status === 'ACTIVE' ? 'link' : 'primary'}
                             size="small"
                             style={{ fontSize: 11, borderRadius: 6, height: 24 }}
                             onClick={() => {
+                                const newStatus = record.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
                                 Modal.confirm({
-                                    title: `Reactivate Student`,
-                                    content: `Are you sure you want to set ${record.fullName} back to ACTIVE?`,
+                                    title: `${newStatus === 'INACTIVE' ? 'Deactivate' : 'Reactivate'} Student`,
+                                    content: `Are you sure you want to set ${record.fullName} as ${newStatus}?`,
                                     okText: 'Yes',
                                     cancelText: 'No',
                                     onOk: async () => {
                                         try {
-                                            await api.put(`/students/${record.id}`, { status: 'ACTIVE' });
-                                            message.success('Student reactivated');
+                                            await api.put(`/students/${record.id}`, { status: newStatus });
+                                            message.success('Status updated');
                                             fetchData();
                                         } catch (e) {
                                             message.error('Failed to update status');
@@ -292,7 +262,7 @@ Instructions:
                                 });
                             }}
                         >
-                            Activate
+                            {record.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
                         </Button>
                     )}
                 </Space>
@@ -323,27 +293,11 @@ Instructions:
                         </Select>
                     </div>
 
-                    <Space>
-                        {statusFilter === 'INACTIVE' && ['SUPER_ADMIN', 'ADMIN'].includes(user?.role) && (
-                            <Button 
-                                danger 
-                                icon={<FilterOutlined />} 
-                                size="large" 
-                                style={{ borderRadius: 8, height: 44, fontWeight: 600 }}
-                                onClick={() => {
-                                    fetchActiveStudents();
-                                    setIsDeactivateModalVisible(true);
-                                }}
-                            >
-                                Deactivate Students
-                            </Button>
-                        )}
-                        {['SUPER_ADMIN', 'ADMIN', 'STAFF'].includes(user?.role) && statusFilter === 'ACTIVE' && (
-                            <Button type="primary" icon={<PlusOutlined />} size="large" onClick={handleAdd} style={{ borderRadius: 8, background: '#7B57E4', height: 44, fontWeight: 600 }}>
-                                Add Student
-                            </Button>
-                        )}
-                    </Space>
+                    {['SUPER_ADMIN', 'ADMIN', 'STAFF'].includes(user?.role) && (
+                        <Button type="primary" icon={<PlusOutlined />} size="large" onClick={handleAdd} style={{ borderRadius: 8, background: '#7B57E4', height: 44, fontWeight: 600 }}>
+                            Add Student
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -688,37 +642,6 @@ Instructions:
                         </Descriptions.Item>
                     </Descriptions>
                 </div>
-            </Modal>
-
-            {/* Deactivate Students Modal */}
-            <Modal
-                title="Manage Student Inactivity"
-                open={isDeactivateModalVisible}
-                onCancel={() => setIsDeactivateModalVisible(false)}
-                onOk={() => deactivateForm.submit()}
-                okText="Deactivate Selected"
-                okButtonProps={{ danger: true, loading: deactivateLoading }}
-            >
-                <div style={{ marginBottom: 16 }}>
-                    <Alert message="Moving students to inactive will hide them from teacher lists and parents, but historical records are preserved." type="info" showIcon />
-                </div>
-                <Form form={deactivateForm} layout="vertical" onFinish={handleBatchDeactivate}>
-                    <Form.Item name="studentIds" label="Select Students to Deactivate" rules={[{ required: true, message: 'Please select at least one student' }]}>
-                        <Select
-                            mode="multiple"
-                            placeholder="Search and choose active students..."
-                            style={{ width: '100%' }}
-                            showSearch
-                            optionFilterProp="label"
-                        >
-                            {activeStudents.map(s => (
-                                <Option key={s.id} value={s.id} label={s.fullName}>
-                                    {s.fullName} ({s.studentUniqueId})
-                                </Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                </Form>
             </Modal>
         </div>
     );
