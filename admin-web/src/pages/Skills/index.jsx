@@ -5,7 +5,6 @@ import {
     ArrowLeftOutlined, 
     RightOutlined, 
     UserOutlined, 
-    CheckCircleOutlined,
     SaveOutlined,
     SearchOutlined
 } from '@ant-design/icons';
@@ -23,6 +22,7 @@ const VIEWS = {
 };
 
 const Skills = () => {
+    console.log('Skills Component Rendering');
     const { user } = useAuth();
     const { isDarkMode } = useTheme();
     const [view, setView] = useState(VIEWS.CATEGORIES);
@@ -35,7 +35,7 @@ const Skills = () => {
     const [selectedTerm, setSelectedTerm] = useState(1);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [scores, setScores] = useState({}); // { studentId: score }
+    const [scores, setScores] = useState({});
     const [searchText, setSearchText] = useState('');
 
     const fetchCategories = async () => {
@@ -44,6 +44,7 @@ const Skills = () => {
             const res = await api.get('/students/metadata/skills');
             setCategories(res.data);
         } catch (error) {
+            console.error('Error fetching categories:', error);
             message.error('Failed to load skill categories');
         } finally {
             setLoading(false);
@@ -55,28 +56,21 @@ const Skills = () => {
             const res = await api.get('/classrooms');
             setClassrooms(res.data);
             if (res.data.length > 0) {
-                // If teacher, find their classroom
-                if (user?.role === 'TEACHER') {
-                    // Assuming API already filters for teachers, or we handle it here
-                    setSelectedClassroom(res.data[0].id);
-                } else {
-                    setSelectedClassroom(res.data[0].id);
-                }
+                setSelectedClassroom(res.data[0].id);
             }
         } catch (e) {
-            console.error(e);
+            console.error('Error fetching classrooms:', e);
         }
     };
 
     const fetchStudentsForSkill = async (subSkillId, classroomId, term) => {
+        if (!subSkillId || !classroomId) return;
         setLoading(true);
         try {
             const res = await api.get(`/skills/sub-skill/${subSkillId}/students`, {
                 params: { classroomId, term }
             });
             setStudents(res.data);
-            
-            // Initialize local scores state
             const initialScores = {};
             res.data.forEach(s => {
                 if (s.currentScore !== null) {
@@ -85,6 +79,7 @@ const Skills = () => {
             });
             setScores(initialScores);
         } catch (error) {
+            console.error('Error fetching students:', error);
             message.error('Failed to load students for this skill');
         } finally {
             setLoading(false);
@@ -125,21 +120,20 @@ const Skills = () => {
                 studentId: parseInt(studentId),
                 score
             }));
-
             if (updates.length === 0) {
                 message.warning('No scores to save');
+                setSaving(false);
                 return;
             }
-
             await api.post('/skills/bulk-update', {
                 subSkillId: selectedSubSkill.id,
                 term: selectedTerm,
                 updates
             });
-
             message.success('Bulk scores updated successfully');
             fetchStudentsForSkill(selectedSubSkill.id, selectedClassroom, selectedTerm);
         } catch (error) {
+            console.error('Error saving scores:', error);
             message.error('Failed to update scores');
         } finally {
             setSaving(false);
@@ -175,9 +169,9 @@ const Skills = () => {
                     onChange={(e) => handleScoreChange(record.id, e.target.value)}
                     buttonStyle="solid"
                 >
-                    <Radio.Button value={1} style={{ borderRadius: '6px 0 0 6px' }}>1</Radio.Button>
+                    <Radio.Button value={1}>1</Radio.Button>
                     <Radio.Button value={2}>2</Radio.Button>
-                    <Radio.Button value={3} style={{ borderRadius: '0 6px 6px 0' }}>3</Radio.Button>
+                    <Radio.Button value={3}>3</Radio.Button>
                     <Button 
                         type="text" 
                         size="small" 
@@ -265,7 +259,7 @@ const Skills = () => {
                                             <BookOutlined />
                                         </div>
                                         <Title level={4} style={{ margin: 0 }}>{cat.name}</Title>
-                                        <Text type="secondary">{cat.skills?.length || 0} Sub-skills</Text>
+                                        <Text type="secondary">{(cat.skills || []).length} Sub-skills</Text>
                                     </Card>
                                 </Col>
                             ))}
@@ -280,7 +274,6 @@ const Skills = () => {
                                     <List.Item 
                                         onClick={() => handleSubSkillClick(skill)}
                                         style={{ cursor: 'pointer', padding: '20px 24px' }}
-                                        className="skill-item"
                                     >
                                         <Space>
                                             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#7B57E4' }} />
@@ -289,7 +282,6 @@ const Skills = () => {
                                         <RightOutlined style={{ color: '#bfbfbf' }} />
                                     </List.Item>
                                 )}
-                                locale={{ emptyText: <Empty description="No sub-skills found in this category" /> }}
                             />
                         </Card>
                     )}
@@ -353,7 +345,7 @@ const Skills = () => {
             )}
 
             <style>{`
-                .skill-item:hover {
+                .ant-list-item:hover {
                     background: ${isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)'};
                 }
             `}</style>
