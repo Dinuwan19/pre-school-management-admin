@@ -206,15 +206,8 @@ exports.createStaff = async (req, res, next) => {
 exports.getStaffById = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const targetId = parseInt(id);
-
-        // RBAC: SUPER_ADMIN can see any staff. Others can only see themselves.
-        if (req.user.role !== 'SUPER_ADMIN' && req.user.id !== targetId) {
-            return res.status(403).json({ message: 'Forbidden: You can only view your own profile' });
-        }
-
         const staff = await prisma.user.findUnique({
-            where: { id: targetId },
+            where: { id: parseInt(id) },
             include: {
                 teacherprofile: {
                     include: {
@@ -234,12 +227,11 @@ exports.getStaffById = async (req, res, next) => {
 exports.updateStaff = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const targetId = parseInt(id);
         const { qualification, classroomIds, designation, qualifications, ...userData } = req.body;
 
-        // RBAC: Only SUPER_ADMIN can edit staff profiles, OR the user can edit their own profile
-        if (req.user.role !== 'SUPER_ADMIN' && req.user.id !== targetId) {
-            return res.status(403).json({ message: 'Forbidden: You can only edit your own profile' });
+        // RBAC: Only SUPER_ADMIN can edit staff profiles
+        if (req.user.role !== 'SUPER_ADMIN') {
+            return res.status(403).json({ message: 'Forbidden: Only Super Admin can edit staff' });
         }
 
         if (userData.joiningDate) {
@@ -266,15 +258,13 @@ exports.updateStaff = async (req, res, next) => {
             return res.status(400).json({ message: 'Please use a valid email address from supported providers (Gmail, Yahoo, Outlook, iCloud).' });
         }
 
-        // Handle uploaded files (Signature/Photo)
-        if (req.files && req.files['signature']) {
-            userData.signatureUrl = await uploadFile(req.files['signature'][0], 'staff-signatures');
-        }
+        // Handle uploaded files (Supabase) - Photo removed for staff
+
 
         // Final cleanup - ensure only valid schema fields are passed to Prisma
         const validUserFields = [
             'fullName', 'username', 'email', 'phone', 'role',
-            'nationalId', 'address', 'photoUrl', 'signatureUrl', 'joiningDate', 'status'
+            'nationalId', 'address', 'photoUrl', 'joiningDate', 'status'
         ];
 
         const prismaUserData = {};

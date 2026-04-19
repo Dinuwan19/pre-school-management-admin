@@ -64,11 +64,6 @@ const StaffProfile = () => {
                         if (fileObj && (fileObj.originFileObj || fileObj instanceof File)) {
                             formData.append(key, fileObj.originFileObj || fileObj);
                         }
-                    } else if (key === 'signature') {
-                        const fileObj = values[key]?.file || values[key]?.fileList?.[0] || (values[key] instanceof File ? values[key] : null);
-                        if (fileObj && (fileObj.originFileObj || fileObj instanceof File)) {
-                            formData.append(key, fileObj.originFileObj || fileObj);
-                        }
                     } else if (key === 'joiningDate') {
                         formData.append(key, values[key].format('YYYY-MM-DD'));
                     } else if (key === 'classroomIds' && Array.isArray(values[key])) {
@@ -114,7 +109,7 @@ const StaffProfile = () => {
                 <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/staff')} size="small" style={{ borderRadius: 4 }}>Back</Button>
                 <Title level={4} style={{ margin: 0 }}>{staff.fullName}</Title>
                 <div style={{ flex: 1 }}></div>
-                {(user?.role === 'SUPER_ADMIN' || user?.id === parseInt(id)) && (
+                {user?.role === 'SUPER_ADMIN' && (
                     <Button type="primary" icon={<EditOutlined />} style={{ background: colorPrimary, borderRadius: 6 }} onClick={() => setIsEditModalVisible(true)}>Edit Profile</Button>
                 )}
             </div>
@@ -152,16 +147,6 @@ const StaffProfile = () => {
                                     <CalendarOutlined style={{ color: '#999' }} />
                                     <span>Joined: {dayjs(staff.joiningDate).format('M/D/YYYY')}</span>
                                 </div>
-                                {staff.signatureUrl && (
-                                    <div style={{ marginTop: 16, textAlign: 'center' }}>
-                                        <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>E-Signature</div>
-                                        <img 
-                                            src={`${api.defaults.baseURL.replace('/api', '')}/${staff.signatureUrl.replace(/^\//, '')}`} 
-                                            alt="Signature" 
-                                            style={{ maxWidth: '100%', maxHeight: 60, borderBottom: '1px solid #eee' }} 
-                                        />
-                                    </div>
-                                )}
                             </Space>
                         </div>
                         {/* QR Download removed */}
@@ -272,21 +257,6 @@ const StaffProfile = () => {
                             </Form.Item>
                         </Col>
                         <Col span={12}><Form.Item name="phone" label="Phone" rules={[{ required: true }]}><Input /></Form.Item></Col>
-                        {['SUPER_ADMIN', 'CASHIER', 'ADMIN'].includes(staff.role) && (
-                            <Col span={24}>
-                                <Form.Item name="signature" label="Update E-Signature">
-                                    <Upload beforeUpload={() => false} maxCount={1} accept="image/*">
-                                        <Button icon={<UploadOutlined />}>Select Image</Button>
-                                    </Upload>
-                                    {staff.signatureUrl && (
-                                        <div style={{ fontSize: 10, color: '#999', marginTop: 4 }}>
-                                            Current signature will be replaced if a new one is uploaded.
-                                        </div>
-                                    )}
-                                </Form.Item>
-                                <Divider />
-                            </Col>
-                        )}
                         <Col span={12}>
                             <Form.Item
                                 name="nationalId"

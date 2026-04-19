@@ -295,7 +295,6 @@ model user {
   address                                        String?           @db.Text
   joiningDate                                    DateTime?
   photoUrl                                       String?
-  signatureUrl                                   String?
   createdAt                                      DateTime          @default(now())
   updatedAt                                      DateTime          @updatedAt
   resetToken                                     String?

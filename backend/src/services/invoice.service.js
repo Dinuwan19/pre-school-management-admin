@@ -34,7 +34,6 @@ exports.generateInvoice = async (paymentId) => {
         const payment = await prisma.payment.findUnique({
             where: { id: paymentId },
             include: {
-                user: true, // Verification user (Cashier)
                 billingpayment: {
                     include: {
                         billing: {
@@ -126,7 +125,7 @@ exports.generateInvoice = async (paymentId) => {
 
             doc.fillColor('#7B57E4')
                 .fontSize(10)
-                .text('45,A kadawatha road ,Ja ela', 120, 110);
+                .text('123 ANYWHERE ST., ANY CITY, ST 12345', 120, 110);
 
             doc.moveTo(50, 140).lineTo(550, 140).stroke('#7B57E4');
 
@@ -219,19 +218,6 @@ exports.generateInvoice = async (paymentId) => {
 
             // Footer
             const footerTop = 700;
-
-            // Render Signature if available
-            if (payment.user?.signatureUrl) {
-                const signaturePath = path.join(__dirname, '../../', payment.user.signatureUrl.replace(/^\//, ''));
-                if (fs.existsSync(signaturePath)) {
-                    try {
-                        doc.image(signaturePath, 425, footerTop - 40, { width: 100 });
-                    } catch (e) {
-                        console.warn('Failed to render signature image:', e.message);
-                    }
-                }
-            }
-
             doc.moveTo(400, footerTop).lineTo(550, footerTop).stroke('#8B4513');
             doc.fontSize(10).fillColor('#333').text('Accountant', 400, footerTop + 10, { align: 'center', width: 150 });
 

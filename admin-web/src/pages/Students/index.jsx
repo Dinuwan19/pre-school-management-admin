@@ -20,18 +20,19 @@ const Students = () => {
 
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [isQuickParentVisible, setIsQuickParentVisible] = useState(false);
+    const [isDeactivateModalVisible, setIsDeactivateModalVisible] = useState(false);
+    const [activeStudents, setActiveStudents] = useState([]);
+    const [deactivateLoading, setDeactivateLoading] = useState(false);
     const [quickAddTarget, setQuickAddTarget] = useState('primary'); // 'primary' or 'secondary'
     const [successModal, setSuccessModal] = useState({ visible: false, data: null });
     const [form] = Form.useForm();
+    const [deactivateForm] = Form.useForm();
     const [parentForm] = Form.useForm();
 
     // Filters
     const [searchText, setSearchText] = useState('');
     const [classroomFilter, setClassroomFilter] = useState(null);
     const [statusFilter, setStatusFilter] = useState('ACTIVE');
-    const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
-    const [deactivateStudentId, setDeactivateStudentId] = useState(null);
-    const [deactivating, setDeactivating] = useState(false);
 
     const fetchData = async () => {
         setLoading(true);
@@ -51,6 +52,15 @@ const Students = () => {
             message.error(error.errorMessage || 'Failed to load student data');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchActiveStudents = async () => {
+        try {
+            const res = await api.get('/students', { params: { status: 'ACTIVE' } });
+            setActiveStudents(res.data);
+        } catch (e) {
+            message.error('Failed to load active students');
         }
     };
 
@@ -135,6 +145,25 @@ const Students = () => {
             message.error(error.response?.data?.message || 'Failed to create parent');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleBatchDeactivate = async (values) => {
+        try {
+            setDeactivateLoading(true);
+            const studentIds = values.studentIds;
+            if (!studentIds || studentIds.length === 0) return;
+
+            await Promise.all(studentIds.map(id => api.put(`/students/${id}`, { status: 'INACTIVE' })));
+            
+            message.success(`Successfully deactivated ${studentIds.length} student(s)`);
+            setIsDeactivateModalVisible(false);
+            deactivateForm.resetFields();
+            fetchData();
+        } catch (error) {
+            message.error('Batch deactivation failed');
+        } finally {
+            setDeactivateLoading(false);
         }
     };
 
@@ -240,28 +269,20 @@ Instructions:
                     >
                         View
                     </Button>
-                    {['SUPER_ADMIN', 'ADMIN'].includes(user?.role) && (
+                    {record.status === 'INACTIVE' && ['SUPER_ADMIN', 'ADMIN'].includes(user?.role) && (
                         <Button
-                            danger={record.status === 'ACTIVE'}
-                            type={record.status === 'ACTIVE' ? 'link' : 'primary'}
+                            type="primary"
                             size="small"
-                            style={{ 
-                                fontSize: 11, 
-                                borderRadius: 6, 
-                                height: 24,
-                                display: record.status === 'ACTIVE' ? 'none' : 'inline-flex' // Hide Deactivate in list
-                            }}
+                            style={{ fontSize: 11, borderRadius: 6, height: 24 }}
                             onClick={() => {
-                                if (record.status === 'ACTIVE') return; // Should be hidden anyway
-                                const newStatus = 'ACTIVE';
                                 Modal.confirm({
                                     title: `Reactivate Student`,
-                                    content: `Are you sure you want to reactivate ${record.fullName}?`,
+                                    content: `Are you sure you want to set ${record.fullName} back to ACTIVE?`,
                                     okText: 'Yes',
                                     cancelText: 'No',
                                     onOk: async () => {
                                         try {
-                                            await api.put(`/students/${record.id}`, { status: newStatus });
+                                            await api.put(`/students/${record.id}`, { status: 'ACTIVE' });
                                             message.success('Student reactivated');
                                             fetchData();
                                         } catch (e) {
@@ -302,81 +323,40 @@ Instructions:
                         </Select>
                     </div>
 
-                    {['SUPER_ADMIN', 'ADMIN', 'STAFF'].includes(user?.role) && (
-                        <Button type="primary" icon={<PlusOutlined />} size="large" onClick={handleAdd} style={{ borderRadius: 8, background: '#7B57E4', height: 44, fontWeight: 600 }}>
-                            Add Student
-                        </Button>
-                    )}
+                    <Space>
+                        {statusFilter === 'INACTIVE' && ['SUPER_ADMIN', 'ADMIN'].includes(user?.role) && (
+                            <Button 
+                                danger 
+                                icon={<FilterOutlined />} 
+                                size="large" 
+                                style={{ borderRadius: 8, height: 44, fontWeight: 600 }}
+                                onClick={() => {
+                                    fetchActiveStudents();
+                                    setIsDeactivateModalVisible(true);
+                                }}
+                            >
+                                Deactivate Students
+                            </Button>
+                        )}
+                        {['SUPER_ADMIN', 'ADMIN', 'STAFF'].includes(user?.role) && statusFilter === 'ACTIVE' && (
+                            <Button type="primary" icon={<PlusOutlined />} size="large" onClick={handleAdd} style={{ borderRadius: 8, background: '#7B57E4', height: 44, fontWeight: 600 }}>
+                                Add Student
+                            </Button>
+                        )}
+                    </Space>
                 </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <Tabs
-                    activeKey={statusFilter}
-                    onChange={setStatusFilter}
-                    className="custom-tabs"
-                    style={{ marginBottom: 0 }}
-                    items={[
-                        { key: 'ACTIVE', label: 'Active Students' },
-                        ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ key: 'INACTIVE', label: 'Inactive Students' }] : [])
-                    ]}
-                />
-                {statusFilter === 'INACTIVE' && (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
-                    <Button 
-                        type="primary" 
-                        danger 
-                        icon={<PlusOutlined />} 
-                        onClick={() => setIsDeactivateModalOpen(true)}
-                        style={{ borderRadius: 8 }}
-                    >
-                        Deactivate Student
-                    </Button>
-                )}
-            </div>
-
-            <Modal
-                title="Move Student to Inactive"
-                open={isDeactivateModalOpen}
-                onCancel={() => {
-                    setIsDeactivateModalOpen(false);
-                    setDeactivateStudentId(null);
-                }}
-                onOk={async () => {
-                    if (!deactivateStudentId) return message.warning('Please select a student');
-                    setDeactivating(true);
-                    try {
-                        await api.put(`/students/${deactivateStudentId}`, { status: 'INACTIVE' });
-                        message.success('Student moved to Inactive list');
-                        setIsDeactivateModalOpen(false);
-                        setDeactivateStudentId(null);
-                        fetchData();
-                    } catch (e) {
-                        message.error('Failed to deactivate student');
-                    } finally {
-                        setDeactivating(false);
-                    }
-                }}
-                confirmLoading={deactivating}
-                okText="Deactivate"
-                okButtonProps={{ danger: true }}
-            >
-                <div style={{ marginTop: 20 }}>
-                    <Text type="secondary" style={{ display: 'block', marginBottom: 10 }}>
-                        Select an active student to move them to the inactive records. They will no longer appear in attendance or classroom lists.
-                    </Text>
-                    <Select
-                        showSearch
-                        placeholder="Search Student Name"
-                        style={{ width: '100%' }}
-                        onChange={setDeactivateStudentId}
-                        optionFilterProp="children"
-                    >
-                        {students.filter(s => s.status === 'ACTIVE').map(s => (
-                            <Option key={s.id} value={s.id}>{s.fullName} ({s.studentUniqueId})</Option>
-                        ))}
-                    </Select>
-                </div>
-            </Modal>
+            <Tabs
+                activeKey={statusFilter}
+                onChange={setStatusFilter}
+                className="custom-tabs"
+                style={{ marginBottom: 16 }}
+                items={[
+                    { key: 'ACTIVE', label: 'Active Students' },
+                    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ key: 'INACTIVE', label: 'Inactive Students' }] : [])
+                ]}
+            />
 
             <Card bordered={false} style={{ borderRadius: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }} bodyStyle={{ padding: 0 }}>
                 <Table
@@ -708,6 +688,37 @@ Instructions:
                         </Descriptions.Item>
                     </Descriptions>
                 </div>
+            </Modal>
+
+            {/* Deactivate Students Modal */}
+            <Modal
+                title="Manage Student Inactivity"
+                open={isDeactivateModalVisible}
+                onCancel={() => setIsDeactivateModalVisible(false)}
+                onOk={() => deactivateForm.submit()}
+                okText="Deactivate Selected"
+                okButtonProps={{ danger: true, loading: deactivateLoading }}
+            >
+                <div style={{ marginBottom: 16 }}>
+                    <Alert message="Moving students to inactive will hide them from teacher lists and parents, but historical records are preserved." type="info" showIcon />
+                </div>
+                <Form form={deactivateForm} layout="vertical" onFinish={handleBatchDeactivate}>
+                    <Form.Item name="studentIds" label="Select Students to Deactivate" rules={[{ required: true, message: 'Please select at least one student' }]}>
+                        <Select
+                            mode="multiple"
+                            placeholder="Search and choose active students..."
+                            style={{ width: '100%' }}
+                            showSearch
+                            optionFilterProp="label"
+                        >
+                            {activeStudents.map(s => (
+                                <Option key={s.id} value={s.id} label={s.fullName}>
+                                    {s.fullName} ({s.studentUniqueId})
+                                </Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+                </Form>
             </Modal>
         </div>
     );
