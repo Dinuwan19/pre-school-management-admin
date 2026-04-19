@@ -595,7 +595,16 @@ const StudentBilling = () => {
                                     if (!c.classrooms || c.classrooms.length === 0) return true;
 
                                     // Check if student's classroom matches allowed classrooms
-                                    return c.classrooms.some(cr => cr.id === student.classroomId);
+                                    const classroomMatch = c.classrooms.some(cr => cr.id === student.classroomId);
+                                    if (!classroomMatch) return false;
+
+                                    // Hide One-Time categories if already billed
+                                    if (c.frequency === 'ONE_TIME') {
+                                        const alreadyBilled = billings.some(b => b.studentId === selectedStudentId && b.categoryId === c.id);
+                                        if (alreadyBilled) return false;
+                                    }
+
+                                    return true;
                                 })
                                 .map(c => (
                                     <Option key={c.id} value={c.id}>
@@ -620,27 +629,36 @@ const StudentBilling = () => {
                                 maxTagCount="responsive"
                             >
                                 {(() => {
+                                    if (!selectedStudentId) return [];
                                     const selectedStudent = students.find(s => s.id === selectedStudentId);
-                                    const enrollmentDate = selectedStudent?.enrollmentDate ? dayjs(selectedStudent.enrollmentDate).startOf('month') : dayjs().startOf('month');
-                                    const sixMonthsAgo = dayjs().subtract(6, 'month').startOf('month');
+                                    if (!selectedStudent) return [];
+
+                                    const unbilledMonths = [];
+                                    // Start checking from 6 months ago to catch any missed past months
+                                    let checkDate = dayjs().subtract(6, 'month').startOf('month');
                                     
-                                    // Start from enrollment or 6 months ago, whichever is later
-                                    let startDate = enrollmentDate.isAfter(sixMonthsAgo) ? enrollmentDate : sixMonthsAgo;
-                                    
-                                    return Array.from({ length: 13 }, (_, i) => {
-                                        const date = startDate.add(i, 'month');
-                                        // Don't show more than 6 months into the future
-                                        if (date.isAfter(dayjs().add(6, 'month'))) return null;
+                                    // We want to find the FIRST 7 months that haven't been billed yet
+                                    // We search up to 24 months into the future to find them
+                                    for (let i = 0; unbilledMonths.length < 7 && i < 30; i++) {
+                                        const date = checkDate.add(i, 'month');
+                                        const monthValue = date.format('YYYY-MM');
+                                        const monthName = date.format('MMMM');
                                         
-                                        const value = date.format('YYYY-MM');
-                                        const humanName = date.format('MMMM');
-                                        return { value, humanName, label: date.format('MMMM YYYY') };
-                                    }).filter(Boolean);
-                                })()
-                                    .filter(opt => !billedMonthsForSelected.includes(opt.value) && !billedMonthsForSelected.includes(opt.humanName))
-                                    .map(opt => (
-                                        <Option key={opt.value} value={opt.value}>{opt.label}</Option>
-                                    ))}
+                                        // Check if already billed
+                                        const isBilled = billedMonthsForSelected.includes(monthValue) || 
+                                                         billedMonthsForSelected.includes(monthName);
+                                        
+                                        if (!isBilled) {
+                                            unbilledMonths.push({
+                                                value: monthValue,
+                                                label: date.format('MMMM YYYY')
+                                            });
+                                        }
+                                    }
+                                    return unbilledMonths;
+                                })().map(opt => (
+                                    <Option key={opt.value} value={opt.value}>{opt.label}</Option>
+                                ))}
                             </Select>
                         </Form.Item>
                     )}

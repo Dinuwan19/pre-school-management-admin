@@ -240,6 +240,9 @@ const MainLayout = () => {
                             onClick={() => setCollapsed(!collapsed)}
                             style={{ fontSize: '18px', width: 44, height: 44, marginRight: 16, color: colorText }}
                         />
+                        {collapsed && (
+                            <div style={{ width: 32, height: 32, background: '#7B57E4', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: 16, marginRight: 12 }}>M</div>
+                        )}
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>

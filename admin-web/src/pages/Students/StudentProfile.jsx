@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Typography, Row, Col, Avatar, Button, Tabs, Progress, List, Tag, Spin, message, Form, Divider, Statistic, Alert, Modal, Input, Select, DatePicker, Upload, Descriptions, Breadcrumb, Space, Empty, Image, theme } from 'antd';
 import {
-    UserOutlined, ArrowLeftOutlined, EditOutlined, PhoneOutlined,
+    UserOutlined, ArrowLeftOutlined, ArrowRightOutlined, EditOutlined, PhoneOutlined,
     EnvironmentOutlined, CalendarOutlined,
     DownloadOutlined, HeartOutlined, UploadOutlined,
     CheckCircleOutlined, InfoCircleOutlined, BookOutlined, BulbOutlined, MedicineBoxOutlined, HomeOutlined, PlusOutlined
@@ -43,6 +43,7 @@ const StudentProfile = () => {
     const [isAddSubSkillModalVisible, setIsAddSubSkillModalVisible] = useState(false);
     const [newSubSkillName, setNewSubSkillName] = useState('');
     const [addingSubSkill, setAddingSubSkill] = useState(false);
+    const [selectedYear, setSelectedYear] = useState(dayjs().year());
 
     const {
         token: { colorBgContainer, colorBorder, colorText, colorTextSecondary, colorBgLayout, colorPrimary, colorPrimaryBg, colorFillAlter },
@@ -858,7 +859,24 @@ const StudentProfile = () => {
             label: <span><MedicineBoxOutlined />Payments</span>,
             children: (
                 <div style={{ paddingTop: 16 }}>
-                    <Card size="small" title={<Text strong>12-Month Payment Overview ({dayjs().year()})</Text>} bordered={false} style={{ marginBottom: 16 }}>
+                    <Card size="small" title={
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Text strong>12-Month Payment Overview ({selectedYear})</Text>
+                            <Space>
+                                <Button 
+                                    size="small" 
+                                    icon={<ArrowLeftOutlined />} 
+                                    onClick={(e) => { e.stopPropagation(); setSelectedYear(selectedYear - 1); }} 
+                                />
+                                <Text strong style={{ minWidth: 40, textAlign: 'center' }}>{selectedYear}</Text>
+                                <Button 
+                                    size="small" 
+                                    icon={<ArrowRightOutlined />} 
+                                    onClick={(e) => { e.stopPropagation(); setSelectedYear(selectedYear + 1); }} 
+                                />
+                            </Space>
+                        </div>
+                    } bordered={false} style={{ marginBottom: 16 }}>
                         <div style={{ 
                             display: 'grid', 
                             gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', 
@@ -877,7 +895,7 @@ const StudentProfile = () => {
                                         // Match date formats like "2026-01"
                                         if (m.includes('-')) {
                                             const d = dayjs(m);
-                                            return d.isValid() && d.format('MMMM').toLowerCase() === month.toLowerCase() && d.year() === dayjs().year();
+                                            return d.isValid() && d.format('MMMM').toLowerCase() === month.toLowerCase() && d.year() === selectedYear;
                                         }
                                         return false;
                                     });
@@ -891,7 +909,7 @@ const StudentProfile = () => {
                                 // Check if the month is before enrollment
                                 const currentYear = dayjs().year();
                                 const monthIndex = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'].indexOf(month.toLowerCase());
-                                const gridDate = dayjs().year(currentYear).month(monthIndex).startOf('month');
+                                const gridDate = dayjs().year(selectedYear).month(monthIndex).startOf('month');
                                 const enrollmentDate = student.enrollmentDate ? dayjs(student.enrollmentDate).startOf('month') : null;
 
                                 const isBeforeEnrollment = enrollmentDate && gridDate.isBefore(enrollmentDate);
@@ -1002,6 +1020,25 @@ const StudentProfile = () => {
                 <Title level={4} style={{ margin: 0 }}>{student.fullName}</Title>
                 {student.status === 'INACTIVE' && <Tag color="error" style={{ borderRadius: 6, fontWeight: 700 }}>INACTIVE</Tag>}
                 <div style={{ flex: 1 }}></div>
+                {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'STAFF') && (
+                    <Space>
+                        <Button
+                            type="primary"
+                            icon={<EditOutlined />}
+                            onClick={() => {
+                                editForm.setFieldsValue({
+                                    ...student,
+                                    dob: student.dateOfBirth ? dayjs(student.dateOfBirth) : null,
+                                    enrollmentDate: student.enrollmentDate ? dayjs(student.enrollmentDate) : dayjs()
+                                });
+                                setIsEditModalVisible(true);
+                            }}
+                            style={{ borderRadius: 8, fontWeight: 600, background: '#7B57E4', border: 'none' }}
+                        >
+                            Edit Profile
+                        </Button>
+                    </Space>
+                )}
             </div>
 
             <Row gutter={24}>
