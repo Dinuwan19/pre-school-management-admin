@@ -38,8 +38,7 @@ const Students = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const params = {};
-            if (statusFilter) params.status = statusFilter;
+            const params = { status: 'ALL' };
 
             const [stuRes, classRes, parentRes] = await Promise.all([
                 api.get('/students', { params }),
@@ -226,7 +225,7 @@ Instructions:
         const matchesSearch = student.fullName.toLowerCase().includes(searchText.toLowerCase()) ||
             (student.studentUniqueId && student.studentUniqueId.toLowerCase().includes(searchText.toLowerCase()));
         const matchesClass = classroomFilter ? student.classroomId === classroomFilter : true;
-        return matchesSearch && matchesClass;
+        return matchesSearch && matchesClass && student.status === statusFilter;
     });
 
     const columns = [
@@ -295,28 +294,6 @@ Instructions:
                     >
                         View
                     </Button>
-                    <Button
-                        onClick={() => {
-                            editForm.setFieldsValue({
-                                ...record,
-                                dob: record.dateOfBirth ? dayjs(record.dateOfBirth) : null,
-                                enrollmentDate: record.enrollmentDate ? dayjs(record.enrollmentDate) : dayjs()
-                            });
-                            setEditingStudent(record);
-                            setIsEditModalVisible(true);
-                        }}
-                        style={{
-                            background: 'rgba(24, 144, 255, 0.1)',
-                            color: '#1890ff',
-                            border: 'none',
-                            fontWeight: 600,
-                            borderRadius: 8
-                        }}
-                        size="small"
-                        icon={<EditOutlined />}
-                    >
-                        Edit
-                    </Button>
                 </Space>
             ),
         },
@@ -371,7 +348,7 @@ Instructions:
                                 Manage Deactivations
                             </Button>
                         )}
-                        {['SUPER_ADMIN', 'ADMIN', 'STAFF'].includes(user?.role) && (
+                        {statusFilter === 'ACTIVE' && ['SUPER_ADMIN', 'ADMIN', 'STAFF'].includes(user?.role) && (
                             <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} style={{ borderRadius: 8, background: '#7B57E4', height: 40, fontWeight: 600 }}>
                                 Add Student
                             </Button>

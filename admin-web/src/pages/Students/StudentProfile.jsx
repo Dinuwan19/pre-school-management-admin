@@ -1002,25 +1002,6 @@ const StudentProfile = () => {
                 <Title level={4} style={{ margin: 0 }}>{student.fullName}</Title>
                 {student.status === 'INACTIVE' && <Tag color="error" style={{ borderRadius: 6, fontWeight: 700 }}>INACTIVE</Tag>}
                 <div style={{ flex: 1 }}></div>
-                {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'STAFF') && (
-                    <Space>
-                        <Button
-                            type="primary"
-                            icon={<EditOutlined />}
-                            onClick={() => {
-                                editForm.setFieldsValue({
-                                    ...student,
-                                    dob: student.dateOfBirth ? dayjs(student.dateOfBirth) : null,
-                                    enrollmentDate: student.enrollmentDate ? dayjs(student.enrollmentDate) : dayjs()
-                                });
-                                setIsEditModalVisible(true);
-                            }}
-                            style={{ borderRadius: 8, fontWeight: 600, background: '#7B57E4', border: 'none' }}
-                        >
-                            Edit Profile
-                        </Button>
-                    </Space>
-                )}
             </div>
 
             <Row gutter={24}>
