@@ -634,12 +634,22 @@ const StudentBilling = () => {
                                     if (!selectedStudent) return [];
 
                                     const unbilledMonths = [];
-                                    // Start checking from 6 months ago to catch any missed past months
-                                    let checkDate = dayjs().subtract(6, 'month').startOf('month');
+                                    
+                                    // Base date: Use enrollment date if available, otherwise start from current month
+                                    // If enrollment is in the future, start from enrollment.
+                                    // If enrollment is in the past, start from the earliest of (enrollment date, current month).
+                                    // However, we don't want to go back too far (max 3 months before current) to keep it clean.
+                                    
+                                    const enrollmentDate = selectedStudent.enrollmentDate ? dayjs(selectedStudent.enrollmentDate).startOf('month') : dayjs().startOf('month');
+                                    const threeMonthsAgo = dayjs().subtract(3, 'month').startOf('month');
+                                    const today = dayjs().startOf('month');
+
+                                    // Start from the latest of (enrollment date, 3 months ago)
+                                    // This ensures we catch recent missed payments but don't show 2025 if enrollment was in 2026.
+                                    let checkDate = enrollmentDate.isAfter(threeMonthsAgo) ? enrollmentDate : threeMonthsAgo;
                                     
                                     // We want to find the FIRST 7 months that haven't been billed yet
-                                    // We search up to 24 months into the future to find them
-                                    for (let i = 0; unbilledMonths.length < 7 && i < 30; i++) {
+                                    for (let i = 0; unbilledMonths.length < 7 && i < 36; i++) {
                                         const date = checkDate.add(i, 'month');
                                         const monthValue = date.format('YYYY-MM');
                                         const monthName = date.format('MMMM');
