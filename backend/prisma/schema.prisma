@@ -93,7 +93,7 @@ model classroom {
   notification    notification[]
   student         student[]
   billingcategory billingcategory[] @relation("billingcategorytoclassroom")
-  event           event[]           @relation("classroomtoevent")
+  events          event[]           @relation("classroomtoevent")
   teacherprofiles teacherprofile[]  @relation("classroomtoteacherprofile")
 }
 
@@ -136,7 +136,7 @@ model event {
   event_attendance   event_attendance[]
   event_media        event_media[]
   event_waiting_list event_waiting_list[]
-  classroom          classroom[]          @relation("classroomtoevent")
+  classrooms         classroom[]          @relation("classroomtoevent")
 
   @@index([createdById], map: "Event_createdById_fkey")
 }
