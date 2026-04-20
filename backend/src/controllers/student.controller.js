@@ -52,7 +52,7 @@ exports.createStudent = async (req, res, next) => {
         // Duplicate Check: Same name and same parent (Case Insensitive)
         const existingStudent = await prisma.student.findFirst({
             where: {
-                fullName: { equals: nameToUse, mode: 'insensitive' },
+                fullName: nameToUse,
                 parentId: parseInt(parentId),
                 status: 'ACTIVE'
             }
