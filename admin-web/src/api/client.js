@@ -24,15 +24,16 @@ export const getMediaUrl = (path) => {
     // Ensure path starts with a single /
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
     
-    // If it's an upload path, use the mediaBaseURL (root domain)
-    // app.js serves /uploads at the root and also at /api/uploads
+    // Remove trailing slash from apiURL if it exists
+    const base = apiURL.endsWith('/') ? apiURL.slice(0, -1) : apiURL;
+
+    // If it's an upload path, we must use the apiURL (which includes /api)
+    // because Nginx usually only forwards /api requests to the backend.
+    // The backend serves uploads at both /uploads and /api/uploads.
     if (normalizedPath.startsWith('/uploads/')) {
-        // Remove trailing slash from mediaBaseURL if it exists
-        const base = mediaBaseURL.endsWith('/') ? mediaBaseURL.slice(0, -1) : mediaBaseURL;
         return `${base}${normalizedPath}`;
     }
     
-    const base = apiURL.endsWith('/') ? apiURL.slice(0, -1) : apiURL;
     return `${base}${normalizedPath}`;
 };
 

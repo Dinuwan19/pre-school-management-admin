@@ -15,15 +15,24 @@ exports.generatePdfFromHtml = async (htmlContent, options = {}) => {
         });
 
         const page = await browser.newPage();
-        // Use networkidle2 which is more lenient with CDNs/external resources
-        await page.setContent(htmlContent, { waitUntil: 'networkidle2', timeout: 60000 });
+        
+        // Pipe browser console logs to server terminal for debugging
+        page.on('console', msg => console.log(`[Browser ${msg.type()}] ${msg.text()}`));
+        page.on('pageerror', err => console.error(`[Browser Error] ${err.message}`));
 
-        // Wait for charts to settle (animations etc) - increased for stability on slow servers
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Use domcontentloaded for faster initial render, then wait manually
+        await page.setContent(htmlContent, { waitUntil: 'domcontentloaded', timeout: 45000 });
+
+        // Wait specifically for the canvas to exist
+        await page.waitForSelector('canvas', { timeout: 10000 }).catch(() => console.log('Canvas not found in time'));
+
+        // Wait for charts and fonts to settle - 4 seconds for slow server connections
+        await new Promise(resolve => setTimeout(resolve, 4000));
 
         const pdfBuffer = await page.pdf({
             format: 'A4',
             printBackground: true,
+            preferCSSPageSize: true,
             margin: {
                 top: '15mm',
                 right: '15mm',
@@ -180,8 +189,14 @@ exports.generateStudentProgressTemplate = (data) => {
 
         /* Report Pages */
         .page {
-            padding: 40px;
+            padding: 30px;
             page-break-after: always;
+            border: 2px solid var(--primary);
+            margin: 5px;
+            min-height: 250mm;
+            position: relative;
+            background-color: #ffffff;
+            box-sizing: border-box;
         }
         .page:last-child { page-break-after: avoid; }
 
@@ -357,12 +372,14 @@ exports.generateAttendanceSummaryTemplate = (data) => {
         }
 
         .page {
-            padding: 40px;
+            padding: 30px;
             page-break-after: always;
             border: 2px solid var(--primary);
-            margin: 10px;
-            min-height: 270mm;
+            margin: 5px;
+            min-height: 250mm;
             position: relative;
+            background-color: #ffffff;
+            box-sizing: border-box;
         }
 
         .report-header {
@@ -467,6 +484,9 @@ exports.generateAttendanceSummaryTemplate = (data) => {
 </head>
 <body>
     <div class="page">
+        <!-- Debug Marker -->
+        <div style="font-size: 8px; color: #eee; position: absolute; top: 5px; right: 5px;">Report Engine v2.0-Stable</div>
+        
         <div class="report-header">
             <div class="report-title">Institutional Engagement Trends</div>
         </div>

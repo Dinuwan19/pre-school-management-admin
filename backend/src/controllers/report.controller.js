@@ -8,7 +8,9 @@ const reportService = require('../services/report.service');
 exports.generateReport = async (req, res, next) => {
     try {
         const { type, dateRange, studentId } = req.body;
-        const generatorName = req.user.fullName;
+        const generatorName = req.user?.fullName || 'Authorized Administrator';
+
+        console.log(`[Report] Starting generation for ${type} by ${generatorName}`);
 
         // 1. Determine Date Range
         let startDate, endDate;
