@@ -1,3 +1,6 @@
+const prisma = require('../config/prisma');
+const dayjs = require('dayjs');
+
 // Helper to map numerical scores to verbal development labels
 const scoreToLabel = (score) => {
     if (!score || score === '-') return '-';
