@@ -41,7 +41,6 @@ exports.generateReport = async (req, res, next) => {
             reportData = await reportService.getAttendanceSummaryData(startDate, endDate, generatorName);
             html = pdfService.generateAttendanceSummaryTemplate(reportData);
         } else if (type === 'Student Progress Report') {
-            if (!studentId) return res.status(400).json({ message: 'Student ID is required for Progress Reports' });
             reportData = await reportService.getStudentProgressReportData(studentId, generatorName);
             html = pdfService.generateStudentProgressTemplate(reportData);
         }
