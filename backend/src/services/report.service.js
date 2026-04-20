@@ -1,5 +1,9 @@
 const prisma = require('../config/prisma');
 const dayjs = require('dayjs');
+const isSameOrAfter = require('dayjs/plugin/isSameOrAfter');
+const isSameOrBefore = require('dayjs/plugin/isSameOrBefore');
+dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
 
 // Helper to map numerical scores to verbal development labels
 const scoreToLabel = (score) => {
