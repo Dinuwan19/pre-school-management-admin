@@ -315,12 +315,34 @@ const PaymentsScreen = ({ navigation }) => {
                                                         <CheckCircle2 size={12} color="#16A34A" />
                                                         <Text style={styles.paidText}>Paid</Text>
                                                     </View>
+                                                ) : (bill.status === 'REJECTED' || bill.billingpayment?.[0]?.payment?.status === 'REJECTED') ? (
+                                                    <View style={[styles.paidBadge, { backgroundColor: '#FEF2F2' }]}>
+                                                        <AlertCircle size={12} color="#EF4444" />
+                                                        <Text style={[styles.paidText, { color: '#EF4444' }]}>Rejected</Text>
+                                                    </View>
                                                 ) : (
                                                     <View style={[styles.paidBadge, { backgroundColor: '#FEF2F2' }]}>
                                                         <AlertCircle size={12} color="#EF4444" />
                                                         <Text style={[styles.paidText, { color: '#EF4444' }]}>Unpaid</Text>
                                                     </View>
                                                 )}
+                                            </View>
+                                            
+                                            {/* Rejection Reason Display */}
+                                            {(bill.status === 'REJECTED' || bill.billingpayment?.[0]?.payment?.status === 'REJECTED') && (
+                                                <View style={{ 
+                                                    marginTop: 10, 
+                                                    padding: 12, 
+                                                    backgroundColor: '#FEF2F2', 
+                                                    borderRadius: 12,
+                                                    borderWidth: 1,
+                                                    borderColor: '#FEE2E2'
+                                                }}>
+                                                    <Text style={{ fontSize: 12, color: '#EF4444', fontWeight: 'bold' }}>
+                                                        Reason: {bill.rejectionReason || bill.billingpayment?.[0]?.payment?.rejectionReason || 'No reason provided'}
+                                                    </Text>
+                                                </View>
+                                            )}
 
                                                 <TouchableOpacity 
                                                     style={styles.receiptBtn}

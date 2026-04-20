@@ -21,17 +21,19 @@ export const getMediaUrl = (path) => {
     if (!path) return null;
     if (path.startsWith('http')) return path;
     
-    // Ensure path doesn't start with /api if we are about to prepend apiURL
-    // The path in DB is usually /uploads/...
+    // Ensure path starts with a single /
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
     
-    // Use apiURL instead of mediaBaseURL to route static files through /api/uploads if needed
-    // In app.js we have app.use('/api/uploads', express.static(uploadsDir))
+    // If it's an upload path, use the mediaBaseURL (root domain)
+    // app.js serves /uploads at the root and also at /api/uploads
     if (normalizedPath.startsWith('/uploads/')) {
-        return `${apiURL}${normalizedPath}`;
+        // Remove trailing slash from mediaBaseURL if it exists
+        const base = mediaBaseURL.endsWith('/') ? mediaBaseURL.slice(0, -1) : mediaBaseURL;
+        return `${base}${normalizedPath}`;
     }
     
-    return `${mediaBaseURL}${normalizedPath}`;
+    const base = apiURL.endsWith('/') ? apiURL.slice(0, -1) : apiURL;
+    return `${base}${normalizedPath}`;
 };
 
 // Add a request interceptor to inject the JWT token

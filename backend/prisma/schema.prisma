@@ -221,6 +221,7 @@ model payment {
   transactionRef String?
   invoiceUrl     String?
   receiptNo      String?          @unique
+  rejectionReason String?          @db.Text
   billingpayment billingpayment[]
   user           user?            @relation(fields: [verifiedById], references: [id], map: "Payment_verifiedById_fkey")
 

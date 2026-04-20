@@ -94,6 +94,11 @@ exports.payBillingCash = async (req, res, next) => {
                 where: { id: payment.id },
                 data: { invoiceUrl }
             });
+            // Also update the billing record so it's directly accessible
+            await prisma.billing.update({
+                where: { id: billing.id },
+                data: { invoiceUrl }
+            });
         } catch (invError) {
             console.error('Cash Invoice Gen Error:', invError);
         }

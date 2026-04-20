@@ -407,11 +407,23 @@ const StudentBilling = () => {
             title: 'Status',
             dataIndex: 'status',
             key: 'status',
-            render: (status) => {
+            render: (status, record) => {
                 let color = 'gold';
                 if (status === 'PAID' || status === 'APPROVED') color = 'green';
                 if (status === 'UNPAID' || status === 'REJECTED') color = 'red';
-                return <Tag color={color} style={{ borderRadius: 10, padding: '0 12px' }}>{status}</Tag>
+                
+                const rejectionReason = record.rejectionReason || record.paymentInfo?.rejectionReason;
+
+                return (
+                    <Space direction="vertical" size={2}>
+                        <Tag color={color} style={{ borderRadius: 10, padding: '0 12px' }}>{status}</Tag>
+                        {status === 'REJECTED' && rejectionReason && (
+                            <Text type="danger" style={{ fontSize: 10, maxWidth: 150 }} ellipsis={{ tooltip: rejectionReason }}>
+                                Reason: {rejectionReason}
+                            </Text>
+                        )}
+                    </Space>
+                );
             }
         },
         {
@@ -490,7 +502,7 @@ const StudentBilling = () => {
                             shape="circle"
                             size="small"
                             onClick={() => {
-                                const invUrl = (record.paymentInfo || record).invoiceUrl;
+                                const invUrl = record.invoiceUrl || record.paymentInfo?.invoiceUrl || (record.billingpayment?.[0]?.payment?.invoiceUrl);
                                 if (invUrl) {
                                     const fullUrl = invUrl.startsWith('http') ? invUrl : getMediaUrl(invUrl);
                                     window.open(fullUrl, '_blank');

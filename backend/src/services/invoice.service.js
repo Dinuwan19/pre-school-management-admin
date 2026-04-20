@@ -90,7 +90,7 @@ exports.generateInvoice = async (paymentId) => {
         return new Promise((resolve, reject) => {
             const doc = new PDFDocument({ margin: 50 });
             let buffers = [];
-            doc.on('data', buffers.push.bind(buffers));
+            doc.on('data', chunk => buffers.push(chunk));
             doc.on('end', async () => {
                 const pdfData = Buffer.concat(buffers);
 

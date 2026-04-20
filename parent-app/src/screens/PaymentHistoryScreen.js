@@ -339,6 +339,8 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
             statusConfig = { color: '#059669', bg: '#ECFDF5', label: 'Paid', icon: <CheckCircle2 size={12} color="#059669" /> };
         } else if (item.status === 'PENDING') {
             statusConfig = { color: '#D97706', bg: '#FFFBEB', label: 'Pending Approval', icon: <AlertCircle size={12} color="#D97706" /> };
+        } else if (item.status === 'REJECTED') {
+            statusConfig = { color: '#DC2626', bg: '#FEF2F2', label: 'Rejected', icon: <X size={12} color="#DC2626" /> };
         } else if (isOverdue && isBilling) {
             statusConfig = { color: '#DC2626', bg: '#FEF2F2', label: 'Overdue', icon: <AlertCircle size={12} color="#DC2626" /> };
         }
@@ -408,6 +410,23 @@ const PaymentHistoryScreen = ({ navigation, route }) => {
                             {statusConfig.label}
                         </Text>
                     </View>
+                    
+                    {/* Rejection Reason Display */}
+                    {(item.status === 'REJECTED' || (isBilling && item.billingpayment?.[0]?.payment?.status === 'REJECTED')) && (
+                        <View style={{ 
+                            marginTop: 6, 
+                            padding: 8, 
+                            backgroundColor: '#FEF2F2', 
+                            borderRadius: 8,
+                            borderWidth: 1,
+                            borderColor: '#FEE2E2',
+                            maxWidth: width * 0.5
+                        }}>
+                            <Text style={{ fontSize: 11, color: '#DC2626', fontWeight: '600' }}>
+                                Rejected: {item.rejectionReason || item.billingpayment?.[0]?.payment?.rejectionReason || 'No reason provided'}
+                            </Text>
+                        </View>
+                    )}
 
                     {/* Download Link */}
                     {/* Unified Action Chip for Download */}

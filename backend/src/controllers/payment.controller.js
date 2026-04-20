@@ -1,6 +1,7 @@
 const prisma = require('../config/prisma');
 const { uploadFile } = require('../services/storage.service');
 const { getNextReceiptNo, generateInvoice } = require('../services/invoice.service');
+const dayjs = require('dayjs');
 
 exports.submitPayment = async (req, res, next) => {
     try {
@@ -231,7 +232,7 @@ exports.getPendingPayments = async (req, res, next) => {
 
 exports.verifyPayment = async (req, res, next) => {
     try {
-        const { paymentId, status } = req.body; // status: APPROVED or REJECTED
+        const { paymentId, status, rejectionReason } = req.body; // status: APPROVED or REJECTED
         const verifierId = req.user.id;
 
         let payment;
@@ -245,6 +246,7 @@ exports.verifyPayment = async (req, res, next) => {
                         status,
                         verifiedById: verifierId,
                         verifiedAt: new Date(),
+                        rejectionReason: status === 'REJECTED' ? rejectionReason : undefined,
                         receiptNo: status === 'APPROVED' ? await getNextReceiptNo() : undefined
                     },
                     include: { billingpayment: true }
@@ -289,7 +291,7 @@ exports.verifyPayment = async (req, res, next) => {
         });
 
         // REJECTION NOTIFICATION LOGIC
-        if (status === 'REJECTED' && req.body.rejectionReason) {
+        if (status === 'REJECTED' && rejectionReason) {
             try {
                 // Find student and parent associated with this payment
                 const firstBilling = await prisma.billing.findFirst({
