@@ -131,7 +131,7 @@ exports.getAttendanceSummaryData = async (startDate, endDate, generatorName) => 
     const step = isOver12Months ? 2 : 1;
     let current = start.startOf('month');
     
-    while (current.isBefore(end) || current.isSame(end, 'month')) {
+    while (current.isSameOrBefore(end, 'month')) {
         const periodStart = current.startOf('month');
         const periodEnd = isOver12Months ? current.add(1, 'month').endOf('month') : current.endOf('month');
         
