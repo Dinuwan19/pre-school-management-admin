@@ -41,12 +41,17 @@ exports.generateReport = async (req, res, next) => {
             reportData = await reportService.getAttendanceSummaryData(startDate, endDate, generatorName);
             html = pdfService.generateAttendanceSummaryTemplate(reportData);
         } else if (type === 'Student Progress Report') {
+            if (!studentId) {
+                return res.status(400).json({ message: 'Student selection is required for Progress Reports' });
+            }
             reportData = await reportService.getStudentProgressReportData(studentId, generatorName);
             html = pdfService.generateStudentProgressTemplate(reportData);
         }
 
+        console.log(`[Report] Generated data for ${type}:`, reportData ? 'SUCCESS' : 'NULL');
+
         if (!reportData || !html) {
-            return res.status(400).json({ message: 'Invalid report type or missing data' });
+            return res.status(400).json({ message: 'Failed to aggregate data for the selected report type' });
         }
 
         // 3. Generate PDF

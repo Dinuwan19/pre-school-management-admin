@@ -15,10 +15,11 @@ exports.generatePdfFromHtml = async (htmlContent, options = {}) => {
         });
 
         const page = await browser.newPage();
-        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+        // Use networkidle2 which is more lenient with CDNs/external resources
+        await page.setContent(htmlContent, { waitUntil: 'networkidle2', timeout: 60000 });
 
-        // Wait for charts to settle (animations etc)
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Wait for charts to settle (animations etc) - increased for stability on slow servers
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
         const pdfBuffer = await page.pdf({
             format: 'A4',
@@ -512,33 +513,42 @@ exports.generateAttendanceSummaryTemplate = (data) => {
     </div>
 
     <script>
-        const ctx = document.getElementById('attendanceChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'bar',
-            data: ${JSON.stringify(data.chartData)},
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                categoryPercentage: 0.8,
-                barPercentage: 0.9,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 25,
-                        ticks: { stepSize: 5, font: { family: 'Inter', weight: 'bold' } },
-                        grid: { color: '#F0F0F0' }
-                    },
-                    x: { 
-                        grid: { display: false },
-                        ticks: { font: { family: 'Inter', weight: 'bold' } }
+        try {
+            if (typeof Chart === 'undefined') {
+                document.body.innerHTML += '<div style="color: red; padding: 20px;">Error: Chart.js failed to load. Please check internet connection on server.</div>';
+            } else {
+                const ctx = document.getElementById('attendanceChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: ${JSON.stringify(data.chartData)},
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        categoryPercentage: 0.8,
+                        barPercentage: 0.9,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 25,
+                                ticks: { stepSize: 5, font: { family: 'Inter', weight: 'bold' } },
+                                grid: { color: '#F0F0F0' }
+                            },
+                            x: { 
+                                grid: { display: false },
+                                ticks: { font: { family: 'Inter', weight: 'bold' } }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        animation: false // Disable animation for instant PDF capture
                     }
-                },
-                plugins: {
-                    legend: { display: false }
-                }
+                });
             }
-        });
-        Chart.defaults.animation = false;
+        } catch (e) {
+            console.error('Chart Error:', e);
+            document.body.innerHTML += '<div style="color: red; padding: 20px;">Visualization Error: ' + e.message + '</div>';
+        }
     </script>
 </body>
 </html>
