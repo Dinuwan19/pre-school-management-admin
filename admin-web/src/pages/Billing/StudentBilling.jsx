@@ -502,7 +502,14 @@ const StudentBilling = () => {
                             shape="circle"
                             size="small"
                             onClick={() => {
-                                const invUrl = record.invoiceUrl || record.paymentInfo?.invoiceUrl || (record.billingpayment?.[0]?.payment?.invoiceUrl);
+                                // Enhanced logic: Check record direct field, then look through ALL linked payments
+                                let invUrl = record.invoiceUrl || record.paymentInfo?.invoiceUrl;
+                                
+                                if (!invUrl && record.billingpayment?.length > 0) {
+                                    const validPayment = record.billingpayment.find(bp => bp.payment?.invoiceUrl);
+                                    invUrl = validPayment?.payment?.invoiceUrl;
+                                }
+
                                 if (invUrl) {
                                     const fullUrl = invUrl.startsWith('http') ? invUrl : getMediaUrl(invUrl);
                                     window.open(fullUrl, '_blank');

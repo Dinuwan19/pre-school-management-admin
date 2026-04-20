@@ -1,5 +1,19 @@
+const multer = require('multer');
+
 const errorHandler = (err, req, res, next) => {
     console.error('Error:', err);
+
+    // Handle Multer Errors
+    if (err instanceof multer.MulterError) {
+        let message = 'File upload error';
+        if (err.code === 'LIMIT_FILE_SIZE') message = 'File is too large (Max 15MB)';
+        if (err.code === 'LIMIT_FILE_COUNT') message = 'Too many files uploaded at once';
+        
+        return res.status(400).json({
+            message,
+            error: 'UploadError'
+        });
+    }
 
     const statusCode = err.statusCode || 500;
     const message = err.message || 'Internal Server Error';

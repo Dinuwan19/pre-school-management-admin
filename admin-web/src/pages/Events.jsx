@@ -176,24 +176,19 @@ const Events = () => {
             console.log('[Events] Starting media upload with values:', values);
             const formData = new FormData();
             
-            // Extract file objects from Ant Design Upload component more robustly
-            // Ant Design Upload returns an object with a 'fileList' or sometimes just an array of files depending on version/config
-            const fileList = values.media?.fileList || (Array.isArray(values.media) ? values.media : []);
+            const fileList = values.media || [];
             
-            if (fileList.length === 0) {
+            if (!fileList || fileList.length === 0) {
                 message.warning('Please select at least one file to upload');
                 setSubmitting(false);
                 return;
             }
-
-            fileList.forEach((file, index) => {
-                // Some versions of Ant Design use file.originFileObj, others might just have the file
-                const actualFile = file.originFileObj || (file instanceof File ? file : null);
-                if (actualFile) {
-                    console.log(`[Events] Appending file ${index}: ${actualFile.name}`);
+            
+            fileList.forEach((file) => {
+                // Handle different ways Ant Design might structure the file object
+                const actualFile = file.originFileObj || file;
+                if (actualFile instanceof File || actualFile instanceof Blob) {
                     formData.append('media', actualFile);
-                } else {
-                    console.error('[Events] Could not find raw file object for:', file);
                 }
             });
 
