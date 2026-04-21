@@ -5,7 +5,8 @@ const fs = require('fs');
 const helmet = require('helmet');
 const morgan = require('morgan');
 require('dotenv').config();
-
+const swaggerUi = require('swagger-ui-express');
+const swaggerFile = require('../swagger-output.json');
 const authRoutes = require('./routes/auth.routes');
 const parentRoutes = require('./routes/parent.routes');
 const classroomRoutes = require('./routes/classroom.routes');
@@ -64,6 +65,9 @@ app.use('/api/reports', require('./routes/report.routes'));
 app.use('/api/events', require('./routes/event.routes'));
 app.use('/api/special-days', require('./routes/specialDay.routes'));
 app.use('/api/skills', require('./routes/skill.routes'));
+
+// Swagger Documentation Route
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 
 // Error Handler Middleware
 app.use(errorHandler);

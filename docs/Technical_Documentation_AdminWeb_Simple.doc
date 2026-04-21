@@ -1,0 +1,180 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head><title>Admin Web Simple Guide</title>
+<style>
+  body { font-family: 'Arial', sans-serif; line-height: 1.8; color: #333; font-size: 14pt; }
+  h1 { color: #1a237e; border-bottom: 4px solid #7B57E4; padding-bottom: 10px; font-size: 26pt; font-weight: bold; }
+  h2 { color: #7B57E4; margin-top: 40px; font-size: 22pt; background-color: #f3efff; padding: 10px; border-radius: 8px; }
+  h3 { color: #2c3e50; font-size: 18pt; margin-top: 25px; font-weight: bold; }
+  p { font-size: 14pt; margin-bottom: 15px; }
+  .box { background-color: #f9f9f9; padding: 20px; border-left: 6px solid #4CAF50; margin: 20px 0; border-radius: 5px; }
+  .code-box { background-color: #282c34; color: #abb2bf; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 12pt; white-space: pre-wrap; margin: 15px 0; }
+  .highlight { color: #e06c75; font-weight: bold; }
+  ul { margin-bottom: 20px; }
+  li { margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<h1>The Simple Guide to the Admin-Web Code</h1>
+<p><strong>Written in simple English for beginners to fully understand everything.</strong></p>
+
+<p>Hello! This document is a massive, step-by-step guide to everything inside your <code>admin-web</code> folder. We will explain every single file, how it works, and why it is there. We will use simple examples from real life (like restaurants, doors, and ID cards) to make the code easy to understand.</p>
+
+<div class="box">
+    <strong>Think of the whole system like a Restaurant:</strong><br>
+    <ul>
+        <li><strong>The Database:</strong> The Kitchen storage (where the food/data is kept).</li>
+        <li><strong>The Backend (Node.js):</strong> The Chefs (they cook the data and make it safe).</li>
+        <li><strong>The Frontend (Admin-Web):</strong> The Waiters and the Menus (this is what the customer sees and interacts with).</li>
+    </ul>
+    <p>In this document, we are ONLY talking about the <strong>Frontend (Admin-Web)</strong>.</p>
+</div>
+
+<hr>
+
+<h2>Chapter 1: How the App Starts (The Front Door)</h2>
+
+<h3>1. <code>index.html</code> (The Empty Room)</h3>
+<p>If you look at the <code>index.html</code> file, it is very small. It only has about 14 lines. The most important line is this:</p>
+<div class="code-box">&lt;div id="root"&gt;&lt;/div&gt;</div>
+<p><strong>What it does:</strong> Think of this like an empty room. HTML is just the building blocks of a webpage. But this page has nothing on it! It just has an invisible box called "root". React (the tool we use to build the website) will magically put the entire website inside this one empty box.</p>
+
+<h3>2. <code>src/main.jsx</code> (Turning on the Lights)</h3>
+<p>This is the very first piece of JavaScript code that runs. It finds that empty "root" box in the HTML and tells React, "Hey, put our App inside this box!"</p>
+<div class="code-box">ReactDOM.createRoot(document.getElementById('root')).render(&lt;App /&gt;)</div>
+<p><strong>What it does:</strong> It is like turning on the electricity for the house. After this file runs, the <code>App.jsx</code> file takes over.</p>
+
+<hr>
+
+<h2>Chapter 2: The Map of the Website (App.jsx)</h2>
+
+<p>The <code>App.jsx</code> file is like the Map of the building. It tells the website what page to show when the user types a specific web address (URL).</p>
+
+<h3>1. Routes (The Doors to Different Rooms)</h3>
+<p>Inside <code>App.jsx</code>, you will see a list of "Routes". A route connects a URL to a visual page.</p>
+<div class="code-box">&lt;Route path="/login" element={&lt;Login /&gt;} /&gt;
+&lt;Route path="/students" element={&lt;Students /&gt;} /&gt;</div>
+<p><strong>What it does:</strong> If the user goes to <code>www.yourwebsite.com/login</code>, it shows the Login component. If they go to <code>/students</code>, it shows the Students page.</p>
+
+<h3>2. Protected Routes (The Bouncer at the Door)</h3>
+<p>We do not want a random person to see the Students page. They must be logged in. So, we wrap the important pages in a "Protected Route".</p>
+<div class="code-box">&lt;ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}&gt;
+    &lt;Staff /&gt;
+&lt;/ProtectedRoute&gt;</div>
+<p><strong>What it does:</strong> This acts like a security guard (a bouncer). When someone tries to open the "Staff" page, the Protected Route asks, "Are you a Super Admin?" If the user is just a Teacher, the guard says "No!" and kicks them back to the dashboard.</p>
+
+<h3>3. The Design Theme (Dark Mode)</h3>
+<p>Also in <code>App.jsx</code>, you will see <code>&lt;ConfigProvider&gt;</code>. This is what colors the website.</p>
+<p><strong>What it does:</strong> It sets the main color to purple (<code>#7B57E4</code>). If the user clicks "Dark Mode", it changes the background to a very dark blue (Slate) instead of normal black. This makes the website look very expensive and premium.</p>
+
+<hr>
+
+<h2>Chapter 3: How the Website Remembers Things (Context)</h2>
+
+<p>Usually, when you refresh a webpage, it forgets everything. To stop it from forgetting who is logged in, we use "Context". Context is like the brain's memory for the website.</p>
+
+<h3>1. <code>context/AuthContext.jsx</code> (Remembering the User)</h3>
+<p>When a user logs in, the backend gives them a "Token" (like a VIP wristband). The <code>AuthContext</code> saves this VIP wristband into <code>localStorage</code> (a small invisible notebook inside Google Chrome).</p>
+<p><strong>What it does:</strong> When you refresh the page, the <code>AuthContext</code> quickly checks the browser's invisible notebook. If it finds the VIP wristband, it says, "Ah, welcome back Dinuwan!" without making you type your password again.</p>
+
+<h3>2. <code>context/ThemeContext.jsx</code> (Remembering Dark Mode)</h3>
+<p>This works the exact same way. If you click Dark Mode, it writes "theme = dark" into the browser's notebook. When you come back tomorrow, it reads the notebook and keeps the screen dark.</p>
+
+<hr>
+
+<h2>Chapter 4: The Phone Line to the Backend (api/client.js)</h2>
+
+<p>The frontend (Admin-Web) has no data. It has no students, no passwords, no money. It must call the Backend to ask for this data. It uses a tool called <strong>Axios</strong> to make these "phone calls".</p>
+
+<h3>1. The Setup</h3>
+<div class="code-box">const api = axios.create({
+    baseURL: 'https://malkakulufuturemind.me/api'
+});</div>
+<p><strong>What it does:</strong> This saves time. Instead of typing the full long web address every time we want data, we just say <code>api.get('/students')</code>. The computer knows to add the long part automatically.</p>
+
+<h3>2. The "Interceptor" (Showing the VIP Wristband)</h3>
+<p>If you call the backend and say "Give me the student list", the backend will say "Who are you? Prove it."</p>
+<div class="code-box">api.interceptors.request.use((config) =&gt; {
+    const token = localStorage.getItem('token'); // Get the wristband
+    config.headers.Authorization = `Bearer ${token}`; // Show it to the backend
+    return config;
+});</div>
+<p><strong>What it does:</strong> Every single time the frontend makes a phone call to the backend, this code stops the call for one second, grabs the VIP wristband (Token) from the browser's notebook, tapes it to the request, and sends it. Now the backend trusts you.</p>
+
+<h3>3. Handling Expired Wristbands (401 Error)</h3>
+<p>Tokens expire after 24 hours for security. If the token is expired, the backend sends an error called "401 Unauthorized".</p>
+<p><strong>What it does:</strong> Another piece of code in <code>client.js</code> is waiting for this exact 401 error. If it sees it, it immediately deletes your old wristband and kicks you to the <code>/login</code> page automatically.</p>
+
+<hr>
+
+<h2>Chapter 5: The Frame of the House (MainLayout.jsx)</h2>
+
+<p>When you look at the dashboard, you see a menu on the left (Sidebar) and a bar on the top (Header). The middle part changes when you click different links. The Sidebar and Header never change. They are inside <code>MainLayout.jsx</code>.</p>
+
+<h3>1. The Smart Sidebar</h3>
+<p>The sidebar menu is smart. It hides buttons based on who is looking at it.</p>
+<p><strong>Example:</strong> We have a variable called <code>userRole</code>. If <code>userRole === 'CASHIER'</code>, the sidebar hides the "Students" and "Homework" buttons, and ONLY shows the "Billing" buttons. This keeps the screen simple for the cashier.</p>
+
+<h3>2. The Notification Bell (Live Updates)</h3>
+<p>At the top right, there is a bell showing how many meetings are pending. How does it know?</p>
+<p><strong>What it does:</strong> It has a timer (<code>setInterval</code>). Every 5 minutes, it secretly calls the backend and asks, "Any new meetings?" If yes, it changes the red number on the bell. It does this quietly in the background without refreshing your screen.</p>
+
+<hr>
+
+<h2>Chapter 6: Component Guide - The Students Page</h2>
+
+<p>Let's look at <code>src/pages/Students/index.jsx</code>. This is a massive page. It has a big table of students, a search bar, and an "Add Student" button.</p>
+
+<h3>1. Fetching the Data (Promise.all)</h3>
+<p>To show the page, we need a list of Students, a list of Classrooms, and a list of Parents. If we asked for them one by one, it would be slow.</p>
+<p><strong>What it does:</strong> We use <code>Promise.all</code>. This tells the code to ask for Students, Classrooms, and Parents <em>at the exact same time</em>. It makes the website load three times faster!</p>
+
+<h3>2. Adding a Student (Form Validation)</h3>
+<p>When you click "Add Student", a popup box (Modal) appears. This is a Form.</p>
+<p><strong>Validation Logic:</strong> We do not want bad data in the database. So, the frontend checks the data before sending it.</p>
+<ul>
+    <li><strong>Required:</strong> If you leave the "Name" blank, it turns red and says "Name is required". The form refuses to send.</li>
+    <li><strong>Age Check:</strong> When you pick a Date of Birth, the frontend does math. If the child is 2 years old or 8 years old, it turns red and says "Must be between 3 and 6 years old".</li>
+    <li><strong>NIC Format:</strong> For parents, it checks if the ID is exactly 9 numbers plus a 'V' (old style), or exactly 12 numbers (new style). If you type "123", it stops you immediately.</li>
+</ul>
+
+<h3>3. Uploading Photos (Files vs Text)</h3>
+<p>Sending text (like a name) is easy. Sending an image (like a student photo) is hard. Computers treat images as big blocks of binary data.</p>
+<p><strong>What it does:</strong> When you upload a picture, the code has to dig deep into the Ant Design upload box to find the raw "File" object. It then packs it into a special suitcase called <code>FormData</code>. It tells the backend, "Hey, I am not sending normal text, I am sending a heavy file (multipart/form-data)!"</p>
+
+<h3>4. Quick Add Parent (Magic UI)</h3>
+<p>Imagine you are filling out a huge form for a new student. You get to the "Select Parent" box, but you realize the parent isn't in the system yet! Oh no! If you close the box, you lose all your typed text.</p>
+<p><strong>What it does:</strong> We built a "New" button next to the parent box. When you click it, a second popup appears. You type the parent details and save. The magic part: The code takes the ID of the new parent and <em>automatically selects it</em> in the first form behind it. You never lose your work.</p>
+
+<hr>
+
+<h2>Chapter 7: Component Guide - Billing & Payments</h2>
+
+<p>The Billing page (<code>StudentBilling.jsx</code>) is where the cashier works. It has to be very strict.</p>
+
+<h3>1. Visual Tags (Green vs Red)</h3>
+<p>In the billing table, the code looks at the word "PAID". If it sees "PAID", it wraps it in a Green Tag. If it sees "OVERDUE", it wraps it in a Red Tag. This helps the cashier see who owes money instantly.</p>
+
+<h3>2. Auto-filling the Payment Form</h3>
+<p>When the cashier clicks "Pay Now" on a $50 fee, a popup opens. They shouldn't have to type "50" manually (they might make a mistake and type 5).</p>
+<p><strong>What it does:</strong> The code uses <code>form.setFieldsValue({ amount: 50 })</code>. This forces the popup form to pre-fill the exact amount the student owes before the cashier even sees it.</p>
+
+<hr>
+
+<h2>Chapter 8: Summary of Best Practices (Rules)</h2>
+
+<p>If you or another developer want to change this code in the future, you must follow these rules:</p>
+<ol>
+    <li><strong>Always use Try / Catch:</strong> When calling the backend, things can fail (internet goes down). Always wrap it in a <code>try { ... } catch { ... }</code> so the website doesn't crash. Show an error message beautifully.</li>
+    <li><strong>Always use "finally" to stop loading:</strong> When you click a button, a spinning circle appears (loading = true). If it succeeds, it stops. If it fails, it MUST ALSO STOP. We put <code>setLoading(false)</code> in a <code>finally</code> block so the spinner always stops.</li>
+    <li><strong>Use Ant Design Forms:</strong> Never use normal HTML <code>&lt;input&gt;</code> tags. They are dumb. Always use <code>&lt;Form.Item&gt;</code> because it has built-in smart validation (error checking).</li>
+    <li><strong>Keep Colors in the Theme:</strong> Do not write <code>color: purple</code> inside components. Always rely on the global <code>ThemeContext</code> and App.jsx so Dark Mode continues to work perfectly everywhere.</li>
+</ol>
+
+<div class="box">
+    <strong>Final Thought:</strong><br>
+    The Admin-Web is like a very smart, very secure receptionist desk. It remembers who you are, it checks your math before sending it to the boss (backend), it changes its colors to be easy on your eyes, and it only shows you the buttons you are allowed to press!
+</div>
+
+</body>
+</html>
